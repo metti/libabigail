@@ -53,6 +53,14 @@ set_show_locs(write_context& ctxt, bool flag);
 void
 set_annotate(write_context& ctxt, bool flag);
 
+template <typename OPTS>
+void
+set_opts(write_context& ctxt, const OPTS& opts)
+{
+  set_annotate(ctxt, opts.annotate);
+  set_show_locs(ctxt, opts.show_locs);
+}
+
 void
 set_ostream(write_context& ctxt, ostream& os);
 
