@@ -168,6 +168,7 @@ class write_context
   bool					m_write_architecture;
   bool					m_write_corpus_path;
   bool					m_write_comp_dir;
+  bool					m_short_locs;
   mutable type_ptr_map			m_type_id_map;
   mutable type_ptr_set_type		m_emitted_type_set;
   type_ptr_set_type			m_emitted_decl_only_set;
@@ -199,7 +200,8 @@ public:
       m_show_locs(true),
       m_write_architecture(true),
       m_write_corpus_path(true),
-      m_write_comp_dir(true)
+      m_write_comp_dir(true),
+      m_short_locs(false)
   {}
 
   /// Getter of the environment we are operating from.
@@ -283,6 +285,19 @@ public:
   set_write_comp_dir(bool f)
   {m_write_comp_dir = f;}
 
+  /// Getter of the short-locs option.
+  ///
+  /// @return true iff short locations shall be emitted
+  bool
+  get_short_locs()
+  {return m_short_locs;}
+
+  /// Setter of the short-locs option
+  ///
+  /// @param f the new value of the flag.
+  void
+  set_short_locs(bool f)
+  {m_short_locs = f;}
 
   /// Getter of the "show-locs" option.
   ///
@@ -792,6 +807,7 @@ static bool write_class_tdecl
 static void	do_indent(ostream&, unsigned);
 static void	do_indent_to_level(write_context&, unsigned, unsigned);
 static unsigned get_indent_to_level(write_context&, unsigned, unsigned);
+static std::string get_filename(const std::string&);
 
 /// Emit nb_whitespaces white spaces into the output stream.
 void
@@ -1107,6 +1123,11 @@ write_location(const location& loc, write_context& ctxt)
   loc.expand(filepath, line, column);
 
   ostream &o = ctxt.get_ostream();
+
+  if (ctxt.get_short_locs())
+    {
+      filepath = get_filename(filepath);
+    }
 
   o << " filepath='" << xml::escape_xml_string(filepath) << "'"
     << " line='"     << line     << "'"
@@ -1848,6 +1869,18 @@ void
 set_write_comp_dir(write_context& ctxt, bool flag)
 {ctxt.set_write_comp_dir(flag);}
 
+/// Set the 'short-locs' flag.
+///
+/// When this flag is set then the XML writer will emit only file names
+/// rather than full paths.
+///
+/// @param ctxt the context to set this flag on to.
+///
+/// @param flag the new value of the 'short-locs' flag.
+void
+set_short_locs(write_context& ctxt, bool flag)
+{ctxt.set_short_locs(flag);}
+
 /// Serialize a translation unit to an output stream.
 ///
 /// @param ctxt the context of the serialization.  It contains e.g,
@@ -1877,8 +1910,11 @@ write_translation_unit(write_context&	       ctxt,
   if (tu.get_address_size() != 0)
     o << " address-size='" << static_cast<int>(tu.get_address_size()) << "'";
 
-  if (!tu.get_path().empty())
-    o << " path='" << xml::escape_xml_string(tu.get_path()) << "'";
+  std::string tu_path = tu.get_path();
+  if (ctxt.get_short_locs())
+    tu_path = get_filename(tu_path);
+  if (!tu_path.empty())
+    o << " path='" << xml::escape_xml_string(tu_path) << "'";
 
   if (!tu.get_compilation_dir_path().empty() && ctxt.get_write_comp_dir())
     o << " comp-dir-path='"
@@ -4166,6 +4202,13 @@ write_corpus_to_archive(const corpus_sptr corp, const bool annotate)
 
 #endif //WITH_ZIP_ARCHIVE
 
+static std::string
+get_filename(const std::string& path)
+{
+  size_t pos = path.rfind('/');
+  return path.substr(pos != std::string::npos ? pos + 1 : 0);
+}
+
 /// Serialize an ABI corpus to a single native xml document.  The root
 /// note of the resulting XML document is 'abi-corpus'.
 ///
@@ -4197,15 +4240,14 @@ write_corpus(write_context&	ctxt,
   if (!ctxt.get_write_corpus_path())
     {
       if (member_of_group)
-	{
-	  size_t pos = corpus_path.rfind('/');
-	  corpus_path
-	      = corpus_path.substr(pos != std::string::npos ? pos + 1 : 0);
-	}
+	corpus_path = get_filename(corpus_path);
       else
-	{
-	  corpus_path.clear();
-	}
+	corpus_path.clear();
+    }
+  else
+    {
+      if (ctxt.get_short_locs())
+	corpus_path = get_filename(corpus_path);
     }
   if (!corpus_path.empty())
     out << " path='" << xml::escape_xml_string(corpus_path) << "'";

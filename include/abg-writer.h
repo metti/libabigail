@@ -62,6 +62,9 @@ set_write_corpus_path(write_context& ctxt, bool flag);
 void
 set_write_comp_dir(write_context& ctxt, bool flag);
 
+void
+set_short_locs(write_context& ctxt, bool flag);
+
 template <typename OPTS>
 void
 set_opts(write_context& ctxt, const OPTS& opts)
@@ -71,6 +74,7 @@ set_opts(write_context& ctxt, const OPTS& opts)
   set_write_architecture(ctxt, opts.write_architecture);
   set_write_corpus_path(ctxt, opts.write_corpus_path);
   set_write_comp_dir(ctxt, opts.write_comp_dir);
+  set_short_locs(ctxt, opts.short_locs);
 }
 
 void
