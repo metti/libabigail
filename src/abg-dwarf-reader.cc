@@ -7595,12 +7595,16 @@ public:
   /// section header (i.e. the symbol position as we are reading the first
   /// symbol).
   ///
+  /// If symbol_offset is != 0, adjust the position we consider the section
+  /// start. That is useful to read the ksymtab with a slight offset.
+  ///
   /// @return the symbol resulting from the lookup of the symbol address we
   /// got from reading the first entry of the ksymtab or null if no such entry
   /// could be found.
   elf_symbol_sptr
   try_reading_first_ksymtab_entry(Elf_Scn* section,
-				  bool	   position_relative_relocations) const
+				  bool	   position_relative_relocations,
+				  int	   symbol_offset = 0) const
   {
     Elf_Data*	    elf_data = elf_rawdata(section, 0);
     uint8_t*	    bytes = reinterpret_cast<uint8_t*>(elf_data->d_buf);
@@ -7614,6 +7618,9 @@ public:
     else
       symbol_value_size = architecture_word_size();
 
+    const int read_offset = (symbol_offset * symbol_value_size);
+    bytes += read_offset;
+
     if (position_relative_relocations)
       {
 	int32_t offset = 0;
@@ -7621,7 +7628,11 @@ public:
 						is_big_endian, offset));
 	GElf_Shdr section_header;
 	gelf_getshdr(section, &section_header);
-	symbol_address = offset + section_header.sh_addr;
+	// the actual symbol address is relative to its position. Since we do
+	// not know the position, we take the beginning of the section, add the
+	// read_offset that we might have and finally apply the offset we
+	// read from the section.
+	symbol_address = section_header.sh_addr + read_offset + offset;
       }
     else
       {
@@ -7813,8 +7824,62 @@ public:
   get_ksymtab_entry_size() const
   {
     if (ksymtab_entry_size_ == 0)
-      // The entry size if 2 *  symbol_value_size.
-      ksymtab_entry_size_ = 2 * get_ksymtab_symbol_value_size();
+      {
+	const unsigned char symbol_size = get_ksymtab_symbol_value_size();
+	Elf_Scn*	    ksymtab = find_any_ksymtab_section();
+	if (ksymtab)
+	  {
+	    GElf_Shdr ksymtab_shdr;
+	    gelf_getshdr(ksymtab, &ksymtab_shdr);
+
+	    // ksymtab entries have the following layout
+	    //
+	    // struct {
+	    //  T symbol_address;  // .symtab entry
+	    //  T name_address;    // .strtab entry
+	    // }
+	    //
+	    // with T being a suitable type to represent the absolute,
+	    // relocatable or position relative value of the address. T's size
+	    // is determined by get_ksymtab_symbol_value_size().
+	    //
+	    // Since Kernel v5.4, the entries have the following layout
+	    //
+	    // struct {
+	    //  T symbol_address;  // .symtab entry
+	    //  T name_address;    // .strtab entry
+	    //  T namespace;       // .strtab entry
+	    // }
+	    //
+	    // To determine the ksymtab entry size, find the next entry that
+	    // refers to a valid .symtab entry. The offset to that one is what
+	    // we are searching for.
+	    for (unsigned entries = 2; entries <= 3; ++entries)
+	      {
+		// if there is exactly one entry, section size == entry size
+		// (this looks like an optimization, but in fact it prevents
+		// from illegal reads if there is actually only one entry)
+		if (ksymtab_shdr.sh_size == entries * symbol_size)
+		  {
+		    ksymtab_entry_size_ = ksymtab_shdr.sh_size;
+		    break;
+		  }
+
+		// otherwise check whether the symbol following the candidate
+		// number of entries is a valid ELF symbol. For that we read
+		// the ksymtab with the given offset and if the symbol is
+		// valid, we found our entry size.
+		const ksymtab_format format = get_ksymtab_format();
+		if (try_reading_first_ksymtab_entry(
+			ksymtab, format == V4_19_KSYMTAB_FORMAT, entries))
+		  {
+		    ksymtab_entry_size_ = entries * symbol_size;
+		    break;
+		  }
+	      }
+	    ABG_ASSERT(ksymtab_entry_size_ != 0);
+	  }
+      }
 
     return ksymtab_entry_size_;
   }
