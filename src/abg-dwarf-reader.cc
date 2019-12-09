@@ -8168,14 +8168,15 @@ public:
 			= fun_syms().find(name);
 		    if (it != fun_syms().end())
 		      {
-			symbol = it->second[0];
+			symbol = it->second[0]->get_main_symbol();
 			for (I = fun_addr_sym_map().begin(),
 			    E = fun_addr_sym_map().end();
 			     I != E; ++I)
 			  {
-			    if (I->second->get_name() == name)
+			    if (I->second->get_name() == symbol->get_name())
 			      {
 				adjusted_symbol_address = I->first;
+				break;
 			      }
 			  }
 		      }
@@ -8187,14 +8188,15 @@ public:
 			it = var_syms().find(name);
 			if (it != var_syms().end())
 			  {
-			    symbol = it->second[0];
+			    symbol = it->second[0]->get_main_symbol();
 			    for (I = var_addr_sym_map().begin(),
 				E = var_addr_sym_map().end();
 				 I != E; ++I)
 			      {
-				if (I->second->get_name() == name)
+				if (I->second->get_name() == symbol->get_name())
 				  {
 				    adjusted_symbol_address = I->first;
+				    break;
 				  }
 			      }
 			  }
