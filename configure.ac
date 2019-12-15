@@ -41,6 +41,7 @@ VERSION_REVISION=0
 AC_SUBST(VERSION_MAJOR)
 AC_SUBST(VERSION_MINOR)
 AC_SUBST(VERSION_REVISION)
+AC_SUBST(VERSION_SUFFIX)
 
 AC_ARG_ENABLE(rpm,
 	      AS_HELP_STRING([--enable-rpm=yes|no|auto],
@@ -872,7 +873,7 @@ AC_OUTPUT
 
 AC_MSG_NOTICE([
 =====================================================================
-	Libabigail: $VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION
+	Libabigail: $VERSION_MAJOR.$VERSION_MINOR.$VERSION_REVISION$VERSION_SUFFIX
 =====================================================================
 
 		Here is the configuration of the package:
