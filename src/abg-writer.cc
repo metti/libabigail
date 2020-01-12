@@ -4298,6 +4298,9 @@ write_corpus(write_context&	ctxt,
   if (!corpus)
     return false;
 
+  if (corpus->is_empty())
+    return true;
+
   do_indent_to_level(ctxt, indent, 0);
 
   std::ostream& out = ctxt.get_ostream();
@@ -4328,12 +4331,6 @@ write_corpus(write_context&	ctxt,
 
   if (!corpus->get_soname().empty())
     out << " soname='" << corpus->get_soname()<< "'";
-
-  if (corpus->is_empty())
-    {
-      out << "/>\n";
-      return true;
-    }
 
   out << ">\n";
 
