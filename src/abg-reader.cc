@@ -25,6 +25,7 @@
 /// ABI Instrumentation file in libabigail native XML format.  This
 /// native XML format is named "abixml".
 
+#include "abg-fwd.h"
 #include "config.h"
 #include <cstring>
 #include <cstdlib>
@@ -1799,32 +1800,29 @@ read_corpus_from_input(read_context& ctxt)
 				       BAD_CAST("abi-corpus")))
 	return nil;
 
-      if (!ctxt.get_corpus())
-	{
-	  corpus_sptr c(new corpus(ctxt.get_environment(), ""));
-	  ctxt.set_corpus(c);
-	}
+      corpus_sptr corp(new corpus(ctxt.get_environment(), ""));
+      ctxt.set_corpus(corp);
 
       if (!ctxt.get_corpus_group())
 	ctxt.clear_per_corpus_data();
 
-      corpus& corp = *ctxt.get_corpus();
-      ctxt.set_exported_decls_builder(corp.get_exported_decls_builder().get());
+      ctxt.set_exported_decls_builder(
+	  corp->get_exported_decls_builder().get());
 
       xml::xml_char_sptr path_str = XML_READER_GET_ATTRIBUTE(reader, "path");
       if (path_str)
-	corp.set_path(reinterpret_cast<char*>(path_str.get()));
+	corp->set_path(reinterpret_cast<char*>(path_str.get()));
 
       xml::xml_char_sptr architecture_str =
 	XML_READER_GET_ATTRIBUTE(reader, "architecture");
       if (architecture_str)
-	corp.set_architecture_name
+	corp->set_architecture_name
 	  (reinterpret_cast<char*>(architecture_str.get()));
 
       xml::xml_char_sptr soname_str =
 	XML_READER_GET_ATTRIBUTE(reader, "soname");
       if (soname_str)
-	corp.set_soname(reinterpret_cast<char*>(soname_str.get()));
+	corp->set_soname(reinterpret_cast<char*>(soname_str.get()));
 
       node = xmlTextReaderExpand(reader.get());
       if (!node)
@@ -1834,32 +1832,29 @@ read_corpus_from_input(read_context& ctxt)
     }
   else
     {
-      if (!ctxt.get_corpus())
-	{
-	  corpus_sptr c(new corpus(ctxt.get_environment(), ""));
-	  ctxt.set_corpus(c);
-	}
+      corpus_sptr corp(new corpus(ctxt.get_environment(), ""));
+      ctxt.set_corpus(corp);
 
       if (!ctxt.get_corpus_group())
 	ctxt.clear_per_corpus_data();
 
-      corpus& corp = *ctxt.get_corpus();
-      ctxt.set_exported_decls_builder(corp.get_exported_decls_builder().get());
+      ctxt.set_exported_decls_builder(
+	  corp->get_exported_decls_builder().get());
 
       xml::xml_char_sptr path_str = XML_NODE_GET_ATTRIBUTE(node, "path");
       if (path_str)
-	corp.set_path(reinterpret_cast<char*>(path_str.get()));
+	corp->set_path(reinterpret_cast<char*>(path_str.get()));
 
       xml::xml_char_sptr architecture_str =
 	XML_NODE_GET_ATTRIBUTE(node, "architecture");
       if (architecture_str)
-	corp.set_architecture_name
+	corp->set_architecture_name
 	  (reinterpret_cast<char*>(architecture_str.get()));
 
       xml::xml_char_sptr soname_str =
 	XML_NODE_GET_ATTRIBUTE(node, "soname");
       if (soname_str)
-	corp.set_soname(reinterpret_cast<char*>(soname_str.get()));
+	corp->set_soname(reinterpret_cast<char*>(soname_str.get()));
     }
 
   if (!node->children)
@@ -1961,14 +1956,10 @@ read_corpus_group_from_input(read_context& ctxt)
 				   BAD_CAST("abi-corpus-group")))
     return nil;
 
-  if (!ctxt.get_corpus_group())
-    {
-      corpus_group_sptr g(new corpus_group(ctxt.get_environment(),
-					   ctxt.get_path()));
-      ctxt.set_corpus_group(g);
-    }
+  corpus_group_sptr group(
+      new corpus_group(ctxt.get_environment(), ctxt.get_path()));
+  ctxt.set_corpus_group(group);
 
-  corpus_group_sptr group = ctxt.get_corpus_group();
   xml::xml_char_sptr path_str = XML_READER_GET_ATTRIBUTE(reader, "path");
   if (path_str)
     group->set_path(reinterpret_cast<char*>(path_str.get()));
@@ -1983,11 +1974,11 @@ read_corpus_group_from_input(read_context& ctxt)
 
   corpus_sptr corp;
   while ((corp = read_corpus_from_input(ctxt)))
-    ctxt.get_corpus_group()->add_corpus(corp);
+    group->add_corpus(corp);
 
   xmlTextReaderNext(reader.get());
 
-  return ctxt.get_corpus_group();
+  return group;
 }
 
 /// De-serialize an ABI corpus group from an input XML document which
