@@ -2065,7 +2065,8 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 
   if (ctxt->show_changed_vars())
     {
-      size_t num_changed = s.num_vars_changed() - s.num_changed_vars_filtered_out();
+      size_t num_changed =
+	s.num_vars_changed() - s.num_changed_vars_filtered_out();
       if (num_changed == 1)
 	out << indent << "1 Changed variable:\n\n";
       else if (num_changed > 1)
@@ -2243,6 +2244,11 @@ default_reporter::report(const corpus_diff& d, ostream& out,
       if (sorted_added_unrefed_var_syms.size())
 	out << '\n';
     }
+
+  // Report added/removed/changed types not reacheable from public
+  // interfaces.
+
+  maybe_report_unreachable_type_changes(d, s, indent, out);
 
   d.priv_->maybe_dump_diff_tree();
 }

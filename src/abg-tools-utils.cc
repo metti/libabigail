@@ -1898,39 +1898,42 @@ gen_suppr_spec_from_headers(const string& headers_root_dir)
 ///
 /// @return a vector or suppressions
 suppressions_type
-gen_suppr_spec_from_kernel_abi_whitelists(
-    const std::vector<std::string>& abi_whitelist_paths)
+gen_suppr_spec_from_kernel_abi_whitelists
+   (const std::vector<std::string>& abi_whitelist_paths)
 {
 
   std::vector<std::string> whitelisted_names;
-  for (std::vector<std::string>::const_iterator path_iter
-       = abi_whitelist_paths.begin(),
-       path_end = abi_whitelist_paths.end();
-       path_iter != path_end; ++path_iter)
+  for (std::vector<std::string>::const_iterator
+	   path_iter = abi_whitelist_paths.begin(),
+	   path_end = abi_whitelist_paths.end();
+       path_iter != path_end;
+       ++path_iter)
     {
 
       abigail::ini::config whitelist;
       if (!read_config(*path_iter, whitelist))
 	continue;
 
-      const ini::config::sections_type& whitelist_sections
-	  = whitelist.get_sections();
+      const ini::config::sections_type& whitelist_sections =
+	  whitelist.get_sections();
 
-      for (ini::config::sections_type::const_iterator section_iter
-	   = whitelist_sections.begin(),
-	   section_end = whitelist_sections.end();
-	   section_iter != section_end; ++section_iter)
+      for (ini::config::sections_type::const_iterator
+	       section_iter = whitelist_sections.begin(),
+	       section_end = whitelist_sections.end();
+	   section_iter != section_end;
+	   ++section_iter)
 	{
 	  std::string section_name = (*section_iter)->get_name();
 	  if (!string_ends_with(section_name, "whitelist"))
 	    continue;
-	  for (ini::config::properties_type::const_iterator prop_iter
-	       = (*section_iter)->get_properties().begin(),
-	       prop_end = (*section_iter)->get_properties().end();
-	       prop_iter != prop_end; ++prop_iter)
+	  for (ini::config::properties_type::const_iterator
+		   prop_iter = (*section_iter)->get_properties().begin(),
+		   prop_end = (*section_iter)->get_properties().end();
+	       prop_iter != prop_end;
+	       ++prop_iter)
 	    {
-	      if (const simple_property_sptr& prop
-		  = is_simple_property(*prop_iter))
+	      if (const simple_property_sptr& prop =
+		      is_simple_property(*prop_iter))
 		if (prop->has_empty_value())
 		  {
 		    const std::string& name = prop->get_name();
@@ -1946,18 +1949,19 @@ gen_suppr_spec_from_kernel_abi_whitelists(
     {
       // Drop duplicates to simplify the regex we are generating
       std::sort(whitelisted_names.begin(), whitelisted_names.end());
-      whitelisted_names.erase(
-	  std::unique(whitelisted_names.begin(), whitelisted_names.end()),
-	  whitelisted_names.end());
+      whitelisted_names.erase(std::unique(whitelisted_names.begin(),
+					  whitelisted_names.end()),
+			      whitelisted_names.end());
 
-      // Build the regular expression to suppress non whitelisted symbols.
+      // Build a regular expression representing the union of all
+      // the function and variable names expressed in the white list.
       std::stringstream regex_ss;
       regex_ss << "^";
       std::copy(whitelisted_names.begin(), whitelisted_names.end(),
 		std::ostream_iterator<std::string>(regex_ss, "$|^"));
       regex_ss.seekp(0, std::ios::end);
-      const std::string& regex = regex_ss.str().substr(
-	  0, static_cast<size_t>(regex_ss.tellp()) - 2);
+      const std::string& regex =
+	  regex_ss.str().substr(0, static_cast<size_t>(regex_ss.tellp()) - 2);
 
       // Build a suppression specification which *keeps* functions
       // whose ELF symbols match the regular expression contained
@@ -2158,8 +2162,8 @@ load_generate_apply_suppressions(dwarf_reader::read_context &read_ctxt,
 	   ++i)
 	read_suppressions(*i, supprs);
 
-      const suppressions_type& wl_suppr
-	  = gen_suppr_spec_from_kernel_abi_whitelists(kabi_whitelist_paths);
+      const suppressions_type& wl_suppr =
+	  gen_suppr_spec_from_kernel_abi_whitelists(kabi_whitelist_paths);
 
       supprs.insert(supprs.end(), wl_suppr.begin(), wl_suppr.end());
     }

@@ -376,8 +376,8 @@ set_suppressions(read_context& read_ctxt, options& opts)
     supprs.push_back(suppr);
 
   using abigail::tools_utils::gen_suppr_spec_from_kernel_abi_whitelists;
-  const suppressions_type& wl_suppr
-      = gen_suppr_spec_from_kernel_abi_whitelists(opts.kabi_whitelist_paths);
+  const suppressions_type& wl_suppr =
+      gen_suppr_spec_from_kernel_abi_whitelists(opts.kabi_whitelist_paths);
 
   opts.kabi_whitelist_supprs.insert(opts.kabi_whitelist_supprs.end(),
 				    wl_suppr.begin(), wl_suppr.end());

@@ -87,8 +87,8 @@ suppr::type_suppression_sptr
 gen_suppr_spec_from_headers(const string& hdrs_root_dir);
 
 suppr::suppressions_type
-gen_suppr_spec_from_kernel_abi_whitelists(
-    const std::vector<string>& abi_whitelist_paths);
+gen_suppr_spec_from_kernel_abi_whitelists
+   (const vector<string>& abi_whitelist_paths);
 
 bool
 get_vmlinux_path_from_kernel_dist(const string&	from,

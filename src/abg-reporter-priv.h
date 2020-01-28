@@ -20,11 +20,11 @@
 //
 // Author: Dodji Seketeli
 
-#include "abg-comparison.h"
-#include "abg-reporter.h"
-
 #ifndef __ABG_REPORTER_PRIV_H__
 #define __ABG_REPORTER_PRIV_H__
+
+#include "abg-comparison.h"
+#include "abg-reporter.h"
 
 /// This is a subroutine of a *::report() function.
 ///
@@ -234,6 +234,12 @@ show_linkage_name_and_aliases(ostream& out,
 			      const string& indent,
 			      const elf_symbol& symbol,
 			      const string_elf_symbols_map_type& sym_map);
+
+void
+maybe_report_unreachable_type_changes(const corpus_diff& d,
+				      const corpus_diff::diff_stats &s,
+				      const string& indent,
+				      ostream& out);
 
 void
 maybe_report_interfaces_impacted_by_diff(const diff		*d,

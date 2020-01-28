@@ -100,10 +100,6 @@ typedef shared_ptr<environment> environment_sptr;
 class location;
 class location_manager;
 
-class corpus;
-/// A convenience typedef for shared pointer to @ref corpus.
-typedef shared_ptr<corpus> corpus_sptr;
-
 class type_or_decl_base;
 /// A convenience typedef for a shared_ptr to @ref type_or_decl_base.
 typedef shared_ptr<type_or_decl_base> type_or_decl_base_sptr;
@@ -569,6 +565,12 @@ is_scope_decl(const decl_base_sptr&);
 
 bool
 is_member_type(const type_base_sptr&);
+
+bool
+is_user_defined_type(const type_base*);
+
+bool
+is_user_defined_type(const type_base_sptr&);
 
 void
 remove_decl_from_scope(decl_base_sptr);
@@ -1309,7 +1311,7 @@ typedef shared_ptr<suppression_base> suppression_sptr;
 /// Convenience typedef for a vector of @ref suppression_sptr
 typedef vector<suppression_sptr> suppressions_type;
 
-} // end namespace comparison
+} // end namespace suppr
 
 void
 dump(const decl_base_sptr, std::ostream&);

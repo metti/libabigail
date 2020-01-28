@@ -450,6 +450,29 @@ const type_maps&
 corpus::priv::get_types() const
 {return types_;}
 
+/// Getter of the set of pretty representation of types that are
+/// reachable from public interfaces (global functions and variables).
+///
+/// @return the set of pretty representation of types that are
+/// reachable from public interfaces (global functions and variables).
+unordered_set<interned_string, hash_interned_string>*
+corpus::priv::get_public_types_pretty_representations()
+{
+  if (group)
+    return group->get_public_types_pretty_representations();
+
+  if (pub_type_pretty_reprs_ == 0)
+    pub_type_pretty_reprs_ =
+	new unordered_set<interned_string, hash_interned_string>;
+  return pub_type_pretty_reprs_;
+}
+
+/// Destructor of the @ref corpus::priv type.
+corpus::priv::~priv()
+{
+  delete pub_type_pretty_reprs_;
+}
+
 /// Record a canonical type which has been computed for the current
 /// corpus.
 ///
@@ -613,6 +636,81 @@ const type_maps&
 corpus::get_type_per_loc_map() const
 {return priv_->type_per_loc_map_;}
 
+/// Test if the recording of reachable types (and thus, indirectly,
+/// the recording of non-reachable types) is activated for the
+/// current @ref corpus.
+///
+/// @return true iff the recording of reachable types is activated for
+/// the current @ref corpus.
+bool
+corpus::recording_types_reachable_from_public_interface_supported()
+{
+  return (priv_->get_public_types_pretty_representations()
+	  && !priv_->get_public_types_pretty_representations()->empty());
+}
+
+/// Record a type as being reachable from public interfaces (global
+/// functions and variables).
+///
+/// @param t the type to record as reachable.
+void
+corpus::record_type_as_reachable_from_public_interfaces(const type_base& t)
+{
+  string repr = get_pretty_representation(&t, /*internal=*/true);
+  interned_string s = t.get_environment()->intern(repr);
+  priv_->get_public_types_pretty_representations()->insert(s);
+}
+
+/// Test if a type is reachable from public interfaces (global
+/// functions and variables).
+///
+/// For a type to be considered reachable from public interfaces, it
+/// must have been previously marked as such by calling
+/// corpus::record_type_as_reachable_from_public_interfaces.
+///
+/// @param t the type to test for.
+///
+/// @return true iff @p t is reachable from public interfaces.
+bool
+corpus::type_is_reachable_from_public_interfaces(const type_base& t) const
+{
+  string repr = get_pretty_representation(&t, /*internal=*/true);
+  interned_string s = t.get_environment()->intern(repr);
+
+  return (priv_->get_public_types_pretty_representations()->find(s)
+	  !=  priv_->get_public_types_pretty_representations()->end());
+}
+
+/// Getter of a sorted vector of the types that are *NOT* reachable
+/// from public interfaces.
+///
+/// Note that for this to be non-empty, the libabigail reader that
+/// analyzed the input (be it a binary or an abixml file) must have be
+/// configured to load types that are not reachable from public
+/// interfaces.
+///
+/// @return a reference to a vector of sorted types NON reachable from
+/// public interfaces.
+const vector<type_base_wptr>&
+corpus::get_types_not_reachable_from_public_interfaces() const
+{
+  if (priv_->types_not_reachable_from_pub_ifaces_.empty())
+    {
+      const type_maps& types = get_types();
+      for (vector<type_base_wptr>::const_iterator it =
+	     types.get_types_sorted_by_name().begin();
+	   it != types.get_types_sorted_by_name().end();
+	   ++it)
+	{
+	  type_base_sptr t(*it);
+	  if (!type_is_reachable_from_public_interfaces(*t))
+	    priv_->types_not_reachable_from_pub_ifaces_.push_back(t);
+	}
+    }
+
+  return priv_->types_not_reachable_from_pub_ifaces_;
+}
+
 /// Get the maps that associate a location string to a certain kind of
 /// type.
 ///
@@ -754,7 +852,13 @@ void
 corpus::set_architecture_name(const string& arch)
 {priv_->architecture_name = arch;}
 
-/// Tests if the corpus contains no translation unit.
+/// Tests if the corpus is empty from an ABI surface perspective. I.e. if all
+/// of these criteria are true:
+///  - all translation units (members) are empty
+///  - the maps function and variable symbols are not having entries
+///  - for shared libraries:
+///    - the soname is empty
+///    - there are no DT_NEEDED entries
 ///
 /// @return true if the corpus contains no translation unit.
 bool
@@ -1539,6 +1643,7 @@ struct corpus_group::priv
   unordered_map<string, elf_symbol_sptr> unrefed_var_symbol_map;
   elf_symbols			unrefed_var_symbols;
   bool				unrefed_var_symbols_built;
+  unordered_set<interned_string, hash_interned_string> pub_type_pretty_reprs_;
 
   priv()
     : unrefed_fun_symbols_built(),
@@ -1929,6 +2034,22 @@ corpus_group::get_unreferenced_variable_symbols() const
 
   return priv_->unrefed_var_symbols;
 }
+
+/// Getter of a pointer to the set of types reachable from public
+/// interfaces of a given corpus group.
+unordered_set<interned_string, hash_interned_string>*
+corpus_group::get_public_types_pretty_representations()
+{return &priv_->pub_type_pretty_reprs_;}
+
+/// Test if the recording of reachable types (and thus, indirectly,
+/// the recording of non-reachable types) is activated for the
+/// current @ref corpus_group.
+///
+/// @return true iff the recording of reachable types is activated for
+/// the current @ref corpus_group.
+bool
+corpus_group::recording_types_reachable_from_public_interface_supported()
+{return !get_public_types_pretty_representations()->empty();}
 
 // </corpus_group stuff>
 
