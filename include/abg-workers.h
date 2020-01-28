@@ -60,11 +60,10 @@ size_t get_number_of_threads();
 class task
 {
 public:
-  task();
   virtual void
   perform() = 0;
 
-  virtual ~task();
+  virtual ~task(){};
 }; // end class task.
 
 /// This represents a queue of tasks to be performed.
