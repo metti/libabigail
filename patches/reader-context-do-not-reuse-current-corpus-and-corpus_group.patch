@@ -1,0 +1,174 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Sun, 12 Jan 2020 00:15:50 +0000
+Subject: reader context: do not reuse current corpus and corpus_group
+
+libabigail's readers (abg-reader and abg-dwarf-reader) currently spare
+some allocations by reusing the reader context's existing current corpus
+and current corpus group. When building a corpus_group's vector of
+corpora, reusing the shared_ptr referring to a corpus means we are
+modifying the corpus data of a previously read corpus. As a user of the
+read*corpus functions, that isn't entirely transparent and when storing
+corpare like in the vector above, we might introduce subtle bugs.
+
+Fix this by explicitly creating new corpus / corpus group instances when
+reading from elf/dwarf or xml.
+
+	* src/abg-dwarf-reader.cc (read_debug_info_into_corpus): always
+	instantiate a new corpus instance.
+	* src/abg-reader.cc (read_corpus_from_input): Likewise.
+	(read_corpus_group_from_input): always instantiate a new corpus
+	group instance.
+
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-dwarf-reader.cc | 11 ++++-----
+ src/abg-reader.cc       | 49 +++++++++++++++++------------------------
+ 2 files changed, 24 insertions(+), 36 deletions(-)
+
+diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
+index dc5d47778c3d..f5e7bdda82a8 100644
+--- a/src/abg-dwarf-reader.cc
++++ b/src/abg-dwarf-reader.cc
+@@ -17290,13 +17290,10 @@ read_debug_info_into_corpus(read_context& ctxt)
+ {
+   ctxt.clear_per_corpus_data();
+ 
+-  if (!ctxt.current_corpus())
+-    {
+-      corpus_sptr corp (new corpus(ctxt.env(), ctxt.elf_path()));
+-      ctxt.current_corpus(corp);
+-      if (!ctxt.env())
+-	ctxt.env(corp->get_environment());
+-    }
++  corpus_sptr corp(new corpus(ctxt.env(), ctxt.elf_path()));
++  ctxt.current_corpus(corp);
++  if (!ctxt.env())
++    ctxt.env(corp->get_environment());
+ 
+   // First set some mundane properties of the corpus gathered from
+   // ELF.
+diff --git a/src/abg-reader.cc b/src/abg-reader.cc
+index e584e97a726e..58335af68ea4 100644
+--- a/src/abg-reader.cc
++++ b/src/abg-reader.cc
+@@ -25,6 +25,7 @@
+ /// ABI Instrumentation file in libabigail native XML format.  This
+ /// native XML format is named "abixml".
+ 
++#include "abg-fwd.h"
+ #include "config.h"
+ #include <cstring>
+ #include <cstdlib>
+@@ -1799,32 +1800,29 @@ read_corpus_from_input(read_context& ctxt)
+ 				       BAD_CAST("abi-corpus")))
+ 	return nil;
+ 
+-      if (!ctxt.get_corpus())
+-	{
+-	  corpus_sptr c(new corpus(ctxt.get_environment(), ""));
+-	  ctxt.set_corpus(c);
+-	}
++      corpus_sptr corp(new corpus(ctxt.get_environment(), ""));
++      ctxt.set_corpus(corp);
+ 
+       if (!ctxt.get_corpus_group())
+ 	ctxt.clear_per_corpus_data();
+ 
+-      corpus& corp = *ctxt.get_corpus();
+-      ctxt.set_exported_decls_builder(corp.get_exported_decls_builder().get());
++      ctxt.set_exported_decls_builder(
++	  corp->get_exported_decls_builder().get());
+ 
+       xml::xml_char_sptr path_str = XML_READER_GET_ATTRIBUTE(reader, "path");
+       if (path_str)
+-	corp.set_path(reinterpret_cast<char*>(path_str.get()));
++	corp->set_path(reinterpret_cast<char*>(path_str.get()));
+ 
+       xml::xml_char_sptr architecture_str =
+ 	XML_READER_GET_ATTRIBUTE(reader, "architecture");
+       if (architecture_str)
+-	corp.set_architecture_name
++	corp->set_architecture_name
+ 	  (reinterpret_cast<char*>(architecture_str.get()));
+ 
+       xml::xml_char_sptr soname_str =
+ 	XML_READER_GET_ATTRIBUTE(reader, "soname");
+       if (soname_str)
+-	corp.set_soname(reinterpret_cast<char*>(soname_str.get()));
++	corp->set_soname(reinterpret_cast<char*>(soname_str.get()));
+ 
+       node = xmlTextReaderExpand(reader.get());
+       if (!node)
+@@ -1834,32 +1832,29 @@ read_corpus_from_input(read_context& ctxt)
+     }
+   else
+     {
+-      if (!ctxt.get_corpus())
+-	{
+-	  corpus_sptr c(new corpus(ctxt.get_environment(), ""));
+-	  ctxt.set_corpus(c);
+-	}
++      corpus_sptr corp(new corpus(ctxt.get_environment(), ""));
++      ctxt.set_corpus(corp);
+ 
+       if (!ctxt.get_corpus_group())
+ 	ctxt.clear_per_corpus_data();
+ 
+-      corpus& corp = *ctxt.get_corpus();
+-      ctxt.set_exported_decls_builder(corp.get_exported_decls_builder().get());
++      ctxt.set_exported_decls_builder(
++	  corp->get_exported_decls_builder().get());
+ 
+       xml::xml_char_sptr path_str = XML_NODE_GET_ATTRIBUTE(node, "path");
+       if (path_str)
+-	corp.set_path(reinterpret_cast<char*>(path_str.get()));
++	corp->set_path(reinterpret_cast<char*>(path_str.get()));
+ 
+       xml::xml_char_sptr architecture_str =
+ 	XML_NODE_GET_ATTRIBUTE(node, "architecture");
+       if (architecture_str)
+-	corp.set_architecture_name
++	corp->set_architecture_name
+ 	  (reinterpret_cast<char*>(architecture_str.get()));
+ 
+       xml::xml_char_sptr soname_str =
+ 	XML_NODE_GET_ATTRIBUTE(node, "soname");
+       if (soname_str)
+-	corp.set_soname(reinterpret_cast<char*>(soname_str.get()));
++	corp->set_soname(reinterpret_cast<char*>(soname_str.get()));
+     }
+ 
+   if (!node->children)
+@@ -1961,14 +1956,10 @@ read_corpus_group_from_input(read_context& ctxt)
+ 				   BAD_CAST("abi-corpus-group")))
+     return nil;
+ 
+-  if (!ctxt.get_corpus_group())
+-    {
+-      corpus_group_sptr g(new corpus_group(ctxt.get_environment(),
+-					   ctxt.get_path()));
+-      ctxt.set_corpus_group(g);
+-    }
++  corpus_group_sptr group(
++      new corpus_group(ctxt.get_environment(), ctxt.get_path()));
++  ctxt.set_corpus_group(group);
+ 
+-  corpus_group_sptr group = ctxt.get_corpus_group();
+   xml::xml_char_sptr path_str = XML_READER_GET_ATTRIBUTE(reader, "path");
+   if (path_str)
+     group->set_path(reinterpret_cast<char*>(path_str.get()));
+@@ -1983,11 +1974,11 @@ read_corpus_group_from_input(read_context& ctxt)
+ 
+   corpus_sptr corp;
+   while ((corp = read_corpus_from_input(ctxt)))
+-    ctxt.get_corpus_group()->add_corpus(corp);
++    group->add_corpus(corp);
+ 
+   xmlTextReaderNext(reader.get());
+ 
+-  return ctxt.get_corpus_group();
++  return group;
+ }
+ 
+ /// De-serialize an ABI corpus group from an input XML document which
