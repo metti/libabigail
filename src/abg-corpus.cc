@@ -1628,7 +1628,6 @@ corpus::get_exported_decls_builder() const
 struct corpus_group::priv
 {
   corpora_type			corpora;
-  corpus_sptr			main_corpus;
   istring_function_decl_ptr_map_type fns_map;
   vector<function_decl*>	fns;
   istring_var_decl_ptr_map_type vars_map;
@@ -1730,13 +1729,7 @@ corpus_group::add_corpus(const corpus_sptr& corp)
   else
     ABG_ASSERT(cur_arch == corp_arch);
 
-  const bool was_empty = priv_->corpora.empty();
-  std::pair<corpora_type::const_iterator, bool> ret
-      = priv_->corpora.insert(corp);
-  ABG_ASSERT(ret.second);
-  if (was_empty)
-    priv_->main_corpus = *(ret.first);
-
+  priv_->corpora.push_back(corp);
   corp->set_group(this);
 
   /// Add the unreferenced function and variable symbols of this
@@ -1765,7 +1758,11 @@ corpus_group::get_main_corpus() const
 /// @return the first corpus added to this Group.
 corpus_sptr
 corpus_group::get_main_corpus()
-{return priv_->main_corpus;}
+{
+  if (!get_corpora().empty())
+    return get_corpora().front();
+  return corpus_sptr();
+}
 
 /// Test if the current corpus group is empty.
 ///

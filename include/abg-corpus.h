@@ -23,8 +23,6 @@
 #ifndef __ABG_CORPUS_H__
 #define __ABG_CORPUS_H__
 
-#include <set>
-#include <abg-fwd.h>
 #include <abg-ir.h>
 
 namespace abigail
@@ -375,17 +373,8 @@ class corpus_group : public corpus
   // Forbid copy
   corpus_group(const corpus_group&);
 
-  struct SharedCorpusComparator
-  {
-    bool
-    operator()(const corpus_sptr& lhs, const corpus_sptr& rhs) const
-    {
-      return lhs->get_path() < rhs->get_path();
-    }
-  };
-
 public:
-  typedef std::set<corpus_sptr, SharedCorpusComparator> corpora_type;
+  typedef vector<corpus_sptr> corpora_type;
 
   corpus_group(ir::environment*, const string&);
 
