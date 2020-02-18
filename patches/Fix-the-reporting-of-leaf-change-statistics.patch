@@ -52,7 +52,7 @@ index a38fadfd36ca..abe0621cc905 100644
  test-abidiff-exit/test-no-stray-comma-v1.o \
 +test-abidiff-exit/test-leaf0-v0.o \
 +test-abidiff-exit/test-leaf0-v1.o \
-+test-abidiff-exit/test-leaf0.report.txt \
++test-abidiff-exit/test-leaf0-report.txt \
  \
  test-diff-dwarf/test0-v0.cc		\
  test-diff-dwarf/test0-v0.o			\
