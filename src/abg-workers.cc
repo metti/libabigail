@@ -1,6 +1,6 @@
 // -*- Mode: C++ -*-
 //
-// Copyright (C) 2013-2019 Red Hat, Inc.
+// Copyright (C) 2013-2020 Red Hat, Inc.
 //
 // This file is part of the GNU Application Binary Interface Generic
 // Analysis and Instrumentation Library (libabigail).  This library is
@@ -132,12 +132,10 @@ struct queue::priv
   // A condition to be signalled whenever there is a task done. That is being
   // used to wait for tasks completed when bringing the workers down.
   pthread_cond_t		tasks_done_cond;
-
   // The todo task queue itself.
-  std::queue<task_sptr>		tasks_todo;
+  std::queue<task_sptr>	tasks_todo;
   // The done task queue itself.
   std::vector<task_sptr>	tasks_done;
-
   // This functor is invoked to notify the user of this queue that a
   // task has been completed and has been added to the done tasks
   // vector.  We call it a notifier.  This notifier is the default
@@ -248,9 +246,9 @@ struct queue::priv
 
     // Wait for the todo list to be empty to make sure all tasks got picked up
     pthread_mutex_lock(&tasks_todo_mutex);
-    while (!tasks_todo.empty()) {
-	pthread_cond_wait(&tasks_done_cond, &tasks_todo_mutex);
-    }
+    while (!tasks_todo.empty())
+      pthread_cond_wait(&tasks_done_cond, &tasks_todo_mutex);
+
     pthread_mutex_unlock(&tasks_todo_mutex);
 
     // Now that the task queue is empty, drain the workers by waking them up,

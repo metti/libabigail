@@ -1,6 +1,6 @@
 // -*- Mode: C++ -*-
 //
-// Copyright (C) 2013-2019 Red Hat, Inc.
+// Copyright (C) 2013-2020 Red Hat, Inc.
 //
 // This file is part of the GNU Application Binary Interface Generic
 // Analysis and Instrumentation Library (libabigail).  This library is
@@ -8957,17 +8957,35 @@ public:
   /// Tests if a suppression specification can match ABI artifacts
   /// coming from the binary being analyzed.
   ///
-  /// This tests if the suppression matches the soname of and binary
-  /// name of the ELF binary being analyzed.
+  /// This tests if the suppression can match the soname of and binary
+  /// name of the ELF binary being analyzed.  More precisely, if there
+  /// are any soname or file name property in the suppression and if
+  /// those do *NOT* match the current binary, then the function
+  /// returns false.
   ///
   /// @param s the suppression specification to consider.
+  ///
+  /// @return true iff either there are no soname/filename related
+  /// property on the suppression, or if none of the soname/filename
+  /// properties of the suppression match the current binary.
   bool
   suppression_can_match(const suppr::suppression_base& s) const
   {
-    if (s.priv_->matches_soname(dt_soname())
-	&& s.priv_->matches_binary_name(elf_path()))
-      return true;
-    return false;
+    if (!s.priv_->matches_soname(dt_soname()))
+      if (s.has_soname_related_property())
+	// The suppression has some SONAME related properties, but
+	// none of them match the SONAME of the current binary.  So
+	// the suppression cannot match the current binary.
+	return false;
+
+    if (!s.priv_->matches_binary_name(elf_path()))
+      if (s.has_file_name_related_property())
+	// The suppression has some file_name related properties, but
+	// none of them match the file name of the current binary.  So
+	// the suppression cannot match the current binary.
+	return false;
+
+    return true;
   }
 
   /// Test whether if a given function suppression matches a function

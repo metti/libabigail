@@ -21,10 +21,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index d1a220643945..dc5d47778c3d 100644
+index e07697673af5..db3c0860c30b 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -8168,14 +8168,15 @@ public:
+@@ -8176,14 +8176,15 @@ public:
  			= fun_syms().find(name);
  		    if (it != fun_syms().end())
  		      {
@@ -42,7 +42,7 @@ index d1a220643945..dc5d47778c3d 100644
  			      }
  			  }
  		      }
-@@ -8187,14 +8188,15 @@ public:
+@@ -8195,14 +8196,15 @@ public:
  			it = var_syms().find(name);
  			if (it != var_syms().end())
  			  {

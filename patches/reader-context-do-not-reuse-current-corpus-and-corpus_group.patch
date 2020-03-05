@@ -27,10 +27,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  2 files changed, 24 insertions(+), 36 deletions(-)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index dc5d47778c3d..f5e7bdda82a8 100644
+index db3c0860c30b..e64040d9f0b4 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -17290,13 +17290,10 @@ read_debug_info_into_corpus(read_context& ctxt)
+@@ -17325,13 +17325,10 @@ read_debug_info_into_corpus(read_context& ctxt)
  {
    ctxt.clear_per_corpus_data();
  
@@ -49,7 +49,7 @@ index dc5d47778c3d..f5e7bdda82a8 100644
    // First set some mundane properties of the corpus gathered from
    // ELF.
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index e584e97a726e..58335af68ea4 100644
+index 0dcb2e92f379..5ced3aecc53a 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
 @@ -25,6 +25,7 @@
@@ -60,7 +60,7 @@ index e584e97a726e..58335af68ea4 100644
  #include "config.h"
  #include <cstring>
  #include <cstdlib>
-@@ -1799,32 +1800,29 @@ read_corpus_from_input(read_context& ctxt)
+@@ -1876,17 +1877,14 @@ read_corpus_from_input(read_context& ctxt)
  				       BAD_CAST("abi-corpus")))
  	return nil;
  
@@ -81,9 +81,14 @@ index e584e97a726e..58335af68ea4 100644
 +	  corp->get_exported_decls_builder().get());
  
        xml::xml_char_sptr path_str = XML_READER_GET_ATTRIBUTE(reader, "path");
+       string path;
+@@ -1894,13 +1892,13 @@ read_corpus_from_input(read_context& ctxt)
        if (path_str)
--	corp.set_path(reinterpret_cast<char*>(path_str.get()));
-+	corp->set_path(reinterpret_cast<char*>(path_str.get()));
+ 	{
+ 	  path = reinterpret_cast<char*>(path_str.get());
+-	  corp.set_path(path);
++	  corp->set_path(path);
+ 	}
  
        xml::xml_char_sptr architecture_str =
  	XML_READER_GET_ATTRIBUTE(reader, "architecture");
@@ -93,14 +98,16 @@ index e584e97a726e..58335af68ea4 100644
  	  (reinterpret_cast<char*>(architecture_str.get()));
  
        xml::xml_char_sptr soname_str =
- 	XML_READER_GET_ATTRIBUTE(reader, "soname");
+@@ -1910,7 +1908,7 @@ read_corpus_from_input(read_context& ctxt)
        if (soname_str)
--	corp.set_soname(reinterpret_cast<char*>(soname_str.get()));
-+	corp->set_soname(reinterpret_cast<char*>(soname_str.get()));
+ 	{
+ 	  soname = reinterpret_cast<char*>(soname_str.get());
+-	  corp.set_soname(soname);
++	  corp->set_soname(soname);
+ 	}
  
-       node = xmlTextReaderExpand(reader.get());
-       if (!node)
-@@ -1834,32 +1832,29 @@ read_corpus_from_input(read_context& ctxt)
+       // Apply suppression specifications here to honour:
+@@ -1932,32 +1930,29 @@ read_corpus_from_input(read_context& ctxt)
      }
    else
      {
@@ -140,7 +147,7 @@ index e584e97a726e..58335af68ea4 100644
      }
  
    if (!node->children)
-@@ -1961,14 +1956,10 @@ read_corpus_group_from_input(read_context& ctxt)
+@@ -2070,14 +2065,10 @@ read_corpus_group_from_input(read_context& ctxt)
  				   BAD_CAST("abi-corpus-group")))
      return nil;
  
@@ -158,7 +165,7 @@ index e584e97a726e..58335af68ea4 100644
    xml::xml_char_sptr path_str = XML_READER_GET_ATTRIBUTE(reader, "path");
    if (path_str)
      group->set_path(reinterpret_cast<char*>(path_str.get()));
-@@ -1983,11 +1974,11 @@ read_corpus_group_from_input(read_context& ctxt)
+@@ -2092,11 +2083,11 @@ read_corpus_group_from_input(read_context& ctxt)
  
    corpus_sptr corp;
    while ((corp = read_corpus_from_input(ctxt)))

@@ -1,6 +1,6 @@
 // -*- Mode: C++ -*-
 //
-// Copyright (C) 2013-2019 Red Hat, Inc.
+// Copyright (C) 2013-2020 Red Hat, Inc.
 //
 // This file is part of the GNU Application Binary Interface Generic
 // Analysis and Instrumentation Library (libabigail).  This library is
@@ -32,6 +32,13 @@
 // For package configuration macros.
 #include "config.h"
 
+// In case we don't have a bad fts then we need to include fts.h after
+// config.h.
+#ifndef BAD_FTS
+  #include <sys/types.h>
+  #include <fts.h>
+#endif
+
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -45,18 +52,6 @@
 #include <ctype.h>
 #include <errno.h>
 #include <libgen.h>
-// If fts.h is included before config.h, its indirect inclusions may
-// not give us the right LFS aliases of these functions, so map them
-// manually.
-#ifdef BAD_FTS
-  #ifdef _FILE_OFFSET_BITS
-    #define open open64
-    #define fopen fopen64
-  #endif
-#else
-  #include <sys/types.h>
-  #include <fts.h>
-#endif
 
 #include <fstream>
 #include <iostream>

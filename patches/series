@@ -6,7 +6,4 @@ dwarf-reader-support-ksymtab-symbol-lookup-by-name.patch
 dwarf-reader-name-based-lookup-add-support-for-aliased-symbols.patch
 reader-context-do-not-reuse-current-corpus-and-corpus_group.patch
 corpus-writer-sort-emitted-translation-units-by-path-name.patch
-abg-workers-Rework-the-worker-queue-to-improve-concurrent-behaviour.patch
-Sort-kernel-module-object-files-before-processing-them.patch
-Fix-stray-comma-in-leaf-changes-only-mode.patch
 Fix-the-reporting-of-leaf-change-statistics.patch

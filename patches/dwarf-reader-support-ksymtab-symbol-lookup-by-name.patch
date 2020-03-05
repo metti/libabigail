@@ -44,10 +44,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 135 insertions(+)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 85b8e2461721..d1a220643945 100644
+index a60f46255c16..e07697673af5 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -7681,6 +7681,66 @@ public:
+@@ -7689,6 +7689,66 @@ public:
  
      symbol_address = maybe_adjust_fn_sym_address(symbol_address);
      symbol = lookup_elf_symbol_from_address(symbol_address);
@@ -114,7 +114,7 @@ index 85b8e2461721..d1a220643945 100644
      return symbol;
    }
  
-@@ -8067,6 +8127,81 @@ public:
+@@ -8075,6 +8135,81 @@ public:
  	    adjusted_symbol_address =
  	      maybe_adjust_var_sym_address(symbol_address);
  	    symbol = lookup_elf_symbol_from_address(adjusted_symbol_address);
