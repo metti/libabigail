@@ -6,4 +6,3 @@ dwarf-reader-support-ksymtab-symbol-lookup-by-name.patch
 dwarf-reader-name-based-lookup-add-support-for-aliased-symbols.patch
 reader-context-do-not-reuse-current-corpus-and-corpus_group.patch
 corpus-writer-sort-emitted-translation-units-by-path-name.patch
-Fix-the-reporting-of-leaf-change-statistics.patch

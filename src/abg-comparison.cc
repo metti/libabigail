@@ -1521,20 +1521,7 @@ diff_context::show_leaf_changes_only(bool f)
   // created.  Once it's been created, we are supposed to live with
   // it.
   ABG_ASSERT(priv_->reporter_ == 0);
-
   priv_->leaf_changes_only_ = f;
-  // So when we are showing only leaf changes, we want to show
-  // redundant changes because of this: Suppose several functions have
-  // their return type changed from void* to int*.  We want them all
-  // to be reported.  In that case the change is not redundant.  As
-  // far as user-defined type changes (like struct/class) they are
-  // already put inside a map which makes them be non-redundant, so we
-  // don't have to worry about that case.
-  //
-  // TODO: maybe that in this case we should avoid firing the
-  // redundancy analysis pass altogether.  That could help save a
-  // couple of CPU cycle here and there!
-  priv_->show_redundant_changes_ = f;
 }
 
 /// Get the flag that indicates if the diff using this context should
@@ -1601,9 +1588,6 @@ diff_context::show_relative_offset_changes(bool f)
 bool
 diff_context::show_relative_offset_changes(void)
 {return priv_->show_relative_offset_changes_;}
-
-  bool
-  show_relative_offset_changes(void);
 
 /// Set a flag saying if the comparison module should only show the
 /// diff stats.
@@ -9844,7 +9828,7 @@ corpus_diff::priv::emit_diff_stats(const diff_stats&	s,
     s.net_num_leaf_func_changes() +
     s.net_num_vars_removed() +
     s.net_num_vars_added() +
-    s.net_num_vars_changed() +
+    s.net_num_leaf_var_changes() +
     s.net_num_leaf_type_changes();
 
   if (!sonames_equal_)

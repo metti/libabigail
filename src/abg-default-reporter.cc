@@ -224,7 +224,7 @@ default_reporter::report_local_typedef_changes(const typedef_diff &d,
     {
       out << indent << "typedef name changed from "
 	  << f->get_qualified_name()
-          << " to "
+	  << " to "
 	  << s->get_qualified_name();
       report_loc_info(s, *d.context(), out);
       out << "\n";
@@ -788,8 +788,8 @@ default_reporter::report(const scope_diff& d, ostream& out,
 
       out << indent << "  '"
 	  << (*dif)->first_subject()->get_pretty_representation()
-          << "' was changed to '"
-          << (*dif)->second_subject()->get_pretty_representation() << "'";
+	  << "' was changed to '"
+	  << (*dif)->second_subject()->get_pretty_representation() << "'";
       report_loc_info((*dif)->second_subject(), *d.context(), out);
       out << ":\n";
 
@@ -1761,17 +1761,11 @@ void
 default_reporter::report(const corpus_diff& d, ostream& out,
 			 const string& indent) const
 {
-  size_t total = 0, removed = 0, added = 0;
   const corpus_diff::diff_stats &s =
     const_cast<corpus_diff&>(d).
     apply_filters_and_suppressions_before_reporting();
 
   const diff_context_sptr& ctxt = d.context();
-
-  /// Report removed/added/changed functions.
-  total = s.net_num_func_removed() + s.net_num_func_added() +
-    s.net_num_func_changed();
-  const unsigned large_num = 100;
 
   d.priv_->emit_diff_stats(s, out, indent);
   if (ctxt->show_stats_only())
@@ -1790,6 +1784,11 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	<< d.first_corpus()->get_architecture_name() << "' to '"
 	<< d.second_corpus()->get_architecture_name() << "'\n\n";
 
+  /// Report removed/added/changed functions.
+  size_t total = s.net_num_func_removed() + s.net_num_func_added() +
+    s.net_num_func_changed();
+  const unsigned large_num = 100;
+
   if (ctxt->show_deleted_fns())
     {
       if (s.net_num_func_removed() == 1)
@@ -1797,6 +1796,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
       else if (s.net_num_func_removed() > 1)
 	out << indent << s.net_num_func_removed() << " Removed functions:\n\n";
 
+      bool emitted = false;
       vector<function_decl*>sorted_deleted_fns;
       sort_string_function_ptr_map(d.priv_->deleted_fns_, sorted_deleted_fns);
       for (vector<function_decl*>::const_iterator i =
@@ -1830,9 +1830,9 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 		  << c->get_pretty_representation()
 		  << "\n";
 	    }
-	  ++removed;
+	  emitted = true;;
 	}
-      if (removed)
+      if (emitted)
 	out << "\n";
     }
 
@@ -1843,6 +1843,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
       else if (s.net_num_func_added() > 1)
 	out << indent << s.net_num_func_added()
 	    << " Added functions:\n\n";
+      bool emitted = false;
       vector<function_decl*> sorted_added_fns;
       sort_string_function_ptr_map(d.priv_->added_fns_, sorted_added_fns);
       for (vector<function_decl*>::const_iterator i = sorted_added_fns.begin();
@@ -1879,13 +1880,10 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 		  << c->get_pretty_representation()
 		  << "\n";
 	    }
-	  ++added;
+	  emitted = true;
 	}
-      if (added)
-	{
-	  out << "\n";
-	  added = false;
-	}
+      if (emitted)
+	out << "\n";
     }
 
   if (ctxt->show_changed_fns())
@@ -1913,7 +1911,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	  if (diff->to_be_reported())
 	    {
 	      function_decl_sptr fn = (*i)->first_function_decl();
-	      out << indent << "  [C]'"
+	      out << indent << "  [C] '"
 		  << fn->get_pretty_representation() << "'";
 	      report_loc_info((*i)->second_function_decl(), *ctxt, out);
 	      out << " has some indirect sub-type changes:\n";
@@ -1963,14 +1961,11 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 		}
 	      diff->report(out, indent + "    ");
 	      out << "\n";
-	      emitted |= true;
+	      emitted = true;
 	    }
 	}
       if (emitted)
-	{
-	  out << "\n";
-	  emitted = false;
-	}
+	out << "\n";
     }
 
   // Report added/removed/changed variables.
@@ -1985,6 +1980,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	out << indent << s.net_num_vars_removed()
 	    << " Removed variables:\n\n";
       string n;
+      bool emitted = false;
       vector<var_decl*> sorted_deleted_vars;
       sort_string_var_ptr_map(d.priv_->deleted_vars_, sorted_deleted_vars);
       for (vector<var_decl*>::const_iterator i =
@@ -2012,13 +2008,10 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	      out << "}";
 	    }
 	  out << "\n";
-	  ++removed;
+	  emitted = true;
 	}
-      if (removed)
-	{
+      if (emitted)
 	  out << "\n";
-	  removed = 0;
-	}
     }
 
   if (ctxt->show_added_vars())
@@ -2029,6 +2022,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	out << indent << s.net_num_vars_added()
 	    << " Added variables:\n\n";
       string n;
+      bool emitted = false;
       vector<var_decl*> sorted_added_vars;
       sort_string_var_ptr_map(d.priv_->added_vars_, sorted_added_vars);
       for (vector<var_decl*>::const_iterator i =
@@ -2054,13 +2048,10 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	      out << "}";
 	    }
 	  out << "\n";
-	  ++added;
+	  emitted = true;
 	}
-      if (added)
-	{
-	  out << "\n";
-	  added = 0;
-	}
+      if (emitted)
+	out << "\n";
     }
 
   if (ctxt->show_changed_vars())
@@ -2074,6 +2065,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    << " Changed variables:\n\n";
       string n1, n2;
 
+      bool emitted = false;
       for (var_diff_sptrs_type::const_iterator i =
 	     d.priv_->sorted_changed_vars_.begin();
 	   i != d.priv_->sorted_changed_vars_.end();
@@ -2090,15 +2082,16 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	  n1 = diff->first_subject()->get_pretty_representation();
 	  n2 = diff->second_subject()->get_pretty_representation();
 
-	  out << indent << "  [C]'" << n1 << "' was changed";
+	  out << indent << "  [C] '" << n1 << "' was changed";
 	  if (n1 != n2)
 	    out << " to '" << n2 << "'";
 	  report_loc_info(diff->second_subject(), *ctxt, out);
 	  out << ":\n";
 	  diff->report(out, indent + "    ");
 	  out << "\n";
+	  emitted = true;
 	}
-      if (num_changed)
+      if (emitted)
 	out << "\n";
     }
 
@@ -2114,6 +2107,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    << s.net_num_removed_func_syms()
 	    << " Removed function symbols not referenced by debug info:\n\n";
 
+      bool emitted = false;
       vector<elf_symbol_sptr> sorted_deleted_unrefed_fn_syms;
       sort_string_elf_symbol_map(d.priv_->deleted_unrefed_fn_syms_,
 				 sorted_deleted_unrefed_fn_syms);
@@ -2132,9 +2126,10 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	  show_linkage_name_and_aliases(out, "", **i,
 					d.first_corpus()->get_fun_symbol_map());
 	  out << "\n";
+	  emitted = true;
 	}
-      if (sorted_deleted_unrefed_fn_syms.size())
-	out << '\n';
+      if (emitted)
+	out << "\n";
     }
 
   // Report added function symbols not referenced by any debug info.
@@ -2150,6 +2145,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    << s.net_num_added_func_syms()
 	    << " Added function symbols not referenced by debug info:\n\n";
 
+      bool emitted = false;
       vector<elf_symbol_sptr> sorted_added_unrefed_fn_syms;
       sort_string_elf_symbol_map(d.priv_->added_unrefed_fn_syms_,
 				 sorted_added_unrefed_fn_syms);
@@ -2168,9 +2164,10 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 					**i,
 					d.second_corpus()->get_fun_symbol_map());
 	  out << "\n";
+	  emitted = true;
 	}
-      if (sorted_added_unrefed_fn_syms.size())
-	out << '\n';
+      if (emitted)
+	out << "\n";
     }
 
   // Report removed variable symbols not referenced by any debug info.
@@ -2185,6 +2182,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    << s.net_num_removed_var_syms()
 	    << " Removed variable symbols not referenced by debug info:\n\n";
 
+      bool emitted = false;
       vector<elf_symbol_sptr> sorted_deleted_unrefed_var_syms;
       sort_string_elf_symbol_map(d.priv_->deleted_unrefed_var_syms_,
 				 sorted_deleted_unrefed_var_syms);
@@ -2205,9 +2203,10 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	     d.first_corpus()->get_fun_symbol_map());
 
 	  out << "\n";
+	  emitted = true;
 	}
-      if (sorted_deleted_unrefed_var_syms.size())
-	out << '\n';
+      if (emitted)
+	out << "\n";
     }
 
   // Report added variable symbols not referenced by any debug info.
@@ -2223,6 +2222,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    << s.net_num_added_var_syms()
 	    << " Added variable symbols not referenced by debug info:\n\n";
 
+      bool emitted = false;
       vector<elf_symbol_sptr> sorted_added_unrefed_var_syms;
       sort_string_elf_symbol_map(d.priv_->added_unrefed_var_syms_,
 				 sorted_added_unrefed_var_syms);
@@ -2240,14 +2240,14 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	  show_linkage_name_and_aliases(out, "", **i,
 					d.second_corpus()->get_fun_symbol_map());
 	  out << "\n";
+	  emitted = true;
 	}
-      if (sorted_added_unrefed_var_syms.size())
-	out << '\n';
+      if (emitted)
+	out << "\n";
     }
 
   // Report added/removed/changed types not reacheable from public
   // interfaces.
-
   maybe_report_unreachable_type_changes(d, s, indent, out);
 
   d.priv_->maybe_dump_diff_tree();
