@@ -55,33 +55,25 @@ default_reporter::report(const type_decl_diff& d,
 
   string name = f->get_pretty_representation();
 
-  bool n = report_name_size_and_alignment_changes(f, s, d.context(),
-						  out, indent,
-						  /*new line=*/false);
+  report_name_size_and_alignment_changes(f, s, d.context(),
+					 out, indent);
 
   if (f->get_visibility() != s->get_visibility())
     {
-      if (n)
-	out << "\n";
       out << indent
 	  << "visibility changed from '"
-	  << f->get_visibility() << "' to '" << s->get_visibility();
-      n = true;
+	  << f->get_visibility() << "' to '" << s->get_visibility()
+	  << "\n";
     }
 
   if (f->get_linkage_name() != s->get_linkage_name())
     {
-      if (n)
-	out << "\n";
       out << indent
 	  << "mangled name changed from '"
 	  << f->get_linkage_name() << "' to "
-	  << s->get_linkage_name();
-      n = true;
+	  << s->get_linkage_name()
+	  << "\n";
     }
-
-  if (n)
-    out << "\n";
 }
 
 /// Report the differences between the two enums.
@@ -106,10 +98,8 @@ default_reporter::report(const enum_diff& d, ostream& out,
 
   enum_type_decl_sptr first = d.first_enum(), second = d.second_enum();
 
-  if (report_name_size_and_alignment_changes(first, second, d.context(),
-					     out, indent,
-					     /*start_with_num_line=*/false))
-    out << "\n";
+  report_name_size_and_alignment_changes(first, second, d.context(),
+					 out, indent);
   maybe_report_diff_for_member(first, second, d.context(), out, indent);
 
   //underlying type
@@ -130,16 +120,14 @@ default_reporter::report(const enum_diff& d, ostream& out,
 	   i != sorted_deleted_enumerators.end();
 	   ++i)
 	{
-	  if (i != sorted_deleted_enumerators.begin())
-	    out << "\n";
 	  out << indent
 	      << "  '"
 	      << i->get_qualified_name()
 	      << "' value '"
 	      << i->get_value()
 	      << "'";
+	  out << "\n";
 	}
-      out << "\n\n";
     }
   if (numins)
     {
@@ -151,16 +139,14 @@ default_reporter::report(const enum_diff& d, ostream& out,
 	   i != sorted_inserted_enumerators.end();
 	   ++i)
 	{
-	  if (i != sorted_inserted_enumerators.begin())
-	    out << "\n";
 	  out << indent
 	      << "  '"
 	      << i->get_qualified_name()
 	      << "' value '"
 	      << i->get_value()
 	      << "'";
+	  out << "\n";
 	}
-      out << "\n\n";
     }
   if (numchanges)
     {
@@ -173,8 +159,6 @@ default_reporter::report(const enum_diff& d, ostream& out,
 	   i != sorted_changed_enumerators.end();
 	   ++i)
 	{
-	  if (i != sorted_changed_enumerators.begin())
-	    out << "\n";
 	  out << indent
 	      << "  '"
 	      << i->first.get_qualified_name()
@@ -182,13 +166,14 @@ default_reporter::report(const enum_diff& d, ostream& out,
 	      << i->first.get_value() << "' to '"
 	      << i->second.get_value() << "'";
 	  report_loc_info(second, *d.context(), out);
+	  out << "\n";
 	}
-      out << "\n\n";
     }
 
+  out << "\n";
+
   if (d.context()->show_leaf_changes_only())
-    maybe_report_interfaces_impacted_by_diff(&d, out, indent,
-					     /*new_line_prefix=*/false);
+    maybe_report_interfaces_impacted_by_diff(&d, out, indent);
 
   d.reported_once(true);
 }
@@ -392,7 +377,7 @@ default_reporter::report(const pointer_diff& d, ostream& out,
 	: string("void");
 
       out << indent
-	  << "in pointed to type '" <<  repr << "'";
+	  << "in pointed to type '" << repr << "'";
       report_loc_info(dif->second_subject(), *d.context(), out);
       out << ":\n";
       dif->report(out, indent + "  ");
@@ -676,9 +661,7 @@ default_reporter::report(const array_diff& d, ostream& out,
   report_name_size_and_alignment_changes(d.first_array(),
 					 d.second_array(),
 					 d.context(),
-					 out, indent,
-					 /*new line=*/false);
-  report_loc_info(d.second_array(), *d.context(), out);
+					 out, indent);
 }
 
 /// Generates a report for an intance of @ref base_diff.
@@ -1014,7 +997,6 @@ default_reporter::report(const class_or_union_diff& d,
 	  sort_data_members
 	    (d.class_or_union_diff::get_priv()->deleted_data_members_,
 	     sorted_dms);
-	  bool emitted = false;
 	  for (vector<decl_base_sptr>::const_iterator i = sorted_dms.begin();
 	       i != sorted_dms.end();
 	       ++i)
@@ -1024,14 +1006,8 @@ default_reporter::report(const class_or_union_diff& d,
 	      ABG_ASSERT(data_mem);
 	      if (get_member_is_static(data_mem))
 		continue;
-	      if (emitted)
-		out << "\n";
-	      out << indent << "  ";
-	      represent_data_member(data_mem, ctxt, out);
-	      emitted = true;
+	      represent_data_member(data_mem, ctxt, out, indent + "  ");
 	    }
-	  if (emitted)
-	    out << "\n";
 	}
 
       //report insertions
@@ -1052,8 +1028,7 @@ default_reporter::report(const class_or_union_diff& d,
 	      var_decl_sptr data_mem =
 		dynamic_pointer_cast<var_decl>(*i);
 	      ABG_ASSERT(data_mem);
-	      out << indent << "  ";
-	      represent_data_member(data_mem, ctxt, out);
+	      represent_data_member(data_mem, ctxt, out, indent + "  ");
 	    }
 	}
 
@@ -1073,7 +1048,7 @@ default_reporter::report(const class_or_union_diff& d,
 	    {
 	      if ((*it)->to_be_reported())
 		{
-		  represent(*it, ctxt, out, indent + " ");
+		  represent(*it, ctxt, out, indent + "  ");
 		  out << "\n";
 		}
 	    }
@@ -1093,7 +1068,7 @@ default_reporter::report(const class_or_union_diff& d,
 	    {
 	      if ((*it)->to_be_reported())
 		{
-		  represent(*it, ctxt, out, indent + " ");
+		  represent(*it, ctxt, out, indent + "  ");
 		  out << "\n";
 		}
 	    }
@@ -1327,10 +1302,8 @@ default_reporter::report(const class_diff& d, ostream& out,
   class_decl_sptr first = d.first_class_decl(),
     second = d.second_class_decl();
 
-  if (report_name_size_and_alignment_changes(first, second, d.context(),
-					     out, indent,
-					     /*start_with_new_line=*/false))
-    out << "\n";
+  report_name_size_and_alignment_changes(first, second, d.context(),
+					 out, indent);
 
   const diff_context_sptr& ctxt = d.context();
   maybe_report_diff_for_member(first, second, ctxt, out, indent);
@@ -1446,10 +1419,8 @@ default_reporter::report(const union_diff& d, ostream& out,
   // Now report the changes about the differents parts of the type.
   union_decl_sptr first = d.first_union_decl(), second = d.second_union_decl();
 
-  if (report_name_size_and_alignment_changes(first, second, d.context(),
-					     out, indent,
-					     /*start_with_new_line=*/false))
-    out << "\n";
+  report_name_size_and_alignment_changes(first, second, d.context(),
+					 out, indent);
 
   maybe_report_diff_for_member(first, second,d. context(), out, indent);
 
@@ -1512,9 +1483,7 @@ default_reporter::report(const distinct_diff& d, ostream& out,
   if (diff)
     diff->report(out, indent + "  ");
   else
-    if (report_size_and_alignment_changes(f, s, d.context(), out, indent,
-					  /*start_with_new_line=*/false))
-      out << "\n";
+    report_size_and_alignment_changes(f, s, d.context(), out, indent);
 }
 
 /// Serialize a report of the changes encapsulated in the current
@@ -1710,11 +1679,9 @@ default_reporter::report(const var_diff& d, ostream& out,
   decl_base_sptr first = d.first_var(), second = d.second_var();
   string n = first->get_pretty_representation();
 
-  if (report_name_size_and_alignment_changes(first, second,
-					     d.context(),
-					     out, indent,
-					     /*start_with_new_line=*/false))
-    out << "\n";
+  report_name_size_and_alignment_changes(first, second,
+					 d.context(),
+					 out, indent);
 
   maybe_report_diff_for_symbol(d.first_var()->get_symbol(),
 			       d.second_var()->get_symbol(),
@@ -1728,7 +1695,7 @@ default_reporter::report(const var_diff& d, ostream& out,
 	{
 	  RETURN_IF_BEING_REPORTED_OR_WAS_REPORTED_EARLIER2(dif, "type");
 	  out << indent << "type of variable changed:\n";
-	  dif->report(out, indent + " ");
+	  dif->report(out, indent + "  ");
 	}
     }
 }
@@ -1785,10 +1752,6 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	<< d.second_corpus()->get_architecture_name() << "'\n\n";
 
   /// Report removed/added/changed functions.
-  size_t total = s.net_num_func_removed() + s.net_num_func_added() +
-    s.net_num_func_changed();
-  const unsigned large_num = 100;
-
   if (ctxt->show_deleted_fns())
     {
       if (s.net_num_func_removed() == 1)
@@ -1809,8 +1772,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 
 	  out << indent
 	      << "  ";
-	  if (total > large_num)
-	    out << "[D] ";
+	  out << "[D] ";
 	  out << "'" << (*i)->get_pretty_representation() << "'";
 	  if (ctxt->show_linkage_names())
 	    {
@@ -1856,8 +1818,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	  out
 	    << indent
 	    << "  ";
-	  if (total > large_num)
-	    out << "[A] ";
+	  out << "[A] ";
 	  out << "'"
 	      << (*i)->get_pretty_representation()
 	      << "'";
@@ -1968,10 +1929,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	out << "\n";
     }
 
-  // Report added/removed/changed variables.
-  total = s.num_vars_removed() + s.num_vars_added() +
-    s.num_vars_changed() - s.num_changed_vars_filtered_out();
-
+  // Report removed/added/changed variables.
   if (ctxt->show_deleted_vars())
     {
       if (s.net_num_vars_removed() == 1)
@@ -1995,8 +1953,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 
 	  out << indent
 	      << "  ";
-	  if (total > large_num)
-	    out << "[D] ";
+	  out << "[D] ";
 	  out << "'"
 	      << n
 	      << "'";
@@ -2037,8 +1994,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 
 	  out << indent
 	      << "  ";
-	  if (total > large_num)
-	    out << "[A] ";
+	  out << "[A] ";
 	  out << "'" << n << "'";
 	  if (ctxt->show_linkage_names())
 	    {
@@ -2120,8 +2076,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    continue;
 
 	  out << indent << "  ";
-	  if (s.net_num_removed_func_syms() > large_num)
-	    out << "[D] ";
+	  out << "[D] ";
 
 	  show_linkage_name_and_aliases(out, "", **i,
 					d.first_corpus()->get_fun_symbol_map());
@@ -2158,8 +2113,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    continue;
 
 	  out << indent << "  ";
-	  if (s.net_num_added_func_syms() > large_num)
-	    out << "[A] ";
+	  out << "[A] ";
 	  show_linkage_name_and_aliases(out, "",
 					**i,
 					d.second_corpus()->get_fun_symbol_map());
@@ -2195,8 +2149,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    continue;
 
 	  out << indent << "  ";
-	  if (s.num_var_syms_removed() > large_num)
-	    out << "[D] ";
+	  out << "[D] ";
 
 	  show_linkage_name_and_aliases
 	    (out, "", **i,
@@ -2235,8 +2188,7 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	    continue;
 
 	  out << indent << "  ";
-	  if (s.net_num_added_var_syms() > large_num)
-	    out << "[A] ";
+	  out << "[A] ";
 	  show_linkage_name_and_aliases(out, "", **i,
 					d.second_corpus()->get_fun_symbol_map());
 	  out << "\n";

@@ -850,8 +850,7 @@ display_usage(const string& prog_name, ostream& out)
     "to the package as well\n"
     << " --leaf-changes-only|-l  only show leaf changes, "
     "so no change impact analysis (implies --redundant)\n"
-    << " --impacted-interfaces|-i when in leaf mode, show "
-    "interfaces impacted by ABI changes\n"
+    << " --impacted-interfaces|-i  display interfaces impacted by leaf changes\n"
     << " --full-impact|-f  when comparing kernel packages, show the "
     "full impact analysis report rather than the default leaf changes reports\n"
     << " --non-reachable-types|-t  consider types non reachable"
@@ -2471,7 +2470,7 @@ compare_prepared_userspace_packages(package& first_package,
 	{
 	  string relative_path;
 	  first_package.convert_path_to_relative((*it)->path, relative_path);
-	  cout << "  " << relative_path << ", ";
+	  cout << "  [D] " << relative_path << ", ";
 	  string soname;
 	  get_soname_of_elf_file((*it)->path, soname);
 	  if (!soname.empty())
@@ -2491,7 +2490,7 @@ compare_prepared_userspace_packages(package& first_package,
 	{
 	  string relative_path;
 	  second_package.convert_path_to_relative((*it)->path, relative_path);
-	  cout << "  " << relative_path << ", ";
+	  cout << "  [A] " << relative_path << ", ";
 	  string soname;
 	  get_soname_of_elf_file((*it)->path, soname);
 	  if (!soname.empty())

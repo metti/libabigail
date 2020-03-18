@@ -3,11 +3,11 @@ Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
 
 1 Removed function:
 
-  'function void fn2(const callback)'
+  [D] 'function void fn2(const callback)'
 
 1 Added function:
 
-  'function void fn2(const callback)'
+  [A] 'function void fn2(const callback)'
 
 3 functions with some indirect sub-type change:
 
@@ -31,20 +31,20 @@ Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
       in referenced type 'class S':
         type size hasn't changed
         3 data member changes:
-         type of 'int ()& S::fnref0' changed:
-           in referenced type 'function type int ()':
-             parameter 1 of type 'double' was added
+          type of 'int ()& S::fnref0' changed:
+            in referenced type 'function type int ()':
+              parameter 1 of type 'double' was added
 
 
-         type of 'int ()& S::fnref1' changed:
-           in referenced type 'function type int ()':
-             entity changed from 'function type int ()' to 'int*'
-             type size hasn't changed
+          type of 'int ()& S::fnref1' changed:
+            in referenced type 'function type int ()':
+              entity changed from 'function type int ()' to 'int*'
+              type size hasn't changed
 
-         type of 'int ()& S::fnref2' changed:
-           in referenced type 'function type int ()':
-             entity changed from 'function type int ()' to 'int'
-             type size changed from 64 to 32 (in bits)
+          type of 'int ()& S::fnref2' changed:
+            in referenced type 'function type int ()':
+              entity changed from 'function type int ()' to 'int'
+              type size changed from 64 to 32 (in bits)
 
 
 
