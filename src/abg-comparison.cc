@@ -9932,7 +9932,7 @@ corpus_diff::priv::emit_diff_stats(const diff_stats&	s,
 	out << " (" << s.num_changed_func_filtered_out() << " filtered out)";
       out << ", ";
 
-      out << s.net_num_func_added()<< " Added";
+      out << s.net_num_func_added() << " Added";
       if (s.num_added_func_filtered_out())
 	out << " (" << s.num_added_func_filtered_out() << " filtered out)";
       if (total_nb_function_changes <= 1)
@@ -10560,7 +10560,7 @@ corpus_diff::has_incompatible_changes() const
 	  || stats.net_num_func_removed() != 0
 	  || (stats.num_func_with_virtual_offset_changes() != 0
 	      // If all reports about functions with sub-type changes
-	      // have been suppressd, then even those about functions
+	      // have been suppressed, then even those about functions
 	      // that are virtual don't matter anymore because the
 	      // user willingly requested to shut them down
 	      && stats.net_num_func_changed() != 0)
@@ -10602,21 +10602,27 @@ corpus_diff::has_net_changes() const
     const diff_stats& stats = const_cast<corpus_diff*>(this)->
       apply_filters_and_suppressions_before_reporting();
 
+    // Logic here should match emit_diff_stats.
+    // TODO: Possibly suppress things that won't be shown there.
+    bool leaf = context()->show_leaf_changes_only();
     return (architecture_changed()
 	    || soname_changed()
-	    || stats.net_num_func_changed()
-	    || stats.net_num_vars_changed()
-	    || stats.net_num_func_added()
-	    || stats.net_num_added_func_syms()
 	    || stats.net_num_func_removed()
-	    || stats.net_num_removed_func_syms()
-	    || stats.net_num_vars_added()
-	    || stats.net_num_added_var_syms()
+	    || (leaf && stats.num_leaf_type_changes())
+	    || (leaf ? stats.net_num_leaf_func_changes()
+		     : stats.net_num_func_changed())
+	    || stats.net_num_func_added()
 	    || stats.net_num_vars_removed()
-	    || stats.net_num_removed_var_syms()
-	    || stats.net_num_added_unreachable_types()
+	    || (leaf ? stats.net_num_leaf_var_changes()
+		     : stats.net_num_vars_changed())
+	    || stats.net_num_vars_added()
 	    || stats.net_num_removed_unreachable_types()
-	    || stats.net_num_changed_unreachable_types());
+	    || stats.net_num_changed_unreachable_types()
+	    || stats.net_num_added_unreachable_types()
+	    || stats.net_num_removed_func_syms()
+	    || stats.net_num_added_func_syms()
+	    || stats.net_num_removed_var_syms()
+	    || stats.net_num_added_var_syms());
 }
 
 /// Apply the different filters that are registered to be applied to
