@@ -25184,7 +25184,7 @@
 
     </array-type-def>
     <!-- void*[20][32] -->
-    <array-type-def dimensions='2' type-id='type-id-53' size-in-bits='3328' id='type-id-180'>
+    <array-type-def dimensions='2' type-id='type-id-53' size-in-bits='40960' id='type-id-180'>
       <!-- <anonymous range>[20] -->
       <subrange length='20' type-id='type-id-5' id='type-id-960'/>
 
