@@ -3834,7 +3834,7 @@ equals(const decl_base& l, const decl_base& r, change_kind* k)
 	    {
 	      result = false;
 	      if (k)
-		*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+		*k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	      else
 		return false;
 	    }
@@ -3874,7 +3874,7 @@ equals(const decl_base& l, const decl_base& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -3917,7 +3917,7 @@ equals(const decl_base& l, const decl_base& r, change_kind* k)
 	{
 	  result = false;
 	  if (k)
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	  else
 	    return false;
 	}
@@ -5249,7 +5249,7 @@ peel_typedef_type(const type_base* type)
 {
   const typedef_decl* t = is_typedef(type);
   if (!t)
-    return t;
+    return type;
 
   return peel_typedef_type(t->get_underlying_type()).get();
 }
@@ -5957,7 +5957,7 @@ equals(const scope_decl& l, const scope_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -5984,7 +5984,7 @@ equals(const scope_decl& l, const scope_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -11942,7 +11942,7 @@ equals(const type_base& l, const type_base& r, change_kind* k)
 		 && l.get_alignment_in_bits() == r.get_alignment_in_bits());
   if (!result)
     if (k)
-      *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+      *k |= LOCAL_TYPE_CHANGE_KIND;
   return result;
 }
 
@@ -12933,7 +12933,7 @@ equals(const qualified_type_def& l, const qualified_type_def& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -12948,7 +12948,7 @@ equals(const qualified_type_def& l, const qualified_type_def& r, change_kind* k)
 	    // Underlying type changes in which the structure of the
 	    // type changed are considered local changes to the
 	    // qualified type.
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_TYPE_CHANGE_KIND;
 	  else
 	    *k |= SUBTYPE_CHANGE_KIND;
 	}
@@ -13325,7 +13325,7 @@ equals(const pointer_type_def& l, const pointer_type_def& r, change_kind* k)
 	  // pointed-to type changes in which the structure of the
 	  // type changed are considered local changes to the pointer
 	  // type.
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_TYPE_CHANGE_KIND;
 	*k |= SUBTYPE_CHANGE_KIND;
       }
 
@@ -13573,10 +13573,10 @@ reference_type_def::reference_type_def(const type_base_sptr	pointed_to,
       decl_base_sptr pto = dynamic_pointer_cast<decl_base>(pointed_to);
       string name;
       if (pto)
-        {
-          set_visibility(pto->get_visibility());
-          name = string(pto->get_name()) + "&";
-        }
+	{
+	  set_visibility(pto->get_visibility());
+	  name = string(pto->get_name()) + "&";
+	}
       else
 	name = string(get_type_name(is_function_type(pointed_to),
 				    /*qualified_name=*/true)) + "&";
@@ -13618,7 +13618,7 @@ equals(const reference_type_def& l, const reference_type_def& r, change_kind* k)
   if (l.is_lvalue() != r.is_lvalue())
     {
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       return false;
     }
 
@@ -13627,7 +13627,7 @@ equals(const reference_type_def& l, const reference_type_def& r, change_kind* k)
     if (k)
       {
 	if (!types_have_similar_structure(&l, &r))
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_TYPE_CHANGE_KIND;
 	*k |= SUBTYPE_CHANGE_KIND;
       }
   return result;
@@ -14164,7 +14164,7 @@ equals(const array_type_def::subrange_type& l,
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       else
 	return result;
     }
@@ -14179,7 +14179,7 @@ equals(const array_type_def::subrange_type& l,
 	{
 	  if (!types_have_similar_structure(l.get_underlying_type().get(),
 					    r.get_underlying_type().get()))
-	    *k |= LOCAL_CHANGE_KIND;
+	    *k |= LOCAL_TYPE_CHANGE_KIND;
 	  else
 	    *k |= SUBTYPE_CHANGE_KIND;
 	}
@@ -14427,7 +14427,7 @@ equals(const array_type_def& l, const array_type_def& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -14441,7 +14441,7 @@ equals(const array_type_def& l, const array_type_def& r, change_kind* k)
 	result = false;
 	if (k)
 	  {
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_TYPE_CHANGE_KIND;
 	    break;
 	  }
 	else
@@ -14876,7 +14876,7 @@ enum_has_non_name_change(const enum_type_decl& l,
 	result = true;
 	if (k)
 	  {
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_TYPE_CHANGE_KIND;
 	    break;
 	  }
 	else
@@ -14887,7 +14887,7 @@ enum_has_non_name_change(const enum_type_decl& l,
     {
       result = true;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       else
 	return true;
     }
@@ -14908,8 +14908,7 @@ enum_has_non_name_change(const enum_type_decl& l,
 	  if (!l.decl_base::operator==(r))
 	    *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	  if (!l.type_base::operator==(r))
-	    *k |=  LOCAL_TYPE_CHANGE_KIND;
-	  *k |= LOCAL_CHANGE_KIND;
+	    *k |= LOCAL_TYPE_CHANGE_KIND;
 	}
       else
 	{
@@ -14965,7 +14964,7 @@ equals(const enum_type_decl& l, const enum_type_decl& r, change_kind* k)
 	result = false;
 	if (k)
 	  {
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_TYPE_CHANGE_KIND;
 	    break;
 	  }
 	else
@@ -14976,7 +14975,7 @@ equals(const enum_type_decl& l, const enum_type_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -14990,7 +14989,6 @@ equals(const enum_type_decl& l, const enum_type_decl& r, change_kind* k)
 	    *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	  if (!l.type_base::operator==(r))
 	    *k |= LOCAL_TYPE_CHANGE_KIND;
-	  *k |= LOCAL_CHANGE_KIND;
 	}
       else
 	return false;
@@ -15339,7 +15337,7 @@ equals(const typedef_decl& l, const typedef_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -15650,7 +15648,7 @@ equals(const var_decl& l, const var_decl& r, change_kind* k)
 	{
 	  if (!types_have_similar_structure(l.get_naked_type(),
 					   r.get_naked_type()))
-	    *k |= (LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND);
+	    *k |= (LOCAL_TYPE_CHANGE_KIND);
 	  else
 	    *k |= SUBTYPE_CHANGE_KIND;
 	}
@@ -15665,7 +15663,7 @@ equals(const var_decl& l, const var_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -15673,7 +15671,7 @@ equals(const var_decl& l, const var_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -15695,7 +15693,7 @@ equals(const var_decl& l, const var_decl& r, change_kind* k)
 	{
 	  result = false;
 	  if (k)
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	  else
 	    return false;
 	}
@@ -15705,7 +15703,7 @@ equals(const var_decl& l, const var_decl& r, change_kind* k)
       {
 	result = false;
 	if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	else
 	  return false;
       }
@@ -15720,7 +15718,7 @@ equals(const var_decl& l, const var_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -16241,7 +16239,7 @@ equals(const function_type& lhs,
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       else
 	RETURN(result);
     }
@@ -16259,7 +16257,7 @@ equals(const function_type& lhs,
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       else
 	RETURN(result);
     }
@@ -16269,7 +16267,7 @@ equals(const function_type& lhs,
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       else
 	RETURN(result);
     }
@@ -16304,7 +16302,7 @@ equals(const function_type& lhs,
 	    {
 	      if (!types_have_similar_structure(lhs.get_return_type(),
 						rhs.get_return_type()))
-		*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+		*k |= LOCAL_TYPE_CHANGE_KIND;
 	      else
 		*k |= SUBTYPE_CHANGE_KIND;
 	    }
@@ -16347,7 +16345,7 @@ equals(const function_type& lhs,
 	    {
 	      if (!types_have_similar_structure((*i)->get_type(),
 						(*j)->get_type()))
-		*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+		*k |= LOCAL_TYPE_CHANGE_KIND;
 	      else
 		*k |= SUBTYPE_CHANGE_KIND;
 	    }
@@ -16361,7 +16359,7 @@ equals(const function_type& lhs,
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	RETURN(result);
     }
@@ -17105,7 +17103,7 @@ equals(const function_decl& l, const function_decl& r, change_kind* k)
       if (k)
 	{
 	  if (!types_have_similar_structure(t0, t1))
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_TYPE_CHANGE_KIND;
 	  else
 	    *k |= SUBTYPE_CHANGE_KIND;
 	}
@@ -17118,7 +17116,7 @@ equals(const function_decl& l, const function_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -17128,7 +17126,7 @@ equals(const function_decl& l, const function_decl& r, change_kind* k)
 	{
 	  result = false;
 	  if (k)
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	  else
 	    return false;
 	}
@@ -17158,7 +17156,7 @@ equals(const function_decl& l, const function_decl& r, change_kind* k)
 	{
 	  result = false;
 	  if (k)
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	  else
 	    return false;
 	}
@@ -17168,7 +17166,7 @@ equals(const function_decl& l, const function_decl& r, change_kind* k)
       {
 	result = false;
 	if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	else
 	  return false;
       }
@@ -17179,7 +17177,7 @@ equals(const function_decl& l, const function_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	*k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -17188,7 +17186,7 @@ equals(const function_decl& l, const function_decl& r, change_kind* k)
     {
       result = false;
       if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_NON_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -17210,7 +17208,7 @@ equals(const function_decl& l, const function_decl& r, change_kind* k)
 	{
 	  result = false;
 	  if (k)
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	  else
 	    return false;
 	}
@@ -17562,7 +17560,6 @@ equals(const function_decl::parameter& l,
 	  if (l.get_variadic_marker() != r.get_variadic_marker()
 	      || !!l.get_type() != !!r.get_type())
 	    *k |= LOCAL_TYPE_CHANGE_KIND;
-	  *k |= LOCAL_CHANGE_KIND;
 	}
       else
 	return false;
@@ -17579,7 +17576,7 @@ equals(const function_decl::parameter& l,
       if (k)
 	{
 	  if (!types_have_similar_structure(l_type, r_type))
-	    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	    *k |= LOCAL_TYPE_CHANGE_KIND;
 	  else
 	    *k |= SUBTYPE_CHANGE_KIND;
 	}
@@ -18837,7 +18834,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
 	      else
 		{
 		  if (k)
-		    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+		    *k |= LOCAL_TYPE_CHANGE_KIND;
 		  // Not using RETURN(true) here, because that causes
 		  // performance issues.  We don't need to do
 		  // l.priv_->unmark_as_being_compared({l,r}) here because
@@ -18853,7 +18850,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
 	      if (!!def1 != !!def2)
 		{
 		  if (k)
-		    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+		    *k |= LOCAL_TYPE_CHANGE_KIND;
 		  return false;
 		}
 
@@ -18862,7 +18859,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
 		       && l.type_base::operator==(r)))
 		{
 		  if (k)
-		    *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+		    *k |= LOCAL_TYPE_CHANGE_KIND;
 		  return false;
 		}
 
@@ -18880,7 +18877,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
       bool val = *def1 == *def2;
       if (!val)
 	if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_TYPE_CHANGE_KIND;
       RETURN(val);
     }
 
@@ -18889,7 +18886,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
   if (!(l.decl_base::operator==(r) && l.type_base::operator==(r)))
     {
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       RETURN(false);
     }
 
@@ -18912,7 +18909,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
       {
 	result = false;
 	if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_TYPE_CHANGE_KIND;
 	else
 	  RETURN(result);
       }
@@ -18931,7 +18928,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
 	      // Report any representation change as being local.
 	      if (!types_have_similar_structure((*d0)->get_type(),
 						(*d1)->get_type()))
-		*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+		*k |= LOCAL_TYPE_CHANGE_KIND;
 	      else
 		*k |= SUBTYPE_CHANGE_KIND;
 	    }
@@ -18952,7 +18949,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
       {
 	result = false;
 	if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	else
 	  RETURN(result);
       }
@@ -18968,7 +18965,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
 	  result = false;
 	  if (k)
 	    {
-	      *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	      *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	      break;
 	    }
 	  else
@@ -18983,7 +18980,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
       {
 	result = false;
 	if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	else
 	  RETURN(result);
       }
@@ -18999,7 +18996,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
 	  result = false;
 	  if (k)
 	    {
-	      *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	      *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	      break;
 	    }
 	  else
@@ -19659,7 +19656,7 @@ equals(const class_decl::base_spec& l,
   if (!l.member_base::operator==(r))
     {
       if (k)
-	*k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       return false;
     }
 
@@ -20319,7 +20316,7 @@ equals(const class_decl& l, const class_decl& r, change_kind* k)
       {
 	result = false;
 	if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_TYPE_CHANGE_KIND;
 	else
 	  RETURN(result);
       }
@@ -20337,7 +20334,7 @@ equals(const class_decl& l, const class_decl& r, change_kind* k)
 	    {
 	      if (!types_have_similar_structure((*b0)->get_base_class().get(),
 						(*b1)->get_base_class().get()))
-		*k |= LOCAL_CHANGE_KIND;
+		*k |= LOCAL_TYPE_CHANGE_KIND;
 	      else
 		*k |= SUBTYPE_CHANGE_KIND;
 	      break;
@@ -20368,7 +20365,7 @@ equals(const class_decl& l, const class_decl& r, change_kind* k)
       {
 	result = false;
 	if (k)
-	  *k |= LOCAL_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	  *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	else
 	  RETURN(result);
       }
@@ -20398,7 +20395,7 @@ equals(const class_decl& l, const class_decl& r, change_kind* k)
 	  {
 	    result = false;
 	    if (k)
-	      *k |= LOCAL_NON_TYPE_CHANGE_KIND | LOCAL_NON_TYPE_CHANGE_KIND;
+	      *k |= LOCAL_NON_TYPE_CHANGE_KIND;
 	    RETURN(result);
 	  }
 
@@ -22566,33 +22563,14 @@ function_decl_is_less_than(const function_decl &f, const function_decl &s)
 /// Test if two types have similar structures, even though they are
 /// (or can be) different.
 ///
-/// Two indirect types (pointers, references, qualified, typedefs)
-/// have similar structure if their underlying types are of the same
-/// kind and have the same name.  In this indirect types case, the
-/// size of the underlying type does not matter.
+/// const and volatile qualifiers are completely ignored.
 ///
-/// Two direct types (i.e, non indirect) have a similar structure if
-/// they have the same kind, name and size.  Two class types have
-/// similar structure if they have the same name, size, and if their
-/// data members have similar types.
+/// typedef are resolved to their definitions; their names are ignored.
 ///
-/// @param first the first type to consider.
-///
-/// @param second the second type to consider.
-///
-/// @return true iff @p first and @p second have similar structures.
-bool
-types_have_similar_structure(const type_base_sptr& first,
-			     const type_base_sptr& second)
-{return types_have_similar_structure(first.get(), second.get());}
-
-/// Test if two types have similar structures, even though they are
-/// (or can be) different.
-///
-/// Two indirect types (pointers, references, qualified, typedefs)
-/// have similar structure if their underlying types are of the same
-/// kind and have the same name.  In this indirect types case, the
-/// size of the underlying type does not matter.
+/// Two indirect types (pointers or references) have similar structure
+/// if their underlying types are of the same kind and have the same
+/// name.  In the indirect types case, the size of the underlying type
+/// does not matter.
 ///
 /// Two direct types (i.e, non indirect) have a similar structure if
 /// they have the same kind, name and size.  Two class types have
@@ -22603,9 +22581,43 @@ types_have_similar_structure(const type_base_sptr& first,
 ///
 /// @param second the second type to consider.
 ///
+/// @param indirect_type whether to do an indirect comparison
+///
 /// @return true iff @p first and @p second have similar structures.
 bool
-types_have_similar_structure(const type_base* first, const type_base* second)
+types_have_similar_structure(const type_base_sptr& first,
+			     const type_base_sptr& second,
+			     bool indirect_type)
+{return types_have_similar_structure(first.get(), second.get(), indirect_type);}
+
+/// Test if two types have similar structures, even though they are
+/// (or can be) different.
+///
+/// const and volatile qualifiers are completely ignored.
+///
+/// typedef are resolved to their definitions; their names are ignored.
+///
+/// Two indirect types (pointers or references) have similar structure
+/// if their underlying types are of the same kind and have the same
+/// name.  In the indirect types case, the size of the underlying type
+/// does not matter.
+///
+/// Two direct types (i.e, non indirect) have a similar structure if
+/// they have the same kind, name and size.  Two class types have
+/// similar structure if they have the same name, size, and if the
+/// types of their data members have similar types.
+///
+/// @param first the first type to consider.
+///
+/// @param second the second type to consider.
+///
+/// @param indirect_type whether to do an indirect comparison
+///
+/// @return true iff @p first and @p second have similar structures.
+bool
+types_have_similar_structure(const type_base* first,
+			     const type_base* second,
+			     bool indirect_type)
 {
   if (!!first != !!second)
     return false;
@@ -22613,33 +22625,39 @@ types_have_similar_structure(const type_base* first, const type_base* second)
   if (!first)
     return false;
 
-  if (is_typedef(first) || is_qualified_type(first))
-    first = peel_qualified_or_typedef_type(first);
+  // Treat typedefs purely as type aliases and ignore CV-qualifiers.
+  first = peel_qualified_or_typedef_type(first);
+  second = peel_qualified_or_typedef_type(second);
 
-  if (is_typedef(second) || is_qualified_type(second))
-    second = peel_qualified_or_typedef_type(second);
-
-  bool was_indirect_type = (is_pointer_type(first)
-			    || is_pointer_type(second)
-			    || is_reference_type(first)
-			    || is_reference_type(second));
-
-  if (was_indirect_type)
-    {
-      first = peel_typedef_pointer_or_reference_type(first);
-      second = peel_typedef_pointer_or_reference_type(second);
-    }
-
+  // Eliminate all but N of the N^2 comparison cases. This also guarantees the
+  // various ty2 below cannot be null.
   if (typeid(*first) != typeid(*second))
     return false;
+
+  // Peel off matching pointers.
+  if (const pointer_type_def* ty1 = is_pointer_type(first))
+    {
+      const pointer_type_def* ty2 = is_pointer_type(second);
+      return types_have_similar_structure(ty1->get_pointed_to_type(),
+					  ty2->get_pointed_to_type(),
+					  true);
+    }
+
+  // Peel off matching references.
+  if (const reference_type_def* ty1 = is_reference_type(first))
+    {
+      const reference_type_def* ty2 = is_reference_type(second);
+      if (ty1->is_lvalue() != ty2->is_lvalue())
+	return false;
+      return types_have_similar_structure(ty1->get_pointed_to_type(),
+					  ty2->get_pointed_to_type(),
+					  true);
+    }
 
   if (const type_decl* ty1 = is_type_decl(first))
     {
       const type_decl* ty2 = is_type_decl(second);
-      if (ty2 == 0)
-	return false;
-
-      if (!was_indirect_type)
+      if (!indirect_type)
 	if (ty1->get_size_in_bits() != ty2->get_size_in_bits())
 	  return false;
 
@@ -22649,10 +22667,7 @@ types_have_similar_structure(const type_base* first, const type_base* second)
   if (const enum_type_decl* ty1 = is_enum_type(first))
     {
       const enum_type_decl* ty2 = is_enum_type(second);
-      if (ty2 == 0)
-	return false;
-
-      if (!was_indirect_type)
+      if (!indirect_type)
 	if (ty1->get_size_in_bits() != ty2->get_size_in_bits())
 	  return false;
 
@@ -22663,20 +22678,16 @@ types_have_similar_structure(const type_base* first, const type_base* second)
   if (const class_decl* ty1 = is_class_type(first))
     {
       const class_decl* ty2 = is_class_type(second);
-      if (ty2 == 0)
-	return false;
-
       if (!ty1->get_is_anonymous() && !ty2->get_is_anonymous()
 	  && ty1->get_name() != ty2->get_name())
 	return false;
 
-      if (!was_indirect_type)
+      if (!indirect_type)
 	{
-	  if (!was_indirect_type)
-	    if ((ty1->get_size_in_bits() != ty2->get_size_in_bits())
-		|| (ty1->get_non_static_data_members().size()
-		    != ty2->get_non_static_data_members().size()))
-	      return false;
+	  if ((ty1->get_size_in_bits() != ty2->get_size_in_bits())
+	      || (ty1->get_non_static_data_members().size()
+		  != ty2->get_non_static_data_members().size()))
+	    return false;
 
 	  for (class_or_union::data_members::const_iterator
 		 i = ty1->get_non_static_data_members().begin(),
@@ -22688,7 +22699,8 @@ types_have_similar_structure(const type_base* first, const type_base* second)
 	      var_decl_sptr dm1 = *i;
 	      var_decl_sptr dm2 = *j;
 	      if (!types_have_similar_structure(dm1->get_type().get(),
-						dm2->get_type().get()))
+						dm2->get_type().get(),
+						indirect_type))
 		return false;
 	    }
 	}
@@ -22699,14 +22711,11 @@ types_have_similar_structure(const type_base* first, const type_base* second)
   if (const union_decl* ty1 = is_union_type(first))
     {
       const union_decl* ty2 = is_union_type(second);
-      if (ty2 == 0)
-	return false;
-
       if (!ty1->get_is_anonymous() && !ty2->get_is_anonymous()
 	  && ty1->get_name() != ty2->get_name())
 	return false;
 
-      if (!was_indirect_type)
+      if (!indirect_type)
 	return ty1->get_size_in_bits() == ty2->get_size_in_bits();
 
       return true;
@@ -22715,13 +22724,13 @@ types_have_similar_structure(const type_base* first, const type_base* second)
   if (const array_type_def* ty1 = is_array_type(first))
     {
       const array_type_def* ty2 = is_array_type(second);
-
-      if (!was_indirect_type)
-	if (ty1->get_size_in_bits() != ty2->get_size_in_bits()
-	    || ty1->get_dimension_count() != ty2->get_dimension_count()
-	    || !types_have_similar_structure(ty1->get_element_type(),
-					     ty2->get_element_type()))
-	  return false;
+      // TODO: Handle int[5][2] vs int[2][5] better.
+      if (ty1->get_size_in_bits() != ty2->get_size_in_bits()
+	  || ty1->get_dimension_count() != ty2->get_dimension_count()
+	  || !types_have_similar_structure(ty1->get_element_type(),
+					   ty2->get_element_type(),
+					   indirect_type))
+	return false;
 
       return true;
     }
@@ -22729,14 +22738,12 @@ types_have_similar_structure(const type_base* first, const type_base* second)
   if (const array_type_def::subrange_type *ty1 = is_subrange_type(first))
     {
       const array_type_def::subrange_type *ty2 = is_subrange_type(second);
-      if (!ty2)
-	return false;
-
       if (ty1->get_upper_bound() != ty2->get_upper_bound()
 	  || ty1->get_lower_bound() != ty2->get_lower_bound()
 	  || ty1->get_language() != ty2->get_language()
 	  || !types_have_similar_structure(ty1->get_underlying_type(),
-					  ty2->get_underlying_type()))
+					   ty2->get_underlying_type(),
+					   indirect_type))
 	return false;
 
       return true;
@@ -22745,11 +22752,9 @@ types_have_similar_structure(const type_base* first, const type_base* second)
   if (const function_type* ty1 = is_function_type(first))
     {
       const function_type* ty2 = is_function_type(second);
-      if (!ty2)
-	return false;
-
       if (!types_have_similar_structure(ty1->get_return_type(),
-					ty2->get_return_type()))
+					ty2->get_return_type(),
+					indirect_type))
 	return false;
 
       if (ty1->get_parameters().size() != ty2->get_parameters().size())
@@ -22762,7 +22767,8 @@ types_have_similar_structure(const type_base* first, const type_base* second)
 	    && j != ty2->get_parameters().end());
 	   ++i, ++j)
 	if (!types_have_similar_structure((*i)->get_type(),
-					  (*j)->get_type()))
+					  (*j)->get_type(),
+					  indirect_type))
 	  return false;
 
       return true;

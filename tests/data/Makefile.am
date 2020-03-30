@@ -130,6 +130,11 @@ test-abidiff-exit/test-leaf3-v0.o \
 test-abidiff-exit/test-leaf3-v1.c \
 test-abidiff-exit/test-leaf3-v1.o \
 test-abidiff-exit/test-leaf3-report.txt \
+test-abidiff-exit/test-leaf-peeling-v0.cc \
+test-abidiff-exit/test-leaf-peeling-v0.o \
+test-abidiff-exit/test-leaf-peeling-v1.cc \
+test-abidiff-exit/test-leaf-peeling-v1.o \
+test-abidiff-exit/test-leaf-peeling-report.txt \
 \
 test-diff-dwarf/test0-v0.cc		\
 test-diff-dwarf/test0-v0.o			\
@@ -440,6 +445,9 @@ test-read-dwarf/PR25007-sdhci.ko \
 test-read-dwarf/PR25007-sdhci.ko.abi \
 test-read-dwarf/PR25042-libgdbm-clang-dwarf5.so.6.0.0 \
 test-read-dwarf/PR25042-libgdbm-clang-dwarf5.so.6.0.0.abi \
+test-read-dwarf/test25-bogus-binary.elf \
+test-read-dwarf/test26-bogus-binary.elf \
+test-read-dwarf/test27-bogus-binary.elf \
 \
 test-annotate/test0.abi			\
 test-annotate/test1.abi			\
@@ -1321,6 +1329,8 @@ test-lookup-syms/test02-report.txt	\
 test-lookup-syms/test1.c		\
 test-lookup-syms/test1.version-script	\
 test-lookup-syms/test1.so		\
+test-lookup-syms/test1-32bits.so	\
+test-lookup-syms/test1.c.compiling.txt  \
 test-lookup-syms/test1-1-report.txt	\
 test-lookup-syms/test1-2-report.txt	\
 test-lookup-syms/test1-3-report.txt	\

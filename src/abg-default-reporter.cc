@@ -444,7 +444,7 @@ default_reporter::report(const reference_diff& d, ostream& out,
   enum change_kind k = ir::NO_CHANGE_KIND;
   equals(*d.first_reference(), *d.second_reference(), &k);
 
-  if ((k & LOCAL_CHANGE_KIND) && !(k & SUBTYPE_CHANGE_KIND))
+  if ((k & ALL_LOCAL_CHANGES_MASK) && !(k & SUBTYPE_CHANGE_KIND))
     report_local_reference_type_changes(d, out, indent);
 
   if (k & SUBTYPE_CHANGE_KIND)
@@ -1049,7 +1049,6 @@ default_reporter::report(const class_or_union_diff& d,
 	      if ((*it)->to_be_reported())
 		{
 		  represent(*it, ctxt, out, indent + "  ");
-		  out << "\n";
 		}
 	    }
 	}
@@ -1069,7 +1068,6 @@ default_reporter::report(const class_or_union_diff& d,
 	      if ((*it)->to_be_reported())
 		{
 		  represent(*it, ctxt, out, indent + "  ");
-		  out << "\n";
 		}
 	    }
 	}
@@ -1440,10 +1438,11 @@ default_reporter::report(const union_diff& d, ostream& out,
 	  << indent << "to:\n"
 	  << get_class_or_union_flat_representation(second, indent + "  ",
 						    /*one_line=*/true,
-						    /*qualified_names=*/false);
+						    /*qualified_names=*/false)
+	  << "\n";
     }
 
- d.currently_reporting(false);
+  d.currently_reporting(false);
 
   d.reported_once(true);
 }
@@ -2044,7 +2043,6 @@ default_reporter::report(const corpus_diff& d, ostream& out,
 	  report_loc_info(diff->second_subject(), *ctxt, out);
 	  out << ":\n";
 	  diff->report(out, indent + "    ");
-	  out << "\n";
 	  emitted = true;
 	}
       if (emitted)
