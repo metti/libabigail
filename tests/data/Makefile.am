@@ -135,6 +135,7 @@ test-abidiff-exit/test-leaf-peeling-v0.o \
 test-abidiff-exit/test-leaf-peeling-v1.cc \
 test-abidiff-exit/test-leaf-peeling-v1.o \
 test-abidiff-exit/test-leaf-peeling-report.txt \
+test-abidiff-exit/test-leaf-peeling-report-indirect.txt \
 test-abidiff-exit/test-leaf-cxx-members-v0.cc \
 test-abidiff-exit/test-leaf-cxx-members-v0.o \
 test-abidiff-exit/test-leaf-cxx-members-v1.cc \

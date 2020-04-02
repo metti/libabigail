@@ -1752,6 +1752,22 @@ void
 diff_context::show_redundant_changes(bool f)
 {priv_->show_redundant_changes_ = f;}
 
+/// A getter for the flag that says if we should flag indirect class
+/// and union changes in leaf-changes-only mode.
+///
+/// @return the flag.
+bool
+diff_context::flag_indirect_changes() const
+{return priv_->flag_indirect_changes_;}
+
+/// A setter for the flag that says if we should flag indirect class
+/// and union changes in leaf-changes-only mode.
+///
+/// @param f the flag to set.
+void
+diff_context::flag_indirect_changes(bool f)
+{priv_->flag_indirect_changes_ = f;}
+
 /// Getter for the flag that indicates if symbols not referenced by
 /// any debug info are to be compared and reported about.
 ///

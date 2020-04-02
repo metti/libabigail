@@ -215,6 +215,7 @@ struct diff_context::priv
   bool					show_linkage_names_;
   bool					show_locs_;
   bool					show_redundant_changes_;
+  bool					flag_indirect_changes_;
   bool					show_syms_unreferenced_by_di_;
   bool					show_added_syms_unreferenced_by_di_;
   bool					show_unreachable_types_;
@@ -244,6 +245,7 @@ struct diff_context::priv
       show_linkage_names_(false),
       show_locs_(true),
       show_redundant_changes_(true),
+      flag_indirect_changes_(false),
       show_syms_unreferenced_by_di_(true),
       show_added_syms_unreferenced_by_di_(true),
       show_unreachable_types_(false),

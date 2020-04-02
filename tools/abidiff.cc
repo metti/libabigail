@@ -107,6 +107,7 @@ struct options
   bool			show_harmful_changes;
   bool			show_harmless_changes;
   bool			show_redundant_changes;
+  bool			flag_indirect_changes;
   bool			show_symbols_not_referenced_by_debug_info;
   bool			show_impacted_interfaces;
   bool			dump_diff_tree;
@@ -148,6 +149,7 @@ struct options
       show_harmful_changes(true),
       show_harmless_changes(),
       show_redundant_changes(),
+      flag_indirect_changes(),
       show_symbols_not_referenced_by_debug_info(true),
       show_impacted_interfaces(),
       dump_diff_tree(),
@@ -231,6 +233,8 @@ display_usage(const string& prog_name, ostream& out)
     << " --redundant  display redundant changes\n"
     << " --no-redundant  do not display redundant changes "
     "(this is the default)\n"
+    << " --flag-indirect  label class/union diffs as indirect when all members "
+    << "have the same names and type names (leaf mode only)\n"
     << " --impacted-interfaces  display interfaces impacted by leaf changes\n"
     << " --dump-diff-tree  emit a debug dump of the internal diff tree to "
     "the error output stream\n"
@@ -540,6 +544,8 @@ parse_command_line(int argc, char* argv[], options& opts)
 	opts.show_redundant_changes = true;
       else if (!strcmp(argv[i], "--no-redundant"))
 	opts.show_redundant_changes = false;
+      else if (!strcmp(argv[i], "--flag-indirect"))
+	opts.flag_indirect_changes = true;
       else if (!strcmp(argv[i], "--impacted-interfaces"))
 	opts.show_impacted_interfaces = true;
       else if (!strcmp(argv[i], "--dump-diff-tree"))
@@ -660,7 +666,8 @@ set_diff_context_from_opts(diff_context_sptr ctxt,
   // redundancy analysis pass altogether.  That could help save a
   // couple of CPU cycle here and there!
   ctxt->show_redundant_changes(opts.show_redundant_changes
-                               || opts.leaf_changes_only);
+			       || opts.leaf_changes_only);
+  ctxt->flag_indirect_changes(opts.flag_indirect_changes);
   ctxt->show_symbols_unreferenced_by_debug_info
     (opts.show_symbols_not_referenced_by_debug_info);
   ctxt->show_added_symbols_unreferenced_by_debug_info
