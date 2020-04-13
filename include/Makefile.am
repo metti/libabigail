@@ -25,6 +25,7 @@ abg-version.h		\
 abg-viz-common.h	\
 abg-viz-dot.h		\
 abg-viz-svg.h		\
-abg-regex.h
+abg-regex.h		\
+abg-symtab-reader.h
 
 EXTRA_DIST = abg-version.h.in

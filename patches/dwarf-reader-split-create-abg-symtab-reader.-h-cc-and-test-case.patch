@@ -1,0 +1,200 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Mon, 13 Apr 2020 23:27:09 +0200
+Subject: dwarf-reader split: create abg-symtab-reader.{h,cc} and test case
+
+abg-symtab-reader.{h,cc} shall contain the refactored symtab reader.
+Create the stub files, an empty unit test and hook everything up in the
+make system.
+
+    * include/abg-symtab-reader.h: New header file.
+    * include/Makefile.am: Add new header file abg-symtab-reader.h.
+    * src/Makefile.am: Add new source file abg-symtab-reader.cc.
+    * src/abg-symtab-reader.cc: New source file.
+    * tests/Makefile.am: Add new test case runtestsymtabreader.
+    * tests/test-symtab-reader.cc: New test source file.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ include/Makefile.am         |  3 ++-
+ include/abg-symtab-reader.h | 39 +++++++++++++++++++++++++++++++++++++
+ src/Makefile.am             |  1 +
+ src/abg-symtab-reader.cc    | 36 ++++++++++++++++++++++++++++++++++
+ tests/Makefile.am           |  4 ++++
+ tests/test-symtab-reader.cc | 30 ++++++++++++++++++++++++++++
+ 6 files changed, 112 insertions(+), 1 deletion(-)
+ create mode 100644 include/abg-symtab-reader.h
+ create mode 100644 src/abg-symtab-reader.cc
+ create mode 100644 tests/test-symtab-reader.cc
+
+diff --git a/include/Makefile.am b/include/Makefile.am
+index b547525238ec..639906aafe5b 100644
+--- a/include/Makefile.am
++++ b/include/Makefile.am
+@@ -25,6 +25,7 @@ abg-version.h		\
+ abg-viz-common.h	\
+ abg-viz-dot.h		\
+ abg-viz-svg.h		\
+-abg-regex.h
++abg-regex.h		\
++abg-symtab-reader.h
+ 
+ EXTRA_DIST = abg-version.h.in
+diff --git a/include/abg-symtab-reader.h b/include/abg-symtab-reader.h
+new file mode 100644
+index 000000000000..b61e6399fe93
+--- /dev/null
++++ b/include/abg-symtab-reader.h
+@@ -0,0 +1,39 @@
++// -*- Mode: C++ -*-
++//
++// Copyright (C) 2020 Google, Inc.
++//
++// This file is part of the GNU Application Binary Interface Generic
++// Analysis and Instrumentation Library (libabigail).  This library is
++// free software; you can redistribute it and/or modify it under the
++// terms of the GNU Lesser General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option) any
++// later version.
++
++// This library is distributed in the hope that it will be useful, but
++// WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++// General Lesser Public License for more details.
++
++// You should have received a copy of the GNU Lesser General Public
++// License along with this program; see the file COPYING-LGPLV3.  If
++// not, see <http://www.gnu.org/licenses/>.
++//
++// Author: Matthias Maennich
++
++/// @file
++///
++/// This contains the declarations for the symtab reader.
++
++#ifndef __ABG_SYMTAB_READER_H__
++#define __ABG_SYMTAB_READER_H__
++
++namespace abigail
++{
++
++namespace symtab_reader
++{
++
++} // end namespace symtab_reader
++} // end namespace abigail
++
++#endif // __ABG_SYMTAB_READER_H__
+diff --git a/src/Makefile.am b/src/Makefile.am
+index 1153a5f8b158..dff17d9c02c1 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -41,6 +41,7 @@ abg-tools-utils.cc			\
+ abg-elf-helpers.h			\
+ abg-elf-helpers.cc			\
+ abg-regex.cc				\
++abg-symtab-reader.cc			\
+ $(CXX11_SOURCES)
+ 
+ libabigail_la_LIBADD = $(DEPS_LIBS)
+diff --git a/src/abg-symtab-reader.cc b/src/abg-symtab-reader.cc
+new file mode 100644
+index 000000000000..1f934d3a7609
+--- /dev/null
++++ b/src/abg-symtab-reader.cc
+@@ -0,0 +1,36 @@
++// -*- Mode: C++ -*-
++//
++// Copyright (C) 2020 Google, Inc.
++//
++// This file is part of the GNU Application Binary Interface Generic
++// Analysis and Instrumentation Library (libabigail).  This library is
++// free software; you can redistribute it and/or modify it under the
++// terms of the GNU Lesser General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option) any
++// later version.
++
++// This library is distributed in the hope that it will be useful, but
++// WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++// General Lesser Public License for more details.
++
++// You should have received a copy of the GNU Lesser General Public
++// License along with this program; see the file COPYING-LGPLV3.  If
++// not, see <http://www.gnu.org/licenses/>.
++//
++// Author: Matthias Maennich
++
++/// @file
++///
++/// This contains the definition of the symtab reader
++
++#include "abg-symtab-reader.h"
++
++namespace abigail
++{
++
++namespace symtab_reader
++{
++
++} // end namespace symtab_reader
++} // end namespace abigail
+diff --git a/tests/Makefile.am b/tests/Makefile.am
+index c2d4d1dc5d35..068725326b75 100644
+--- a/tests/Makefile.am
++++ b/tests/Makefile.am
+@@ -50,6 +50,7 @@ runtestkmiwhitelist		\
+ runtestlookupsyms		\
+ runtestreadwrite		\
+ runtestsymtab			\
++runtestsymtabreader		\
+ runtesttoolsutils		\
+ $(FEDABIPKGDIFF_TEST) 		\
+ $(ZIP_ARCHIVE_TESTS)		\
+@@ -158,6 +159,9 @@ runtestcxxcompat_LDADD = libcatch.la $(top_builddir)/src/libabigail.la
+ runtestsymtab_SOURCES = test-symtab.cc
+ runtestsymtab_LDADD = libtestutils.la libcatch.la $(top_builddir)/src/libabigail.la
+ 
++runtestsymtabreader_SOURCES = test-symtab-reader.cc
++runtestsymtabreader_LDADD = libcatch.la $(top_builddir)/src/libabigail.la
++
+ runtestsvg_SOURCES=test-svg.cc
+ runtestsvg_LDADD=$(top_builddir)/src/libabigail.la
+ 
+diff --git a/tests/test-symtab-reader.cc b/tests/test-symtab-reader.cc
+new file mode 100644
+index 000000000000..c2e30d661017
+--- /dev/null
++++ b/tests/test-symtab-reader.cc
+@@ -0,0 +1,30 @@
++// -*- Mode: C++ -*-
++//
++// Copyright (C) 2020 Google, Inc.
++//
++// This file is part of the GNU Application Binary Interface Generic
++// Analysis and Instrumentation Library (libabigail).  This library is
++// free software; you can redistribute it and/or modify it under the
++// terms of the GNU Lesser General Public License as published by the
++// Free Software Foundation; either version 3, or (at your option) any
++// later version.
++
++// This library is distributed in the hope that it will be useful, but
++// WITHOUT ANY WARRANTY; without even the implied warranty of
++// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++// General Lesser Public License for more details.
++
++// You should have received a copy of the GNU Lesser General Public
++// License along with this program; see the file COPYING-LGPLV3.  If
++// not, see <http://www.gnu.org/licenses/>.
++//
++// Author: Matthias Maennich
++
++/// @file
++///
++/// This program tests libabigail's symtab reader.
++
++#include "lib/catch.hpp"
++
++#include "abg-symtab-reader.h"
++

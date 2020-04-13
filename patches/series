@@ -7,3 +7,4 @@ abg-cxx-compat-add-simplified-version-of-std-optional-2.patch
 abg-cxx-compat-more-functional-support-std-bind-and-friends.patch
 abg-ir-elf_symbol-add-is_in_ksymtab-field.patch
 abg-ir-elf_symbol-add-is_suppressed-field.patch
+dwarf-reader-split-create-abg-symtab-reader.-h-cc-and-test-case.patch
