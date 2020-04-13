@@ -41,6 +41,7 @@ abg-tools-utils.cc			\
 abg-elf-helpers.h			\
 abg-elf-helpers.cc			\
 abg-regex.cc				\
+abg-symtab-reader.cc			\
 $(CXX11_SOURCES)
 
 libabigail_la_LIBADD = $(DEPS_LIBS)
