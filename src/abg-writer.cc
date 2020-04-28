@@ -173,6 +173,8 @@ class write_context
   bool					m_write_architecture;
   bool					m_write_corpus_path;
   bool					m_write_comp_dir;
+  bool					m_write_elf_needed;
+  bool					m_write_parameter_names;
   bool					m_short_locs;
   mutable type_ptr_map			m_type_id_map;
   mutable type_ptr_set_type		m_emitted_type_set;
@@ -208,6 +210,8 @@ public:
       m_write_architecture(true),
       m_write_corpus_path(true),
       m_write_comp_dir(true),
+      m_write_elf_needed(true),
+      m_write_parameter_names(true),
       m_short_locs(false)
   {}
 
@@ -264,6 +268,20 @@ public:
   set_write_architecture(bool f)
   {m_write_architecture = f;}
 
+  /// Getter of the elf-needed option.
+  ///
+  /// @return true iff elf needed information shall be emitted
+  bool
+  get_write_elf_needed()
+  {return m_write_elf_needed;}
+
+  /// Setter of the elf-needed option.
+  ///
+  /// @param f the new value of the flag.
+  void
+  set_write_elf_needed(bool f)
+  {m_write_elf_needed = f;}
+
   /// Getter of the write-corpus-path option.
   ///
   /// @return true iff corpus-path information shall be emitted
@@ -305,6 +323,20 @@ public:
   void
   set_short_locs(bool f)
   {m_short_locs = f;}
+
+  /// Getter of the parameter-names option.
+  ///
+  /// @return true iff parameter names shall be emitted
+  bool
+  get_write_parameter_names() const
+  {return m_write_parameter_names;}
+
+  /// Setter of the parameter-names option
+  ///
+  /// @param f the new value of the flag.
+  void
+  set_write_parameter_names(bool f)
+  {m_write_parameter_names = f;}
 
   /// Getter of the "show-locs" option.
   ///
@@ -2033,6 +2065,30 @@ void
 set_short_locs(write_context& ctxt, bool flag)
 {ctxt.set_short_locs(flag);}
 
+/// Set the 'parameter-names' flag.
+///
+/// When this flag is set then the XML writer will emit the names of
+/// function parameters.
+///
+/// @param ctxt the context to set this flag on to.
+///
+/// @param flag the new value of the 'parameter-names' flag.
+void
+set_write_parameter_names(write_context& ctxt, bool flag)
+{ctxt.set_write_parameter_names(flag);}
+
+/// Set the 'elf-needed' flag.
+///
+/// When this flag is set then the XML writer will emit corpus
+/// get_needed() (DT_NEEDED) information.
+///
+/// @param ctxt the context to set this flag on to.
+///
+/// @param flag the new value of the 'elf-needed' flag.
+void
+set_write_elf_needed(write_context& ctxt, bool flag)
+{ctxt.set_write_elf_needed(flag);}
+
 /// Serialize the canonical types of a given scope.
 ///
 /// @param scope the scope to consider.
@@ -3146,7 +3202,7 @@ write_function_decl(const function_decl_sptr& decl, write_context& ctxt,
 	    << "'";
 	  ctxt.record_type_as_referenced(parm_type);
 
-	  if (!(*pi)->get_name().empty())
+	  if (ctxt.get_write_parameter_names() && !(*pi)->get_name().empty())
 	    o << " name='" << (*pi)->get_name() << "'";
 	}
       write_is_artificial(*pi, o);
@@ -4422,7 +4478,7 @@ write_corpus(write_context&	ctxt,
 
   // Write the list of needed corpora.
 
-  if (!corpus->get_needed().empty())
+  if (ctxt.get_write_elf_needed () && !corpus->get_needed().empty())
     {
       do_indent_to_level(ctxt, indent, 1);
       out << "<elf-needed>\n";

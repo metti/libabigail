@@ -132,6 +132,7 @@ private:
   corpus::exported_decls_builder*			m_exported_decls_builder;
   suppr::suppressions_type				m_supprs;
   bool							m_tracking_non_reachable_types;
+  bool							m_drop_undefined_syms;
 
   read_context();
 
@@ -142,7 +143,8 @@ public:
       m_reader(reader),
       m_corp_node(),
       m_exported_decls_builder(),
-      m_tracking_non_reachable_types()
+      m_tracking_non_reachable_types(),
+      m_drop_undefined_syms()
   {}
 
   /// Getter for the flag that tells us if we are tracking types that
@@ -162,6 +164,23 @@ public:
   void
   tracking_non_reachable_types(bool f)
   {m_tracking_non_reachable_types = f;}
+
+  /// Getter for the flag that tells us if we are dropping functions
+  /// and variables that have undefined symbols.
+  ///
+  /// @return true iff we are dropping functions and variables that have
+  /// undefined symbols.
+  bool
+  drop_undefined_syms() const
+  {return m_drop_undefined_syms;}
+
+  /// Setter for the flag that tells us if we are dropping functions
+  /// and variables that have undefined symbols.
+  ///
+  /// @param f the new value of the flag.
+  void
+  drop_undefined_syms(bool f)
+  {m_drop_undefined_syms = f;}
 
   /// Getter of the path to the ABI file.
   ///
@@ -1148,6 +1167,8 @@ static bool	read_is_struct(xmlNodePtr, bool&);
 static bool	read_is_anonymous(xmlNodePtr, bool&);
 static bool	read_elf_symbol_type(xmlNodePtr, elf_symbol::type&);
 static bool	read_elf_symbol_binding(xmlNodePtr, elf_symbol::binding&);
+static bool	read_elf_symbol_visibility(xmlNodePtr,
+					   elf_symbol::visibility&);
 
 static namespace_decl_sptr
 build_namespace_decl(read_context&, const xmlNodePtr, bool);
@@ -2715,7 +2736,7 @@ read_elf_symbol_binding(xmlNodePtr node, elf_symbol::binding& b)
 ///
 /// @return true iff the function completed successfully.
 static bool
-read_elf_symbol_binding(xmlNodePtr node, elf_symbol::visibility& v)
+read_elf_symbol_visibility(xmlNodePtr node, elf_symbol::visibility& v)
 {
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "visibility"))
     {
@@ -2855,7 +2876,7 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
   read_elf_symbol_binding(node, binding);
 
   elf_symbol::visibility visibility = elf_symbol::DEFAULT_VISIBILITY;
-  read_elf_symbol_binding(node, visibility);
+  read_elf_symbol_visibility(node, visibility);
 
   elf_symbol::version version(version_string, is_default_version);
 

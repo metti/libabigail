@@ -132,6 +132,32 @@ Options
     library that the tool has to consider.  The tool will thus filter
     out types that are not defined in public headers.
 
+  * ``--header-file | --hf`` <header-file-path>
+
+    Specifies where to find one of the public headers of the abi file
+    that the tool has to consider.  The tool will thus filter out
+    types that are not defined in public headers.
+
+  * ``--drop-private-types``
+
+    This option is to be used with the ``--headers-dir`` and/or
+    ``header-file`` options.  With this option, types that are *NOT*
+    defined in the headers are entirely dropped from the internal
+    representation build by Libabigail to represent the ABI and will
+    not end up in the abi XML file.
+
+  * ``--no-elf-needed``
+
+    Do not include the list of DT_NEEDED dependency names in the
+    corpus.
+
+  * ``--drop-undefined-syms``
+
+    With this option functions or variables for which the (exported)
+    ELF symbol is undefined are dropped from the internal
+    representation build by Libabigail to represent the ABI and will
+    not end up in the abi XML file.
+
   * ``--no-linux-kernel-mode``
 
     Without this option, if abipkgiff detects that the binaries it is
@@ -156,6 +182,19 @@ Options
 
    In the emitted ABI representation, do not show file, line or column
    where ABI artifacts are defined.
+
+  * ``--no-parameter-names``
+
+    In the emitted ABI representation, do not show names of function
+    parameters, just the types.
+
+  * ``--named-type-ids``
+
+    Without this option ids used to reference types in the XML file
+    use simple numbers.  With this option the ids used are derived
+    from the type name to make it easier to see which type is
+    referenced and make the XML file more stable in case new types are
+    added (without this option that might mean all id numbers change).
 
   * ``--check-alternate-debug-info-base-name`` <*elf-path*>
 

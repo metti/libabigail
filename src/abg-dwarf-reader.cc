@@ -49,8 +49,9 @@
 #include "abg-ir-priv.h"
 #include "abg-suppression-priv.h"
 #include "abg-corpus-priv.h"
-
+#include "abg-elf-helpers.h"
 #include "abg-internal.h"
+
 // <headers defining libabigail's API go under here>
 ABG_BEGIN_EXPORT_DECLARATIONS
 
@@ -83,6 +84,8 @@ using abg_compat::unordered_set;
 using std::stack;
 using std::deque;
 using std::list;
+
+using namespace elf_helpers; // TODO: avoid using namespace
 
 /// Where a DIE comes from. For instance, a DIE can come from the main
 /// debug info section, the alternate debug info section or from the
@@ -289,15 +292,6 @@ operator<(const imported_unit_point& l, const imported_unit_point& r)
 static void
 add_symbol_to_map(const elf_symbol_sptr& sym,
 		  string_elf_symbols_map_type& map);
-
-static bool
-find_symbol_table_section(Elf* elf_handle, Elf_Scn*& section);
-
-static bool
-get_symbol_versionning_sections(Elf*		elf_handle,
-				Elf_Scn*&	versym_section,
-				Elf_Scn*&	verdef_section,
-				Elf_Scn*&	verneed_section);
 
 static bool
 get_parent_die(const read_context&	ctxt,
@@ -546,686 +540,6 @@ compare_dies(const read_context& ctxt,
 	     const Dwarf_Die *l, const Dwarf_Die *r,
 	     bool update_canonical_dies_on_the_fly);
 
-/// Convert an elf symbol type (given by the ELF{32,64}_ST_TYPE
-/// macros) into an elf_symbol::type value.
-///
-/// Note that this function aborts when given an unexpected value.
-///
-/// @param the symbol type value to convert.
-///
-/// @return the converted value.
-static elf_symbol::type
-stt_to_elf_symbol_type(unsigned char stt)
-{
-  elf_symbol::type t = elf_symbol::NOTYPE_TYPE;
-
-  switch (stt)
-    {
-    case STT_NOTYPE:
-      t = elf_symbol::NOTYPE_TYPE;
-      break;
-    case STT_OBJECT:
-      t = elf_symbol::OBJECT_TYPE;
-      break;
-    case STT_FUNC:
-      t = elf_symbol::FUNC_TYPE;
-      break;
-    case STT_SECTION:
-      t = elf_symbol::SECTION_TYPE;
-      break;
-    case STT_FILE:
-      t = elf_symbol::FILE_TYPE;
-      break;
-    case STT_COMMON:
-      t = elf_symbol::COMMON_TYPE;
-      break;
-    case STT_TLS:
-      t = elf_symbol::TLS_TYPE;
-      break;
-    case STT_GNU_IFUNC:
-      t = elf_symbol::GNU_IFUNC_TYPE;
-      break;
-    default:
-      // An unknown value that probably ought to be supported?  Let's
-      // abort right here rather than yielding garbage.
-      ABG_ASSERT_NOT_REACHED;
-    }
-
-  return t;
-}
-
-/// Convert an elf symbol binding (given by the ELF{32,64}_ST_BIND
-/// macros) into an elf_symbol::binding value.
-///
-/// Note that this function aborts when given an unexpected value.
-///
-/// @param the symbol binding value to convert.
-///
-/// @return the converted value.
-static elf_symbol::binding
-stb_to_elf_symbol_binding(unsigned char stb)
-{
-  elf_symbol::binding b = elf_symbol::GLOBAL_BINDING;
-
-  switch (stb)
-    {
-    case STB_LOCAL:
-      b = elf_symbol::LOCAL_BINDING;
-      break;
-    case STB_GLOBAL:
-      b = elf_symbol::GLOBAL_BINDING;
-      break;
-    case STB_WEAK:
-      b = elf_symbol::WEAK_BINDING;
-      break;
-    case STB_GNU_UNIQUE:
-      b = elf_symbol::GNU_UNIQUE_BINDING;
-      break;
-    default:
-      ABG_ASSERT_NOT_REACHED;
-    }
-
-  return b;
-
-}
-
-/// Convert an ELF symbol visiblity given by the symbols ->st_other
-/// data member as returned by the GELF_ST_VISIBILITY macro into a
-/// elf_symbol::visiblity value.
-///
-/// @param stv the value of the ->st_other data member of the ELF
-/// symbol.
-///
-/// @return the converted elf_symbol::visiblity value.
-static elf_symbol::visibility
-stv_to_elf_symbol_visibility(unsigned char stv)
-{
-
-  elf_symbol::visibility v = elf_symbol::DEFAULT_VISIBILITY;
-
-  switch (stv)
-    {
-    case STV_DEFAULT:
-      v = elf_symbol::DEFAULT_VISIBILITY;
-      break;
-    case STV_INTERNAL:
-      v = elf_symbol::INTERNAL_VISIBILITY;
-      break;
-    case STV_HIDDEN:
-      v = elf_symbol::HIDDEN_VISIBILITY;
-      break;
-    case STV_PROTECTED:
-      v = elf_symbol::PROTECTED_VISIBILITY;
-      break;
-    default:
-      ABG_ASSERT_NOT_REACHED;
-    }
-
-  return v;
-}
-
-/// Convert the value of the e_machine field of GElf_Ehdr into a
-/// string.  This is to get a string representing the architecture of
-/// the elf file at hand.
-///
-/// @param e_machine the value of GElf_Ehdr::e_machine.
-///
-/// @return the string representation of GElf_Ehdr::e_machine.
-static string
-e_machine_to_string(GElf_Half e_machine)
-{
-  string result;
-  switch (e_machine)
-    {
-    case EM_NONE:
-      result = "elf-no-arch";
-      break;
-    case EM_M32:
-      result = "elf-att-we-32100";
-      break;
-    case EM_SPARC:
-      result = "elf-sun-sparc";
-      break;
-    case EM_386:
-      result = "elf-intel-80386";
-      break;
-    case EM_68K:
-      result = "elf-motorola-68k";
-      break;
-    case EM_88K:
-      result = "elf-motorola-88k";
-      break;
-    case EM_860:
-      result = "elf-intel-80860";
-      break;
-    case EM_MIPS:
-      result = "elf-mips-r3000-be";
-      break;
-    case EM_S370:
-      result = "elf-ibm-s370";
-      break;
-    case EM_MIPS_RS3_LE:
-      result = "elf-mips-r3000-le";
-      break;
-    case EM_PARISC:
-      result = "elf-hp-parisc";
-      break;
-    case EM_VPP500:
-      result = "elf-fujitsu-vpp500";
-      break;
-    case EM_SPARC32PLUS:
-      result = "elf-sun-sparc-v8plus";
-      break;
-    case EM_960:
-      result = "elf-intel-80960";
-      break;
-    case EM_PPC:
-      result = "elf-powerpc";
-      break;
-    case EM_PPC64:
-      result = "elf-powerpc-64";
-      break;
-    case EM_S390:
-      result = "elf-ibm-s390";
-      break;
-    case EM_V800:
-      result = "elf-nec-v800";
-      break;
-    case EM_FR20:
-      result = "elf-fujitsu-fr20";
-      break;
-    case EM_RH32:
-      result = "elf-trw-rh32";
-      break;
-    case EM_RCE:
-      result = "elf-motorola-rce";
-      break;
-    case EM_ARM:
-      result = "elf-arm";
-      break;
-    case EM_FAKE_ALPHA:
-      result = "elf-digital-alpha";
-      break;
-    case EM_SH:
-      result = "elf-hitachi-sh";
-      break;
-    case EM_SPARCV9:
-      result = "elf-sun-sparc-v9-64";
-      break;
-    case EM_TRICORE:
-      result = "elf-siemens-tricore";
-      break;
-    case EM_ARC:
-      result = "elf-argonaut-risc-core";
-      break;
-    case EM_H8_300:
-      result = "elf-hitachi-h8-300";
-      break;
-    case EM_H8_300H:
-      result = "elf-hitachi-h8-300h";
-      break;
-    case EM_H8S:
-      result = "elf-hitachi-h8s";
-      break;
-    case EM_H8_500:
-      result = "elf-hitachi-h8-500";
-      break;
-    case EM_IA_64:
-      result = "elf-intel-ia-64";
-      break;
-    case EM_MIPS_X:
-      result = "elf-stanford-mips-x";
-      break;
-    case EM_COLDFIRE:
-      result = "elf-motorola-coldfire";
-      break;
-    case EM_68HC12:
-      result = "elf-motorola-68hc12";
-      break;
-    case EM_MMA:
-      result = "elf-fujitsu-mma";
-      break;
-    case EM_PCP:
-      result = "elf-siemens-pcp";
-      break;
-    case EM_NCPU:
-      result = "elf-sony-ncpu";
-      break;
-    case EM_NDR1:
-      result = "elf-denso-ndr1";
-      break;
-    case EM_STARCORE:
-      result = "elf-motorola-starcore";
-      break;
-    case EM_ME16:
-      result = "elf-toyota-me16";
-      break;
-    case EM_ST100:
-      result = "elf-stm-st100";
-      break;
-    case EM_TINYJ:
-      result = "elf-alc-tinyj";
-      break;
-    case EM_X86_64:
-      result = "elf-amd-x86_64";
-      break;
-    case EM_PDSP:
-      result = "elf-sony-pdsp";
-      break;
-    case EM_FX66:
-      result = "elf-siemens-fx66";
-      break;
-    case EM_ST9PLUS:
-      result = "elf-stm-st9+";
-      break;
-    case EM_ST7:
-      result = "elf-stm-st7";
-      break;
-    case EM_68HC16:
-      result = "elf-motorola-68hc16";
-      break;
-    case EM_68HC11:
-      result = "elf-motorola-68hc11";
-      break;
-    case EM_68HC08:
-      result = "elf-motorola-68hc08";
-      break;
-    case EM_68HC05:
-      result = "elf-motorola-68hc05";
-      break;
-    case EM_SVX:
-      result = "elf-sg-svx";
-      break;
-    case EM_ST19:
-      result = "elf-stm-st19";
-      break;
-    case EM_VAX:
-      result = "elf-digital-vax";
-      break;
-    case EM_CRIS:
-      result = "elf-axis-cris";
-      break;
-    case EM_JAVELIN:
-      result = "elf-infineon-javelin";
-      break;
-    case EM_FIREPATH:
-      result = "elf-firepath";
-      break;
-    case EM_ZSP:
-      result = "elf-lsi-zsp";
-      break;
-    case EM_MMIX:
-      result = "elf-don-knuth-mmix";
-      break;
-    case EM_HUANY:
-      result = "elf-harvard-huany";
-      break;
-    case EM_PRISM:
-      result = "elf-sitera-prism";
-      break;
-    case EM_AVR:
-      result = "elf-atmel-avr";
-      break;
-    case EM_FR30:
-      result = "elf-fujistu-fr30";
-      break;
-    case EM_D10V:
-      result = "elf-mitsubishi-d10v";
-      break;
-    case EM_D30V:
-      result = "elf-mitsubishi-d30v";
-      break;
-    case EM_V850:
-      result = "elf-nec-v850";
-      break;
-    case EM_M32R:
-      result = "elf-mitsubishi-m32r";
-      break;
-    case EM_MN10300:
-      result = "elf-matsushita-mn10300";
-      break;
-    case EM_MN10200:
-      result = "elf-matsushita-mn10200";
-      break;
-    case EM_PJ:
-      result = "elf-picojava";
-      break;
-    case EM_OPENRISC:
-      result = "elf-openrisc-32";
-      break;
-    case EM_ARC_A5:
-      result = "elf-arc-a5";
-      break;
-    case EM_XTENSA:
-      result = "elf-tensilica-xtensa";
-      break;
-
-#ifdef HAVE_EM_AARCH64_MACRO
-    case EM_AARCH64:
-      result = "elf-arm-aarch64";
-      break;
-#endif
-
-#ifdef HAVE_EM_TILEPRO_MACRO
-    case EM_TILEPRO:
-      result = "elf-tilera-tilepro";
-      break;
-#endif
-
-#ifdef HAVE_EM_TILEGX_MACRO
-    case EM_TILEGX:
-      result = "elf-tilera-tilegx";
-      break;
-#endif
-
-    case EM_NUM:
-      result = "elf-last-arch-number";
-      break;
-    case EM_ALPHA:
-      result = "elf-non-official-alpha";
-      break;
-    default:
-      {
-	std::ostringstream o;
-	o << "elf-unknown-arch-value-" << e_machine;
-	result = o.str();
-      }
-      break;
-    }
-  return result;
-}
-
-/// The kind of ELF hash table found by the function
-/// find_hash_table_section_index.
-enum hash_table_kind
-{
-  NO_HASH_TABLE_KIND = 0,
-  SYSV_HASH_TABLE_KIND,
-  GNU_HASH_TABLE_KIND
-};
-
-/// Get the offset offset of the hash table section.
-///
-/// @param elf_handle the elf handle to use.
-///
-/// @param ht_section_offset this is set to the resulting offset
-/// of the hash table section.  This is set iff the function returns true.
-///
-/// @param symtab_section_offset the offset of the section of the
-/// symbol table the hash table refers to.
-static hash_table_kind
-find_hash_table_section_index(Elf*	elf_handle,
-			      size_t&	ht_section_index,
-			      size_t&	symtab_section_index)
-{
-  if (!elf_handle)
-    return NO_HASH_TABLE_KIND;
-
-  GElf_Shdr header_mem, *section_header;
-  bool found_sysv_ht = false, found_gnu_ht = false;
-  for (Elf_Scn* section = elf_nextscn(elf_handle, 0);
-       section != 0;
-       section = elf_nextscn(elf_handle, section))
-    {
-      section_header= gelf_getshdr(section, &header_mem);
-      if (section_header->sh_type != SHT_HASH
-	  && section_header->sh_type != SHT_GNU_HASH)
-	continue;
-
-      ht_section_index = elf_ndxscn(section);
-      symtab_section_index = section_header->sh_link;
-
-      if (section_header->sh_type == SHT_HASH)
-	found_sysv_ht = true;
-      else if (section_header->sh_type == SHT_GNU_HASH)
-	found_gnu_ht = true;
-    }
-
-  if (found_gnu_ht)
-    return GNU_HASH_TABLE_KIND;
-  else if (found_sysv_ht)
-    return SYSV_HASH_TABLE_KIND;
-  else
-    return NO_HASH_TABLE_KIND;
-}
-
-/// Find the symbol table.
-///
-/// If we are looking at a relocatable or executable file, this
-/// function will return the .symtab symbol table (of type
-/// SHT_SYMTAB).  But if we are looking at a DSO it returns the
-/// .dynsym symbol table (of type SHT_DYNSYM).
-///
-/// @param elf_handle the elf handle to consider.
-///
-/// @param symtab the symbol table found.
-///
-/// @return true iff the symbol table is found.
-static bool
-find_symbol_table_section(Elf* elf_handle, Elf_Scn*& symtab)
-{
-  Elf_Scn* section = 0, *dynsym = 0, *sym_tab = 0;
-  while ((section = elf_nextscn(elf_handle, section)) != 0)
-    {
-      GElf_Shdr header_mem, *header;
-      header = gelf_getshdr(section, &header_mem);
-      if (header->sh_type == SHT_DYNSYM)
-	dynsym = section;
-      else if (header->sh_type == SHT_SYMTAB)
-	sym_tab = section;
-    }
-
-  if (dynsym || sym_tab)
-    {
-      GElf_Ehdr eh_mem;
-      GElf_Ehdr* elf_header = gelf_getehdr(elf_handle, &eh_mem);
-      if (elf_header->e_type == ET_REL
-	  || elf_header->e_type == ET_EXEC)
-	symtab = sym_tab ? sym_tab : dynsym;
-      else
-	symtab = dynsym ? dynsym : sym_tab;
-      return true;
-    }
-  return false;
-}
-
-/// Find the index (in the section headers table) of the symbol table
-/// section.
-///
-/// If we are looking at a relocatable or executable file, this
-/// function will return the index for the .symtab symbol table (of
-/// type SHT_SYMTAB).  But if we are looking at a DSO it returns the
-/// index for the .dynsym symbol table (of type SHT_DYNSYM).
-///
-/// @param elf_handle the elf handle to use.
-///
-/// @param symtab_index the index of the symbol_table, that was found.
-///
-/// @return true iff the symbol table section index was found.
-static bool
-find_symbol_table_section_index(Elf* elf_handle,
-				size_t& symtab_index)
-{
-  Elf_Scn* section = 0;
-  if (!find_symbol_table_section(elf_handle, section))
-    return false;
-
-  symtab_index = elf_ndxscn(section);
-  return true;
-}
-
-/// Find and return a section by its name and its type.
-///
-/// @param elf_handle the elf handle to use.
-///
-/// @param name the name of the section.
-///
-/// @param section_type the type of the section.  This is the
-/// Elf32_Shdr::sh_type (or Elf64_Shdr::sh_type) data member.
-/// Examples of values of this parameter are SHT_PROGBITS or SHT_NOBITS.
-///
-/// @return the section found, nor nil if none was found.
-static Elf_Scn*
-find_section(Elf* elf_handle, const string& name, Elf64_Word section_type)
-{
-  size_t section_header_string_index = 0;
-  if (elf_getshdrstrndx (elf_handle, &section_header_string_index) < 0)
-    return 0;
-
-  Elf_Scn* section = 0;
-  GElf_Shdr header_mem, *header;
-  while ((section = elf_nextscn(elf_handle, section)) != 0)
-    {
-      header = gelf_getshdr(section, &header_mem);
-      if (header == NULL || header->sh_type != section_type)
-      continue;
-
-      const char* section_name =
-	elf_strptr(elf_handle, section_header_string_index, header->sh_name);
-      if (section_name && name == section_name)
-	return section;
-    }
-
-  return 0;
-}
-
-/// Test if the ELF binary denoted by a given ELF handle is a Linux
-/// Kernel Module.
-///
-/// @param elf_handle the ELF handle to consider.
-///
-/// @return true iff the binary denoted by @p elf_handle is a Linux
-/// kernel module.
-static bool
-binary_is_linux_kernel_module(Elf *elf_handle)
-{
-  return (find_section(elf_handle, ".modinfo", SHT_PROGBITS)
-	  && find_section(elf_handle,
-			  ".gnu.linkonce.this_module",
-			  SHT_PROGBITS));
-}
-
-/// Test if the ELF binary denoted by a given ELF handle is a Linux
-/// Kernel binary (either vmlinux or a kernel module).
-///
-/// @param elf_handle the ELF handle to consider.
-///
-/// @return true iff the binary denoted by @p elf_handle is a Linux
-/// kernel binary
-static bool
-binary_is_linux_kernel(Elf *elf_handle)
-{
-  return (find_section(elf_handle,
-		       "__ksymtab_strings",
-		       SHT_PROGBITS)
-	  || binary_is_linux_kernel_module(elf_handle));
-}
-
-/// Find and return the .text section.
-///
-/// @param elf_handle the elf handle to use.
-///
-/// @return the .text section found.
-static Elf_Scn*
-find_text_section(Elf* elf_handle)
-{return find_section(elf_handle, ".text", SHT_PROGBITS);}
-
-/// Find and return the .bss section.
-///
-/// @param elf_handle.
-///
-/// @return the .bss section found.
-static Elf_Scn*
-find_bss_section(Elf* elf_handle)
-{return find_section(elf_handle, ".bss", SHT_NOBITS);}
-
-/// Find and return the .rodata section.
-///
-/// @param elf_handle.
-///
-/// @return the .rodata section found.
-static Elf_Scn*
-find_rodata_section(Elf* elf_handle)
-{return find_section(elf_handle, ".rodata", SHT_PROGBITS);}
-
-/// Find and return the .data section.
-///
-/// @param elf_handle the elf handle to use.
-///
-/// @return the .data section found.
-static Elf_Scn*
-find_data_section(Elf* elf_handle)
-{return find_section(elf_handle, ".data", SHT_PROGBITS);}
-
-/// Find and return the .data1 section.
-///
-/// @param elf_handle the elf handle to use.
-///
-/// @return the .data1 section found.
-static Elf_Scn*
-find_data1_section(Elf* elf_handle)
-{return find_section(elf_handle, ".data1", SHT_PROGBITS);}
-
-/// Find the __ksymtab_strings section of a Linux kernel binary.
-///
-///
-/// @return the find_ksymtab_strings_section of the linux kernel
-/// binary denoted by @p elf_handle, or nil if such a section could
-/// not be found.
-static Elf_Scn*
-find_ksymtab_strings_section(Elf *elf_handle)
-{
-  if (binary_is_linux_kernel(elf_handle))
-    return find_section(elf_handle, "__ksymtab_strings", SHT_PROGBITS);
-  return 0;
-}
-
-/// Get the address at which a given binary is loaded in memory⋅
-///
-/// @param elf_handle the elf handle for the binary to consider.
-///
-/// @param load_address the address where the binary is loaded.  This
-/// is set by the function iff it returns true.
-///
-/// @return true if the function could get the binary load address
-/// and assign @p load_address to it.
-static bool
-get_binary_load_address(Elf *elf_handle,
-			GElf_Addr &load_address)
-{
-  GElf_Ehdr eh_mem;
-  GElf_Ehdr *elf_header = gelf_getehdr(elf_handle, &eh_mem);
-  size_t num_segments = elf_header->e_phnum;
-  GElf_Phdr *program_header = 0;
-  GElf_Addr result;
-  bool found_loaded_segment = false;
-  GElf_Phdr ph_mem;
-
-  for (unsigned i = 0; i < num_segments; ++i)
-    {
-      program_header = gelf_getphdr(elf_handle, i, &ph_mem);
-      if (program_header && program_header->p_type == PT_LOAD)
-	{
-	  if (!found_loaded_segment)
-	    {
-	      result = program_header->p_vaddr;
-	      found_loaded_segment = true;
-	    }
-
-	  if (program_header->p_vaddr < result)
-	    // The resulting load address we want is the lowest
-	    // load address of all the loaded segments.
-	    result = program_header->p_vaddr;
-	}
-    }
-
-  if (found_loaded_segment)
-    {
-      load_address = result;
-      return true;
-    }
-  return false;
-}
 
 /// Find the file name of the alternate debug info file.
 ///
@@ -1451,256 +765,6 @@ compare_symbol_name(const string& symbol_name,
       return m == name;
     }
   return symbol_name == name;
-}
-
-/// Return the SHT_GNU_versym, SHT_GNU_verdef and SHT_GNU_verneed
-/// sections that are involved in symbol versionning.
-///
-/// @param elf_handle the elf handle to use.
-///
-/// @param versym_section the SHT_GNU_versym section found.  If the
-/// section wasn't found, this is set to nil.
-///
-/// @param verdef_section the SHT_GNU_verdef section found.  If the
-/// section wasn't found, this is set to nil.
-///
-/// @param verneed_section the SHT_GNU_verneed section found.  If the
-/// section wasn't found, this is set to nil.
-///
-/// @return true iff at least one of the sections where found.
-static bool
-get_symbol_versionning_sections(Elf*		elf_handle,
-				Elf_Scn*&	versym_section,
-				Elf_Scn*&	verdef_section,
-				Elf_Scn*&	verneed_section)
-{
-  Elf_Scn* section = NULL;
-  GElf_Shdr mem;
-  Elf_Scn* versym = NULL, *verdef = NULL, *verneed = NULL;
-
-  while ((section = elf_nextscn(elf_handle, section)) != NULL)
-    {
-      GElf_Shdr* h = gelf_getshdr(section, &mem);
-      if (h->sh_type == SHT_GNU_versym)
-	versym = section;
-      else if (h->sh_type == SHT_GNU_verdef)
-	verdef = section;
-      else if (h->sh_type == SHT_GNU_verneed)
-	verneed = section;
-    }
-
-  if (versym || verdef || verneed)
-    {
-      // At least one the versionning sections was found.  Return it.
-      versym_section = versym;
-      verdef_section = verdef;
-      verneed_section = verneed;
-      return true;
-    }
-
-  return false;
-}
-
-/// Get the version definition (from the SHT_GNU_verdef section) of a
-/// given symbol represented by a pointer to GElf_Versym.
-///
-/// @param elf_hande the elf handle to use.
-///
-/// @param versym the symbol to get the version definition for.
-///
-/// @param verdef_section the SHT_GNU_verdef section.
-///
-/// @param version the resulting version definition.  This is set iff
-/// the function returns true.
-///
-/// @return true upon successful completion, false otherwise.
-static bool
-get_version_definition_for_versym(Elf*			 elf_handle,
-				  GElf_Versym*		 versym,
-				  Elf_Scn*		 verdef_section,
-				  elf_symbol::version&	 version)
-{
-  Elf_Data* verdef_data = elf_getdata(verdef_section, NULL);
-  GElf_Verdef verdef_mem;
-  GElf_Verdef* verdef = gelf_getverdef(verdef_data, 0, &verdef_mem);
-  size_t vd_offset = 0;
-
-  for (;; vd_offset += verdef->vd_next)
-    {
-      for (;verdef != 0;)
-	{
-	  if (verdef->vd_ndx == (*versym & 0x7fff))
-	    // Found the version of the symbol.
-	    break;
-	  vd_offset += verdef->vd_next;
-	  verdef = (verdef->vd_next == 0
-		    ? 0
-		    : gelf_getverdef(verdef_data, vd_offset, &verdef_mem));
-	}
-
-      if (verdef != 0)
-	{
-	  GElf_Verdaux verdaux_mem;
-	  GElf_Verdaux *verdaux = gelf_getverdaux(verdef_data,
-						  vd_offset + verdef->vd_aux,
-						  &verdaux_mem);
-	  GElf_Shdr header_mem;
-	  GElf_Shdr* verdef_section_header = gelf_getshdr(verdef_section,
-							  &header_mem);
-	  size_t verdef_stridx = verdef_section_header->sh_link;
-	  version.str(elf_strptr(elf_handle, verdef_stridx, verdaux->vda_name));
-	  if (*versym & 0x8000)
-	    version.is_default(false);
-	  else
-	    version.is_default(true);
-	  return true;
-	}
-      if (!verdef || verdef->vd_next == 0)
-	break;
-    }
-  return false;
-}
-
-/// Get the version needed (from the SHT_GNU_verneed section) to
-/// resolve an undefined symbol represented by a pointer to
-/// GElf_Versym.
-///
-/// @param elf_hande the elf handle to use.
-///
-/// @param versym the symbol to get the version definition for.
-///
-/// @param verneed_section the SHT_GNU_verneed section.
-///
-/// @param version the resulting version definition.  This is set iff
-/// the function returns true.
-///
-/// @return true upon successful completion, false otherwise.
-static bool
-get_version_needed_for_versym(Elf*			elf_handle,
-			      GElf_Versym*		versym,
-			      Elf_Scn*			verneed_section,
-			      elf_symbol::version&	version)
-{
-  if (versym == 0 || elf_handle == 0 || verneed_section == 0)
-    return false;
-
-  size_t vn_offset = 0;
-  Elf_Data* verneed_data = elf_getdata(verneed_section, NULL);
-  GElf_Verneed verneed_mem;
-  GElf_Verneed* verneed = gelf_getverneed(verneed_data, 0, &verneed_mem);
-
-  for (;verneed; vn_offset += verneed->vn_next)
-    {
-      size_t vna_offset = vn_offset;
-      GElf_Vernaux vernaux_mem;
-      GElf_Vernaux *vernaux = gelf_getvernaux(verneed_data,
-					      vn_offset + verneed->vn_aux,
-					      &vernaux_mem);
-      for (;vernaux != 0 && verneed;)
-	{
-	  if (vernaux->vna_other == *versym)
-	    // Found the version of the symbol.
-	    break;
-	  vna_offset += verneed->vn_next;
-	  verneed = (verneed->vn_next == 0
-		     ? 0
-		     : gelf_getverneed(verneed_data, vna_offset, &verneed_mem));
-	}
-
-      if (verneed != 0 && vernaux != 0 && vernaux->vna_other == *versym)
-	{
-	  GElf_Shdr header_mem;
-	  GElf_Shdr* verneed_section_header = gelf_getshdr(verneed_section,
-							   &header_mem);
-	  size_t verneed_stridx = verneed_section_header->sh_link;
-	  version.str(elf_strptr(elf_handle,
-				 verneed_stridx,
-				 vernaux->vna_name));
-	  if (*versym & 0x8000)
-	    version.is_default(false);
-	  else
-	    version.is_default(true);
-	  return true;
-	}
-
-      if (!verneed || verneed->vn_next == 0)
-	break;
-    }
-  return false;
-}
-
-/// Return the version for a symbol that is at a given index in its
-/// SHT_SYMTAB section.
-///
-/// @param elf_handle the elf handle to use.
-///
-/// @param symbol_index the index of the symbol to consider.
-///
-/// @param get_def_version if this is true, it means that that we want
-/// the version for a defined symbol; in that case, the version is
-/// looked for in a section of type SHT_GNU_verdef.  Otherwise, if
-/// this parameter is false, this means that we want the version for
-/// an undefined symbol; in that case, the version is the needed one
-/// for the symbol to be resolved; so the version is looked fo in a
-/// section of type SHT_GNU_verneed.
-///
-/// @param version the version found for symbol at @p symbol_index.
-///
-/// @return true iff a version was found for symbol at index @p
-/// symbol_index.
-static bool
-get_version_for_symbol(Elf*			elf_handle,
-		       size_t			symbol_index,
-		       bool			get_def_version,
-		       elf_symbol::version&	version)
-{
-  Elf_Scn *versym_section = NULL,
-    *verdef_section = NULL,
-    *verneed_section = NULL;
-
-  if (!get_symbol_versionning_sections(elf_handle,
-				       versym_section,
-				       verdef_section,
-				       verneed_section))
-    return false;
-
-  GElf_Versym versym_mem;
-  Elf_Data* versym_data = (versym_section)
-    ? elf_getdata(versym_section, NULL)
-    : NULL;
-  GElf_Versym* versym = (versym_data)
-    ? gelf_getversym(versym_data, symbol_index, &versym_mem)
-    : NULL;
-
-  if (versym == 0 || *versym <= 1)
-    // I got these value from the code of readelf.c in elfutils.
-    // Apparently, if the symbol version entry has these values, the
-    // symbol must be discarded. This is not documented in the
-    // official specification.
-    return false;
-
-  if (get_def_version)
-    {
-      if (*versym == 0x8001)
-	// I got this value from the code of readelf.c in elfutils
-	// too.  It's not really documented in the official
-	// specification.
-	return false;
-
-      if (verdef_section
-	  && get_version_definition_for_versym(elf_handle, versym,
-					       verdef_section, version))
-	return true;
-    }
-  else
-    {
-      if (verneed_section
-	  && get_version_needed_for_versym(elf_handle, versym,
-					   verneed_section, version))
-	return true;
-    }
-
-  return false;
 }
 
 /// Lookup a symbol using the SysV ELF hash table.
@@ -3142,7 +2206,7 @@ public:
   // The "Official procedure descriptor section, aka .opd", used in
   // ppc64 elf v1 binaries.  This section contains the procedure
   // descriptors on that platform.
-  Elf_Scn*			opd_section_;
+  mutable Elf_Scn*		opd_section_;
   /// The format of the special __ksymtab section from the linux
   /// kernel binary.
   mutable ksymtab_format	ksymtab_format_;
@@ -3158,11 +2222,11 @@ public:
   /// from the linux kernel.  The latter is used to store references
   /// to symbols exported using the EXPORT_SYMBOL_GPL macro from the
   /// linux kernel.
-  Elf_Scn*			ksymtab_section_;
-  Elf_Scn*			ksymtab_reloc_section_;
-  Elf_Scn*			ksymtab_gpl_section_;
-  Elf_Scn*			ksymtab_gpl_reloc_section_;
-  Elf_Scn*			ksymtab_strings_section_;
+  mutable Elf_Scn*		ksymtab_section_;
+  mutable Elf_Scn*		ksymtab_reloc_section_;
+  mutable Elf_Scn*		ksymtab_gpl_section_;
+  mutable Elf_Scn*		ksymtab_gpl_reloc_section_;
+  mutable Elf_Scn*		ksymtab_strings_section_;
   Elf_Scn*			versym_section_;
   Elf_Scn*			verdef_section_;
   Elf_Scn*			verneed_section_;
@@ -3259,6 +2323,7 @@ public:
   string			elf_architecture_;
   corpus::exported_decls_builder* exported_decls_builder_;
   options_type			options_;
+  bool				drop_undefined_syms_;
   read_context();
 
 public:
@@ -3427,6 +2492,7 @@ public:
     options_.env = environment;
     options_.load_in_linux_kernel_mode = linux_kernel_mode;
     options_.load_all_types = load_all_types;
+    drop_undefined_syms_ = false;
     load_in_linux_kernel_mode(linux_kernel_mode);
   }
 
@@ -3517,6 +2583,23 @@ public:
   void
   env(ir::environment* env)
   {options_.env = env;}
+
+  /// Getter for the flag that tells us if we are dropping functions
+  /// and variables that have undefined symbols.
+  ///
+  /// @return true iff we are dropping functions and variables that have
+  /// undefined symbols.
+  bool
+  drop_undefined_syms() const
+  {return drop_undefined_syms_;}
+
+  /// Setter for the flag that tells us if we are dropping functions
+  /// and variables that have undefined symbols.
+  ///
+  /// @param f the new value of the flag.
+  void
+  drop_undefined_syms(bool f)
+  {drop_undefined_syms_ = f;}
 
   /// Getter of the suppression specifications to be used during
   /// ELF/DWARF parsing.
@@ -5849,11 +4932,15 @@ public:
 	     << elf_path()
 	     << "\n";
 	cerr << "    # late canonicalized types: "
-	     << num_canonicalized
-	     << " (" << num_canonicalized * 100 / total << "%)\n"
+             << num_canonicalized;
+        if (total)
+          cerr << " (" << num_canonicalized * 100 / total << "%)";
+        cerr << "\n"
 	     << "    # missed canonicalization opportunities: "
-	     << num_missed
-	     << " (" << num_missed * 100 / total << "%)\n";
+             << num_missed;
+        if (total)
+          cerr << " (" << num_missed * 100 / total << "%)";
+        cerr << "\n";
       }
 
   }
@@ -6147,8 +5234,7 @@ public:
   find_symbol_table_section() const
   {
     if (!symtab_section_)
-      dwarf_reader::find_symbol_table_section(elf_handle(),
-					      const_cast<read_context*>(this)->symtab_section_);
+      symtab_section_ = elf_helpers::find_symbol_table_section(elf_handle());
     return symtab_section_;
   }
 
@@ -6161,8 +5247,7 @@ public:
   find_opd_section() const
   {
     if (!opd_section_)
-      const_cast<read_context*>(this)->opd_section_=
-	find_section(elf_handle(), ".opd", SHT_PROGBITS);
+      opd_section_ = elf_helpers::find_opd_section(elf_handle());
     return opd_section_;
   }
 
@@ -6174,55 +5259,8 @@ public:
   find_ksymtab_section() const
   {
     if (!ksymtab_section_)
-      const_cast<read_context*>(this)->ksymtab_section_ =
-	find_section(elf_handle(), "__ksymtab", SHT_PROGBITS);
+      ksymtab_section_ = elf_helpers::find_ksymtab_section(elf_handle());
     return ksymtab_section_;
-  }
-
-  /// Return the .rel{a,} section corresponding to a given section.
-  ///
-  /// @param target_section the section to search the relocation section for
-  ///
-  /// @return the .rel{a,} section if found, null otherwise.
-  Elf_Scn*
-  find_relocation_section(Elf_Scn* target_section) const
-  {
-    if (target_section)
-      {
-	// the relo section we are searching for has this index as sh_info
-	size_t target_index = elf_ndxscn(target_section);
-
-	// now iterate over all the sections, look for relocation sections and
-	// find the one that points to the section we are searching for
-	Elf_Scn*  section = 0;
-	GElf_Shdr header_mem, *header;
-	while ((section = elf_nextscn(elf_handle(), section)) != 0)
-	  {
-	    header = gelf_getshdr(section, &header_mem);
-	    if (header == NULL
-		|| (header->sh_type != SHT_RELA && header->sh_type != SHT_REL))
-	      continue;
-
-	    if (header->sh_info == target_index)
-	      return section;
-	  }
-      }
-    return NULL;
-  }
-
-  /// Return the .rel{a,}__ksymtab section of a linux kernel ELF file (either
-  /// a vmlinux binary or a kernel module).
-  ///
-  /// @return the .rel{a,}__ksymtab section if found, nil otherwise.
-  Elf_Scn*
-  find_ksymtab_reloc_section() const
-  {
-    if (!ksymtab_reloc_section_)
-      {
-	const_cast<read_context*>(this)->ksymtab_reloc_section_
-	    = find_relocation_section(find_ksymtab_section());
-      }
-    return ksymtab_reloc_section_;
   }
 
   /// Return the __ksymtab_gpl section of a linux kernel ELF file
@@ -6233,9 +5271,22 @@ public:
   find_ksymtab_gpl_section() const
   {
     if (!ksymtab_gpl_section_)
-      const_cast<read_context*>(this)->ksymtab_gpl_section_ =
-	find_section(elf_handle(), "__ksymtab_gpl", SHT_PROGBITS);
+      ksymtab_gpl_section_ =
+	elf_helpers::find_ksymtab_gpl_section(elf_handle());
     return ksymtab_gpl_section_;
+  }
+
+  /// Return the .rel{a,}__ksymtab section of a linux kernel ELF file (either
+  /// a vmlinux binary or a kernel module).
+  ///
+  /// @return the .rel{a,}__ksymtab section if found, nil otherwise.
+  Elf_Scn*
+  find_ksymtab_reloc_section() const
+  {
+    if (!ksymtab_reloc_section_)
+	ksymtab_reloc_section_ =
+	  find_relocation_section(elf_handle(), find_ksymtab_section());
+    return ksymtab_reloc_section_;
   }
 
   /// Return the .rel{a,}__ksymtab_gpl section of a linux kernel ELF file
@@ -6246,10 +5297,8 @@ public:
   find_ksymtab_gpl_reloc_section() const
   {
     if (!ksymtab_gpl_reloc_section_)
-      {
-	const_cast<read_context*>(this)->ksymtab_gpl_reloc_section_
-	    = find_relocation_section(find_ksymtab_gpl_section());
-      }
+	ksymtab_gpl_reloc_section_ =
+	  find_relocation_section(elf_handle(), find_ksymtab_gpl_section());
     return ksymtab_gpl_reloc_section_;
   }
 
@@ -6261,7 +5310,7 @@ public:
   find_ksymtab_strings_section() const
   {
     if (!ksymtab_strings_section_)
-      const_cast<read_context*>(this)->ksymtab_strings_section_ =
+      ksymtab_strings_section_ =
 	dwarf_reader::find_ksymtab_strings_section(elf_handle());
     return ksymtab_strings_section_;
   }
@@ -6643,10 +5692,10 @@ public:
     if (!elf_handle())
       return fn_desc_address;
 
-    if (!elf_architecture_is_ppc64())
+    if (!architecture_is_ppc64(elf_handle()))
       return fn_desc_address;
 
-    bool is_big_endian = elf_architecture_is_big_endian();
+    bool is_big_endian = architecture_is_big_endian(elf_handle());
 
     Elf_Scn *opd_section = find_opd_section();
     if (!opd_section)
@@ -6804,7 +5853,7 @@ public:
 
     address_set_sptr set;
     bool looking_at_linux_kernel_binary =
-      load_in_linux_kernel_mode() && is_linux_kernel_binary();
+      load_in_linux_kernel_mode() && is_linux_kernel(elf_handle());
 
     if (looking_at_linux_kernel_binary)
       {
@@ -6844,7 +5893,7 @@ public:
 
     address_set_sptr set;
     bool looking_at_linux_kernel_binary =
-      load_in_linux_kernel_mode() && is_linux_kernel_binary();
+      load_in_linux_kernel_mode() && is_linux_kernel(elf_handle());
 
     if (looking_at_linux_kernel_binary)
       {
@@ -6922,7 +5971,7 @@ public:
   {
     if (!fun_entry_addr_sym_map_ && !fun_addr_sym_map_)
       maybe_load_symbol_maps();
-    if (elf_architecture_is_ppc64())
+    if (architecture_is_ppc64(elf_handle()))
       return fun_entry_addr_sym_map_;
     return fun_addr_sym_map_;
   }
@@ -7278,79 +6327,6 @@ public:
   elf_architecture() const
   {return elf_architecture_;}
 
-  /// Return the size of a word for the current architecture.
-  /// @return the size of a word.
-  unsigned char
-  architecture_word_size() const
-  {
-    unsigned char word_size = 0;
-    GElf_Ehdr eh_mem;
-    GElf_Ehdr* elf_header = gelf_getehdr(elf_handle(), &eh_mem);
-    if (elf_header->e_ident[EI_CLASS] == ELFCLASS32)
-      word_size = 4;
-    else if (elf_header->e_ident[EI_CLASS] == ELFCLASS64)
-      word_size = 8;
-    else
-      ABG_ASSERT_NOT_REACHED;
-    return word_size;
-  }
-
-  /// Test if the architecture of the current binary is ppc64.
-  ///
-  /// @return true iff the architecture of the current binary is ppc64.
-  bool
-  elf_architecture_is_ppc64() const
-  {
-    GElf_Ehdr eh_mem;
-    GElf_Ehdr* elf_header = gelf_getehdr(elf_handle(), &eh_mem);
-
-    return (elf_header && elf_header->e_machine == EM_PPC64);
-  }
-
-  /// Test if the endianness of the current binary is Big Endian.
-  ///
-  /// https://en.wikipedia.org/wiki/Endianness.
-  ///
-  /// @return true iff the current binary is Big Endian.
-  bool
-  elf_architecture_is_big_endian() const
-  {
-    GElf_Ehdr eh_mem;
-    GElf_Ehdr* elf_header = gelf_getehdr(elf_handle(), &eh_mem);
-
-    bool is_big_endian = (elf_header->e_ident[EI_DATA] == ELFDATA2MSB);
-
-    if (!is_big_endian)
-      ABG_ASSERT(elf_header->e_ident[EI_DATA] == ELFDATA2LSB);
-
-    return is_big_endian;
-  }
-
-  /// Test if the current elf file being read is an executable.
-  ///
-  /// @return true iff the current elf file being read is an
-  /// executable.
-  bool
-  current_elf_file_is_executable() const
-  {
-    GElf_Ehdr eh_mem;
-    GElf_Ehdr* elf_header = gelf_getehdr(elf_handle(), &eh_mem);
-    return elf_header->e_type == ET_EXEC;
-  }
-
-  /// Test if the current elf file being read is a dynamic shared
-  /// object.
-  ///
-  /// @return true iff the current elf file being read is a
-  /// dynamic shared object.
-  bool
-  current_elf_file_is_dso() const
-  {
-    GElf_Ehdr eh_mem;
-    GElf_Ehdr* elf_header = gelf_getehdr(elf_handle(), &eh_mem);
-    return elf_header->e_type == ET_DYN;
-  }
-
   /// Getter for the map of global variables symbol address -> global
   /// variable symbol index.
   ///
@@ -7414,7 +6390,7 @@ public:
     GElf_Ehdr elf_header;
     ABG_ASSERT(gelf_getehdr(elf_handle(), &elf_header));
 
-    bool is_ppc64 = elf_architecture_is_ppc64();
+    bool is_ppc64 = architecture_is_ppc64(elf_handle());
 
     for (size_t i = 0; i < nb_syms; ++i)
       {
@@ -7437,21 +6413,12 @@ public:
 
 	    if (load_fun_map && symbol->is_public())
 	      {
-		{
-		  string_elf_symbols_map_type::iterator it =
-		    fun_syms_->find(symbol->get_name());
-		  if (it == fun_syms_->end())
-		    {
-		      (*fun_syms_)[symbol->get_name()] = elf_symbols();
-		      it = fun_syms_->find(symbol->get_name());
-		    }
-		  string name = symbol->get_name();
-		  it->second.push_back(symbol);
-		}
+		(*fun_syms_)[symbol->get_name()].push_back(symbol);
 
 		{
 		  GElf_Addr symbol_value =
-		    maybe_adjust_et_rel_sym_addr_to_abs_addr(sym);
+		      maybe_adjust_et_rel_sym_addr_to_abs_addr(elf_handle(),
+							       sym);
 
 		  addr_elf_symbol_sptr_map_type::const_iterator it =
 		    fun_addr_sym_map_->find(symbol_value);
@@ -7549,16 +6516,7 @@ public:
 		}
 	      }
 	    else if (load_undefined_fun_map && !symbol->is_defined())
-	      {
-		string_elf_symbols_map_type::iterator it =
-		  undefined_fun_syms_->find(symbol->get_name());
-		if (it == undefined_fun_syms_->end())
-		  {
-		    (*undefined_fun_syms_)[symbol->get_name()] = elf_symbols();
-		    it = undefined_fun_syms_->find(symbol->get_name());
-		  }
-		it->second.push_back(symbol);
-	      }
+	      (*undefined_fun_syms_)[symbol->get_name()].push_back(symbol);
 	  }
 	else if ((load_var_map || load_undefined_var_map)
 		 && (GELF_ST_TYPE(sym->st_info) == STT_OBJECT
@@ -7575,17 +6533,7 @@ public:
 
 	    if (load_var_map && symbol->is_public())
 	      {
-		{
-		  string_elf_symbols_map_type::iterator it =
-		    var_syms_->find(symbol->get_name());
-		  if (it == var_syms_->end())
-		    {
-		      (*var_syms_)[symbol->get_name()] = elf_symbols();
-		      it = var_syms_->find(symbol->get_name());
-		    }
-		  string name = symbol->get_name();
-		  it->second.push_back(symbol);
-		}
+		(*var_syms_)[symbol->get_name()].push_back(symbol);
 
 		if (symbol->is_common_symbol())
 		  {
@@ -7608,7 +6556,8 @@ public:
 		else
 		  {
 		    GElf_Addr symbol_value =
-		      maybe_adjust_et_rel_sym_addr_to_abs_addr(sym);
+			maybe_adjust_et_rel_sym_addr_to_abs_addr(elf_handle(),
+								 sym);
 		    addr_elf_symbol_sptr_map_type::const_iterator it =
 		      var_addr_sym_map_->find(symbol_value);
 		    if (it == var_addr_sym_map_->end())
@@ -7618,16 +6567,7 @@ public:
 		  }
 	      }
 	    else if (load_undefined_var_map && !symbol->is_defined())
-	      {
-		string_elf_symbols_map_type::iterator it =
-		  undefined_var_syms_->find(symbol->get_name());
-		if (it == undefined_var_syms_->end())
-		  {
-		    (*undefined_var_syms_)[symbol->get_name()] = elf_symbols();
-		    it = undefined_var_syms_->find(symbol->get_name());
-		  }
-		it->second.push_back(symbol);
-	      }
+	      (*undefined_var_syms_)[symbol->get_name()].push_back(symbol);
 	  }
       }
     return true;
@@ -7669,7 +6609,7 @@ public:
   {
     Elf_Data*	    elf_data = elf_rawdata(section, 0);
     uint8_t*	    bytes = reinterpret_cast<uint8_t*>(elf_data->d_buf);
-    bool	    is_big_endian = elf_architecture_is_big_endian();
+    bool	    is_big_endian = architecture_is_big_endian(elf_handle());
     elf_symbol_sptr symbol;
     GElf_Addr	    symbol_address = 0;
 
@@ -7677,7 +6617,7 @@ public:
     if (position_relative_relocations)
       symbol_value_size = sizeof(int32_t);
     else
-      symbol_value_size = architecture_word_size();
+      symbol_value_size = get_architecture_word_size(elf_handle());
 
     const int read_offset = (symbol_offset * symbol_value_size);
     bytes += read_offset;
@@ -7883,7 +6823,7 @@ public:
 	  {
 	    // Since Linux kernel modules are relocatable, we can first try
 	    // using a heuristic based on relocations to guess the ksymtab format.
-	    if (is_linux_kernel_module())
+	    if (is_linux_kernel_module(elf_handle()))
 	     {
 	       ksymtab_format_ = get_ksymtab_format_module();
 	       if (ksymtab_format_ != UNDEFINED_KSYMTAB_FORMAT)
@@ -7927,7 +6867,7 @@ public:
     if (format == UNDEFINED_KSYMTAB_FORMAT)
       ;
     else if (format == PRE_V4_19_KSYMTAB_FORMAT)
-      result = architecture_word_size();
+      result = get_architecture_word_size(elf_handle());
     else if (format == V4_19_KSYMTAB_FORMAT)
       result = 4;
     else
@@ -8106,7 +7046,7 @@ public:
     //
     // Lets thus walk the array of entries, and let's read just the
     // symbol address part of each entry.
-    bool is_big_endian = elf_architecture_is_big_endian();
+    bool is_big_endian = architecture_is_big_endian(elf_handle());
     elf_symbol_sptr symbol;
     unsigned char symbol_value_size = get_ksymtab_symbol_value_size();
 
@@ -8339,7 +7279,8 @@ public:
 	// section that symbol is defined in.  We need to translate it
 	// into an absolute (okay, binary-relative, rather) address.
 	GElf_Addr symbol_address =
-	  maybe_adjust_et_rel_sym_addr_to_abs_addr (&native_symbol);
+	  maybe_adjust_et_rel_sym_addr_to_abs_addr(elf_handle(),
+						   &native_symbol);
 
 	address_set_sptr set;
 	if (symbol->is_function())
@@ -8485,7 +7426,7 @@ public:
     if (!fun_addr_sym_map_)
       fun_addr_sym_map_.reset(new addr_elf_symbol_sptr_map_type);
 
-    if (!fun_entry_addr_sym_map_ && elf_architecture_is_ppc64())
+    if (!fun_entry_addr_sym_map_ && architecture_is_ppc64(elf_handle()))
       fun_entry_addr_sym_map_.reset(new addr_elf_symbol_sptr_map_type);
 
     if (!var_syms_)
@@ -8507,7 +7448,7 @@ public:
 						 load_undefined_fun_map,
 						 load_undefined_var_map))
 	  {
-	    if (load_in_linux_kernel_mode() && is_linux_kernel_binary())
+	    if (load_in_linux_kernel_mode() && is_linux_kernel(elf_handle()))
 	      return load_linux_specific_exported_symbol_maps();
 	    return true;
 	  }
@@ -8712,69 +7653,6 @@ public:
       addr = maybe_adjust_address_for_exec_or_dyn(addr);
 
     return addr;
-  }
-
-  /// Translate a section-relative symbol address (i.e, symbol value)
-  /// into an absolute symbol address by adding the address of the
-  /// section the symbol belongs to, to the address value.
-  ///
-  /// This is useful when looking at symbol values coming from
-  /// relocatable files (of ET_REL kind).  If the binary is not
-  /// ET_REL, then the function does nothing and returns the input
-  /// address unchanged.
-  ///
-  /// @param addr the symbol address to possibly translate.
-  ///
-  /// @param section the section the symbol which value is @p addr
-  /// belongs to.
-  ///
-  /// @return the section-relative address, translated into an
-  /// absolute address, if @p section is an ET_REL binary.  Otherwise,
-  /// return @p addr, unchanged.
-  GElf_Addr
-  maybe_adjust_et_rel_sym_addr_to_abs_addr(GElf_Addr addr, Elf_Scn *section)
-  {
-    if (!section)
-      return addr;
-
-    Elf* elf = elf_handle();
-    GElf_Ehdr elf_header;
-
-    if (!gelf_getehdr(elf, &elf_header))
-      return addr;
-
-    if (elf_header.e_type != ET_REL)
-      return addr;
-
-    GElf_Shdr section_header;
-    if (!gelf_getshdr(section, &section_header))
-      return addr;
-
-    return addr + section_header.sh_addr;
-  }
-
-  /// Translate a section-relative symbol address (i.e, symbol value)
-  /// into an absolute symbol address by adding the address of the
-  /// section the symbol belongs to, to the address value.
-  ///
-  /// This is useful when looking at symbol values coming from
-  /// relocatable files (of ET_REL kind).  If the binary is not
-  /// ET_REL, then the function does nothing and returns the input
-  /// address unchanged.
-  ///
-  /// @param sym the symbol whose address to possibly needs to be
-  /// translated.
-  ///
-  /// @return the section-relative address, translated into an
-  /// absolute address, if @p sym is from an ET_REL binary.
-  /// Otherwise, return the address of @p sym, unchanged.
-  GElf_Addr
-  maybe_adjust_et_rel_sym_addr_to_abs_addr(GElf_Sym *sym)
-  {
-    Elf_Scn *symbol_section = elf_getscn(elf_handle(), sym->st_shndx);
-    GElf_Addr result = sym->st_value;
-    result = maybe_adjust_et_rel_sym_addr_to_abs_addr(result, symbol_section);
-    return result;
   }
 
   /// Test if a given address is in a given section.
@@ -9206,30 +8084,6 @@ public:
   load_in_linux_kernel_mode(bool f)
   {options_.load_in_linux_kernel_mode = f;}
 
-  /// Guess if the current binary is a Linux Kernel or a Linux Kernel module.
-  ///
-  /// To guess that, the function looks for the presence of the
-  /// special "__ksymtab_strings" section in the binary.
-  ///
-  bool
-  is_linux_kernel_binary() const
-  {
-    return find_section(elf_handle(), "__ksymtab_strings", SHT_PROGBITS)
-	   || is_linux_kernel_module();
-  }
-
-  /// Guess if the current binary is a Linux Kernel module.
-  ///
-  /// To guess that, the function looks for the presence of the special
-  /// ".modinfo" and ".gnu.linkonce.this_module" sections in the binary.
-  ///
-  bool
-  is_linux_kernel_module() const
-  {
-    return find_section(elf_handle(), ".modinfo", SHT_PROGBITS)
-	   && find_section(elf_handle(), ".gnu.linkonce.this_module", SHT_PROGBITS);
-  }
-
   /// Getter of the "show_stats" flag.
   ///
   /// This flag tells if we should emit statistics about various
@@ -9626,6 +8480,18 @@ get_show_stats(read_context& ctxt)
 void
 set_show_stats(read_context& ctxt, bool f)
 {ctxt.show_stats(f);}
+
+/// Setter of the "drop_undefined_syms" flag.
+///
+/// This flag tells if we should drop functions or variables
+/// with undefined symbols.
+///
+/// @param ctxt the read context to consider for this flag.
+///
+/// @param f the value of the flag.
+void
+set_drop_undefined_syms(read_context& ctxt, bool f)
+{ctxt.drop_undefined_syms(f);}
 
 /// Setter of the "do_log" flag.
 ///
@@ -16815,8 +15681,15 @@ function_is_suppressed(const read_context& ctxt,
     flinkage_name = fname;
   string qualified_name = build_qualified_name(scope, fname);
 
-  // A non-member function which symbol is not exported is suppressed.
-  if (!is_class_type(scope) && !die_is_declaration_only(function_die))
+  // A non-member non-static function which symbol is not exported is
+  // suppressed.
+  //
+  // Note that if the non-member non-static function has an undefined
+  // symbol, by default, it's not suppressed.  Unless we are asked to
+  // drop undefined symbols too.
+  if (!is_class_type(scope)
+      && (!die_is_declaration_only(function_die)
+	  || ctxt.drop_undefined_syms()))
     {
       Dwarf_Addr fn_addr;
       if (!ctxt.get_function_address(function_die, fn_addr))
@@ -16922,15 +15795,11 @@ variable_is_suppressed(const read_context& ctxt,
     linkage_name = name;
   string qualified_name = build_qualified_name(scope, name);
 
-  // If a non member variable that is a declaration (has no exported
-  // symbol), is not the specification of another concrete variable,
-  // then it's suppressed.  This is a size optimization; it removes
-  // useless declaration-only variables from the IR.
-  //
-  // Otherwise, if a non-member variable is the specification of
-  // another concrete variable, then this function looks at
-  // suppression specification specifications to know if its
-  // suppressed.
+  // If a non member variable that is a declaration (has no defined
+  // and exported symbol) and is not the specification of another
+  // concrete variable, then it's suppressed.  This is a size
+  // optimization; it removes useless declaration-only variables from
+  // the IR.
   if (!is_class_type(scope) && !is_required_decl_spec)
     {
       Dwarf_Addr var_addr = 0;
@@ -17344,7 +16213,7 @@ read_debug_info_into_corpus(read_context& ctxt)
   // First set some mundane properties of the corpus gathered from
   // ELF.
   ctxt.current_corpus()->set_path(ctxt.elf_path());
-  if (ctxt.is_linux_kernel_binary())
+  if (is_linux_kernel(ctxt.elf_handle()))
     ctxt.current_corpus()->set_origin(corpus::LINUX_KERNEL_BINARY_ORIGIN);
   else
     ctxt.current_corpus()->set_origin(corpus::DWARF_ORIGIN);
@@ -17357,7 +16226,8 @@ read_debug_info_into_corpus(read_context& ctxt)
   // Set symbols information to the corpus.
   if (!get_ignore_symbol_table(ctxt))
     {
-      if (ctxt.load_in_linux_kernel_mode() && ctxt.is_linux_kernel_binary())
+      if (ctxt.load_in_linux_kernel_mode()
+	  && is_linux_kernel(ctxt.elf_handle()))
 	{
 	  string_elf_symbols_map_sptr exported_fn_symbols_map
 	    (new string_elf_symbols_map_type);

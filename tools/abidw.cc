@@ -88,6 +88,7 @@ struct options
   vector<char*>	di_root_paths;
   vector<char**>	prepared_di_root_paths;
   string		headers_dir;
+  vector<string>	header_files;
   string		vmlinux;
   vector<string>	suppression_paths;
   vector<string>	kabi_whitelist_paths;
@@ -98,6 +99,8 @@ struct options
   bool			write_architecture;
   bool			write_corpus_path;
   bool			write_comp_dir;
+  bool			write_elf_needed;
+  bool			write_parameter_names;
   bool			short_locs;
   bool			load_all_types;
   bool			linux_kernel_mode;
@@ -108,6 +111,8 @@ struct options
   bool			abidiff;
   bool			annotate;
   bool			do_log;
+  bool			drop_private_types;
+  bool			drop_undefined_syms;
 
   options()
     : display_version(),
@@ -116,6 +121,8 @@ struct options
       write_architecture(true),
       write_corpus_path(true),
       write_comp_dir(true),
+      write_elf_needed(true),
+      write_parameter_names(true),
       short_locs(false),
       load_all_types(),
       linux_kernel_mode(true),
@@ -125,7 +132,9 @@ struct options
       show_locs(true),
       abidiff(),
       annotate(),
-      do_log()
+      do_log(),
+      drop_private_types(false),
+      drop_undefined_syms(false)
   {}
 
   ~options()
@@ -149,6 +158,7 @@ display_usage(const string& prog_name, ostream& out)
     << "  --version|-v  display program version information and exit\n"
     << "  --debug-info-dir|-d <dir-path>  look for debug info under 'dir-path'\n"
     << "  --headers-dir|--hd <path> the path to headers of the elf file\n"
+    << "  --header-file|--hf <path> the path one header of the elf file\n"
     << "  --out-file <file-path>  write the output to 'file-path'\n"
     << "  --noout  do not emit anything after reading the binary\n"
     << "  --suppressions|--suppr <path> specify a suppression file\n"
@@ -156,7 +166,11 @@ display_usage(const string& prog_name, ostream& out)
     << "  --no-corpus-path  do not take the path to the corpora into account\n"
     << "  --no-show-locs  do not show location information\n"
     << "  --short-locs  only print filenames rather than paths\n"
+    << "  --drop-private-types  drop private types from representation\n"
+    << "  --drop-undefined-syms  drop undefined symbols from representation\n"
     << "  --no-comp-dir-path  do not show compilation path information\n"
+    << "  --no-elf-needed  do not show the DT_NEEDED information\n"
+    << "  --no-parameter-names  do not show names of function parameters\n"
     << "  --check-alternate-debug-info <elf-path>  check alternate debug info "
     "of <elf-path>\n"
     << "  --check-alternate-debug-info-base-name <elf-path>  check alternate "
@@ -217,6 +231,15 @@ parse_command_line(int argc, char* argv[], options& opts)
 	  opts.headers_dir = argv[j];
 	  ++i;
 	}
+      else if (!strcmp(argv[i], "--header-file")
+	       || !strcmp(argv[i], "--hf"))
+	{
+	  int j = i + 1;
+	  if (j >= argc)
+	    return false;
+	  opts.header_files.push_back(argv[j]);
+	  ++i;
+	}
       else if (!strcmp(argv[i], "--out-file"))
 	{
 	  if (argc <= i + 1
@@ -268,6 +291,10 @@ parse_command_line(int argc, char* argv[], options& opts)
 	opts.short_locs = true;
       else if (!strcmp(argv[i], "--no-comp-dir-path"))
 	opts.write_comp_dir = false;
+      else if (!strcmp(argv[i], "--no-elf-needed"))
+	opts.write_elf_needed = false;
+      else if (!strcmp(argv[i], "--no-parameter-names"))
+	opts.write_parameter_names = false;
       else if (!strcmp(argv[i], "--check-alternate-debug-info")
 	       || !strcmp(argv[i], "--check-alternate-debug-info-base-name"))
 	{
@@ -283,6 +310,10 @@ parse_command_line(int argc, char* argv[], options& opts)
 	}
       else if (!strcmp(argv[i], "--load-all-types"))
 	opts.load_all_types = true;
+      else if (!strcmp(argv[i], "--drop-private-types"))
+	opts.drop_private_types = true;
+      else if (!strcmp(argv[i], "--drop-undefined-syms"))
+	opts.drop_undefined_syms = true;
       else if (!strcmp(argv[i], "--no-linux-kernel-mode"))
 	opts.linux_kernel_mode = false;
       else if (!strcmp(argv[i], "--abidiff"))
@@ -349,6 +380,24 @@ maybe_check_suppression_files(const options& opts)
   return true;
 }
 
+/// Check that the header files supplied are present.
+/// If not, emit an error on stderr.
+///
+/// @param opts the options instance to use.
+///
+/// @return true if all header files are present, false otherwise.
+static bool
+maybe_check_header_files(const options& opts)
+{
+  for (vector<string>::const_iterator file = opts.header_files.begin();
+       file != opts.header_files.end();
+       ++file)
+    if (!check_file(*file, cerr, "abidw"))
+      return false;
+
+  return true;
+}
+
 /// Set suppression specifications to the @p read_context used to load
 /// the ABI corpus from the ELF/DWARF file.
 ///
@@ -371,9 +420,14 @@ set_suppressions(read_context& read_ctxt, options& opts)
     read_suppressions(*i, supprs);
 
   suppression_sptr suppr =
-    abigail::tools_utils::gen_suppr_spec_from_headers(opts.headers_dir);
+    abigail::tools_utils::gen_suppr_spec_from_headers(opts.headers_dir,
+						      opts.header_files);
   if (suppr)
-    supprs.push_back(suppr);
+    {
+      if (opts.drop_private_types)
+	suppr->set_drops_artifact_from_ir(true);
+      supprs.push_back(suppr);
+    }
 
   using abigail::tools_utils::gen_suppr_spec_from_kernel_abi_whitelists;
   const suppressions_type& wl_suppr =
@@ -721,6 +775,9 @@ main(int argc, char* argv[])
   if (!maybe_check_suppression_files(opts))
     return 1;
 
+  if (!maybe_check_header_files(opts))
+    return 1;
+
   abigail::tools_utils::file_type type =
     abigail::tools_utils::guess_file_type(opts.in_file_path);
   if (type != abigail::tools_utils::FILE_TYPE_ELF
@@ -743,6 +800,7 @@ main(int argc, char* argv[])
 						opts.load_all_types,
 						opts.linux_kernel_mode);
       read_context& ctxt = *c;
+      set_drop_undefined_syms(ctxt, opts.drop_undefined_syms);
       set_show_stats(ctxt, opts.show_stats);
       set_suppressions(ctxt, opts);
       abigail::dwarf_reader::set_do_log(ctxt, opts.do_log);

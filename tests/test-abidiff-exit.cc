@@ -121,42 +121,41 @@ InOutSpec in_out_specs[] =
     "output/test-abidiff-exit/test-no-stray-comma-report.txt"
   },
   {
-    "data/test-abidiff-exit/test-leaf0-v0.o",
-    "data/test-abidiff-exit/test-leaf0-v1.o",
+    "data/test-abidiff-exit/test-leaf-stats-v0.o",
+    "data/test-abidiff-exit/test-leaf-stats-v1.o",
     "",
     "--no-show-locs --leaf-changes-only",
     abigail::tools_utils::ABIDIFF_ABI_CHANGE,
-    "data/test-abidiff-exit/test-leaf0-report.txt",
-    "output/test-abidiff-exit/test-leaf0-report.txt"
+    "data/test-abidiff-exit/test-leaf-stats-report.txt",
+    "output/test-abidiff-exit/test-leaf-stats-report.txt"
   },
   {
-    "data/test-abidiff-exit/test-leaf1-v0.o",
-    "data/test-abidiff-exit/test-leaf1-v1.o",
+    "data/test-abidiff-exit/test-leaf-more-v0.o",
+    "data/test-abidiff-exit/test-leaf-more-v1.o",
     "",
-    // --redundant - pending a bug fix
-    "--no-show-locs --leaf-changes-only --redundant",
+    "--no-show-locs --leaf-changes-only",
     abigail::tools_utils::ABIDIFF_ABI_CHANGE
     | abigail::tools_utils::ABIDIFF_ABI_INCOMPATIBLE_CHANGE,
-    "data/test-abidiff-exit/test-leaf1-report.txt",
-    "output/test-abidiff-exit/test-leaf1-report.txt"
+    "data/test-abidiff-exit/test-leaf-more-report.txt",
+    "output/test-abidiff-exit/test-leaf-more-report.txt"
   },
   {
-    "data/test-abidiff-exit/test-leaf2-v0.o",
-    "data/test-abidiff-exit/test-leaf2-v1.o",
+    "data/test-abidiff-exit/test-leaf-fun-type-v0.o",
+    "data/test-abidiff-exit/test-leaf-fun-type-v1.o",
     "",
     "--no-show-locs --leaf-changes-only",
     abigail::tools_utils::ABIDIFF_ABI_CHANGE,
-    "data/test-abidiff-exit/test-leaf2-report.txt",
-    "output/test-abidiff-exit/test-leaf2-report.txt"
+    "data/test-abidiff-exit/test-leaf-fun-type-report.txt",
+    "output/test-abidiff-exit/test-leaf-fun-type-report.txt"
   },
   {
-    "data/test-abidiff-exit/test-leaf3-v0.o",
-    "data/test-abidiff-exit/test-leaf3-v1.o",
+    "data/test-abidiff-exit/test-leaf-redundant-v0.o",
+    "data/test-abidiff-exit/test-leaf-redundant-v1.o",
     "",
     "--leaf-changes-only",
     abigail::tools_utils::ABIDIFF_ABI_CHANGE,
-    "data/test-abidiff-exit/test-leaf3-report.txt",
-    "output/test-abidiff-exit/test-leaf3-report.txt"
+    "data/test-abidiff-exit/test-leaf-redundant-report.txt",
+    "output/test-abidiff-exit/test-leaf-redundant-report.txt"
   },
   {
     "data/test-abidiff-exit/test-leaf-peeling-v0.o",
@@ -185,6 +184,33 @@ InOutSpec in_out_specs[] =
     | abigail::tools_utils::ABIDIFF_ABI_INCOMPATIBLE_CHANGE,
     "data/test-abidiff-exit/test-leaf-cxx-members-report.txt",
     "output/test-abidiff-exit/test-leaf-cxx-members-report.txt"
+  },
+  {
+    "data/test-abidiff-exit/test-member-size-v0.o",
+    "data/test-abidiff-exit/test-member-size-v1.o",
+    "",
+    "",
+    abigail::tools_utils::ABIDIFF_ABI_CHANGE,
+    "data/test-abidiff-exit/test-member-size-report0.txt",
+    "output/test-abidiff-exit/test-member-size-report0.txt"
+  },
+  {
+    "data/test-abidiff-exit/test-member-size-v0.o",
+    "data/test-abidiff-exit/test-member-size-v1.o",
+    "",
+    "--leaf-changes-only",
+    abigail::tools_utils::ABIDIFF_ABI_CHANGE,
+    "data/test-abidiff-exit/test-member-size-report1.txt",
+    "output/test-abidiff-exit/test-member-size-report1.txt"
+  },
+  {
+    "data/test-abidiff-exit/test-decl-struct-v0.o",
+    "data/test-abidiff-exit/test-decl-struct-v1.o",
+    "",
+    "--harmless",
+    abigail::tools_utils::ABIDIFF_ABI_CHANGE,
+    "data/test-abidiff-exit/test-decl-struct-report.txt",
+    "output/test-abidiff-exit/test-decl-struct-report.txt"
   },
   {0, 0, 0 ,0,  abigail::tools_utils::ABIDIFF_OK, 0, 0}
 };

@@ -63,7 +63,13 @@ void
 set_write_comp_dir(write_context& ctxt, bool flag);
 
 void
+set_write_elf_needed(write_context& ctxt, bool flag);
+
+void
 set_short_locs(write_context& ctxt, bool flag);
+
+void
+set_write_parameter_names(write_context& ctxt, bool flag);
 
 /// A convenience generic function to set common options (usually used
 /// by Libabigail tools) from a generic options carrying-object, into
@@ -83,6 +89,8 @@ set_common_options(write_context& ctxt, const OPTS& opts)
   set_write_architecture(ctxt, opts.write_architecture);
   set_write_corpus_path(ctxt, opts.write_corpus_path);
   set_write_comp_dir(ctxt, opts.write_comp_dir);
+  set_write_elf_needed(ctxt, opts.write_elf_needed);
+  set_write_parameter_names(ctxt, opts.write_parameter_names);
   set_short_locs(ctxt, opts.short_locs);
 }
 
