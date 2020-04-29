@@ -50,6 +50,9 @@
 #include "abg-suppression-priv.h"
 #include "abg-corpus-priv.h"
 #include "abg-elf-helpers.h"
+
+#include "abg-symtab-reader.h"
+
 #include "abg-internal.h"
 
 // <headers defining libabigail's API go under here>
@@ -2326,6 +2329,9 @@ public:
   bool				drop_undefined_syms_;
   read_context();
 
+private:
+  mutable symtab_reader::symtab_sptr symtab_;
+
 public:
 
   /// Constructor of read_context.
@@ -2484,6 +2490,8 @@ public:
     dt_needed_.clear();
     dt_soname_.clear();
     elf_architecture_.clear();
+
+    symtab_.reset();
 
     clear_per_translation_unit_data();
 
@@ -5911,6 +5919,22 @@ public:
       }
 
     return symbol;
+  }
+
+  const symtab_reader::symtab_sptr&
+  symtab() const
+  {
+    using namespace abg_compat::placeholders;
+    if (!symtab_)
+      symtab_ = symtab_reader::symtab::load(
+	  elf_handle(), options_.env,
+	  abg_compat::bind(&read_context::is_elf_symbol_suppressed, this, _1));
+    if (!symtab_)
+      {
+	std::cerr << "Symbol table of '" << elf_path_
+		  << "' could not be loaded\n";
+      }
+    return symtab_;
   }
 
   /// Getter for the map of function address -> symbol.
@@ -15981,6 +16005,7 @@ read_debug_info_into_corpus(read_context& ctxt)
     group->add_corpus(ctxt.current_corpus());
 
   // Set symbols information to the corpus.
+  ctxt.current_corpus()->set_symtab(ctxt.symtab());
   if (!get_ignore_symbol_table(ctxt))
     {
       if (ctxt.load_in_linux_kernel_mode()
@@ -17231,6 +17256,9 @@ read_corpus_from_elf(read_context& ctxt, status& status)
   }
 
   ctxt.load_elf_properties();  // DT_SONAME, DT_NEEDED, architecture
+
+  if (!ctxt.symtab() || !ctxt.symtab()->has_symbols())
+    status |= STATUS_NO_SYMBOLS_FOUND;
 
   if (!get_ignore_symbol_table(ctxt))
     {

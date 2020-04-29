@@ -30,6 +30,7 @@
 
 #include "abg-cxx-compat.h"
 #include "abg-internal.h"
+#include "abg-symtab-reader.h"
 
 // <headers defining libabigail's API go under here>
 ABG_BEGIN_EXPORT_DECLARATIONS
@@ -904,6 +905,14 @@ corpus::operator==(const corpus& other) const
   return (i == get_translation_units().end()
 	  && j == other.get_translation_units().end());
 }
+
+void
+corpus::set_symtab(symtab_reader::symtab_sptr symtab)
+{priv_->symtab_ = symtab;}
+
+const symtab_reader::symtab_sptr&
+corpus::get_symtab() const
+{ return priv_->symtab_; }
 
 /// Setter of the function symbols map.
 ///

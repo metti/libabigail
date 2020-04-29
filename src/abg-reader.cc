@@ -39,6 +39,7 @@
 #include "abg-suppression-priv.h"
 
 #include "abg-internal.h"
+#include "abg-symtab-reader.h"
 #include "abg-tools-utils.h"
 
 // <headers defining libabigail's API go under here>
@@ -2007,6 +2008,8 @@ read_corpus_from_input(read_context& ctxt)
       // Note that it's possible that both fn_sym_db and var_sym_db
       // are nil, due to potential suppression specifications.  That's
       // fine.
+      corp.set_symtab(symtab_reader::symtab::load(fn_sym_db, var_sym_db));
+
       if (fn_sym_db)
 	{
 	  corp.set_fun_symbol_map(fn_sym_db);
