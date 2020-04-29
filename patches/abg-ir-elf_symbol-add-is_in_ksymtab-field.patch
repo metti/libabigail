@@ -1,0 +1,247 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Wed, 29 Apr 2020 13:39:09 +0200
+Subject: abg-ir: elf_symbol: add is_in_ksymtab field
+
+Being exported through a ksymtab (in case of Linux Kernel binaries) is
+actually a property of the Elf symbol itself and we can therefore track
+it along with the symbol that we collect from symtab. While tracking is
+currently done by keeping separate symbol lists and maps for symtab and
+ksymtab symbols, they can be consolidated having a property to indicate
+whether this symbol also appeared as a ksymtab entry.
+
+Hence, and for future changes in this area, add this property and update
+all references. The flag is false initially unless otherwise specified.
+
+	* include/abg-ir.h (elf_symbol::elf_symbol): Add is_in_ksymtab
+	parameter.
+	(elf_symbol::create): Likewise.
+	(elf_symbol::is_in_ksymtab): New getter declaration.
+	(elf_symbol::set_is_in_ksymtab): New setter declaration.
+	* src/abg-ir.cc (elf_symbol::priv::priv): Add is_in_ksymtab
+	parameter.
+	(elf_symbol::priv::is_in_ksymtab_): New field.
+	(elf_symbol::elf_symbol): Add is_in_ksymtab parameter.
+	(elf_symbol::create): Likewise.
+	(elf_symbol::is_in_ksymtab): New getter implementation.
+	(elf_symbol::set_is_in_ksymtab): New setter implementation.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ include/abg-ir.h |  34 +++++++++------
+ src/abg-ir.cc    | 105 +++++++++++++++++++++++++++++------------------
+ 2 files changed, 86 insertions(+), 53 deletions(-)
+
+diff --git a/include/abg-ir.h b/include/abg-ir.h
+index d81de217702b..5766385c8b73 100644
+--- a/include/abg-ir.h
++++ b/include/abg-ir.h
+@@ -851,8 +851,9 @@ private:
+ 	     bool		d,
+ 	     bool		c,
+ 	     const version&	ve,
+-	     visibility	vi,
+-	     bool		is_linux_string_cst = false);
++	     visibility		vi,
++	     bool		is_linux_string_cst = false,
++	     bool		is_in_ksymtab = false);
+ 
+   elf_symbol(const elf_symbol&);
+ 
+@@ -865,17 +866,18 @@ public:
+   create();
+ 
+   static elf_symbol_sptr
+-  create(const environment*	e,
+-	 size_t		i,
+-	 size_t		s,
+-	 const string&		n,
+-	 type			t,
+-	 binding		b,
+-	 bool			d,
+-	 bool			c,
+-	 const version&	ve,
+-	 visibility		vi,
+-	 bool			is_linux_string_cst = false);
++  create(const environment* e,
++	 size_t		    i,
++	 size_t		    s,
++	 const string&	    n,
++	 type		    t,
++	 binding	    b,
++	 bool		    d,
++	 bool		    c,
++	 const version&	    ve,
++	 visibility	    vi,
++	 bool		    is_linux_string_cst = false,
++	 bool		    is_in_ksymtab = false);
+ 
+   const environment*
+   get_environment() const;
+@@ -943,6 +945,12 @@ public:
+   bool
+   is_variable() const;
+ 
++  bool
++  is_in_ksymtab() const;
++
++  void
++  set_is_in_ksymtab(bool is_in_ksymtab);
++
+   const elf_symbol_sptr
+   get_main_symbol() const;
+ 
+diff --git a/src/abg-ir.cc b/src/abg-ir.cc
+index da3716d503e0..44021132b04d 100644
+--- a/src/abg-ir.cc
++++ b/src/abg-ir.cc
+@@ -1300,6 +1300,7 @@ struct elf_symbol::priv
+   //     STT_COMMON definition of that name that has the largest size.
+   bool			is_common_;
+   bool			is_linux_string_cst_;
++  bool			is_in_ksymtab_;
+   elf_symbol_wptr	main_symbol_;
+   elf_symbol_wptr	next_alias_;
+   elf_symbol_wptr	next_common_instance_;
+@@ -1314,20 +1315,22 @@ struct elf_symbol::priv
+       visibility_(elf_symbol::DEFAULT_VISIBILITY),
+       is_defined_(false),
+       is_common_(false),
+-      is_linux_string_cst_(false)
++      is_linux_string_cst_(false),
++      is_in_ksymtab_(false)
+   {}
+ 
+-  priv(const environment*		e,
+-       size_t				i,
+-       size_t				s,
+-       const string&			n,
+-       elf_symbol::type		t,
+-       elf_symbol::binding		b,
+-       bool				d,
+-       bool				c,
+-       const elf_symbol::version&	ve,
+-       elf_symbol::visibility		vi,
+-       bool				is_linux_string_cst)
++  priv(const environment*	  e,
++       size_t			  i,
++       size_t			  s,
++       const string&		  n,
++       elf_symbol::type		  t,
++       elf_symbol::binding	  b,
++       bool			  d,
++       bool			  c,
++       const elf_symbol::version& ve,
++       elf_symbol::visibility	  vi,
++       bool			  is_linux_string_cst,
++       bool			  is_in_ksymtab)
+     : env_(e),
+       index_(i),
+       size_(s),
+@@ -1338,7 +1341,8 @@ struct elf_symbol::priv
+       visibility_(vi),
+       is_defined_(d),
+       is_common_(c),
+-      is_linux_string_cst_(is_linux_string_cst)
++      is_linux_string_cst_(is_linux_string_cst),
++      is_in_ksymtab_(is_in_ksymtab)
+   {
+     if (!is_common_)
+       is_common_ = type_ == COMMON_TYPE;
+@@ -1384,19 +1388,30 @@ elf_symbol::elf_symbol()
+ ///
+ /// @param is_linux_string_cst true if the symbol is a Linux Kernel
+ /// string constant defined in the __ksymtab_strings section.
+-elf_symbol::elf_symbol(const environment*	e,
+-		       size_t			i,
+-		       size_t			s,
+-		       const string&		n,
+-		       type			t,
+-		       binding			b,
+-		       bool			d,
+-		       bool			c,
+-		       const version&		ve,
+-		       visibility		vi,
+-		       bool			is_linux_string_cst)
+-  : priv_(new priv(e, i, s, n, t, b, d,
+-		   c, ve, vi, is_linux_string_cst))
++elf_symbol::elf_symbol(const environment* e,
++		       size_t		  i,
++		       size_t		  s,
++		       const string&	  n,
++		       type		  t,
++		       binding		  b,
++		       bool		  d,
++		       bool		  c,
++		       const version&	  ve,
++		       visibility	  vi,
++		       bool		  is_linux_string_cst,
++		       bool		  is_in_ksymtab)
++  : priv_(new priv(e,
++		   i,
++		   s,
++		   n,
++		   t,
++		   b,
++		   d,
++		   c,
++		   ve,
++		   vi,
++		   is_linux_string_cst,
++		   is_in_ksymtab))
+ {}
+ 
+ /// Factory of instances of @ref elf_symbol.
+@@ -1443,20 +1458,22 @@ elf_symbol::create()
+ /// @return a (smart) pointer to a newly created instance of @ref
+ /// elf_symbol.
+ elf_symbol_sptr
+-elf_symbol::create(const environment*	e,
+-		   size_t		i,
+-		   size_t		s,
+-		   const string&	n,
+-		   type		t,
+-		   binding		b,
+-		   bool		d,
+-		   bool		c,
+-		   const version&	ve,
+-		   visibility		vi,
+-		   bool		is_linux_string_cst)
+-{
+-  elf_symbol_sptr sym(new elf_symbol(e, i, s, n, t, b, d, c, ve,
+-				     vi, is_linux_string_cst));
++elf_symbol::create(const environment* e,
++		   size_t	      i,
++		   size_t	      s,
++		   const string&      n,
++		   type		      t,
++		   binding	      b,
++		   bool		      d,
++		   bool		      c,
++		   const version&     ve,
++		   visibility	      vi,
++		   bool		      is_linux_string_cst,
++		   bool		      is_in_ksymtab)
++{
++  elf_symbol_sptr sym(new elf_symbol(e, i, s, n, t, b, d, c, ve, vi,
++				     is_linux_string_cst,
++				     is_in_ksymtab));
+   sym->priv_->main_symbol_ = sym;
+   return sym;
+ }
+@@ -1676,6 +1693,14 @@ bool
+ elf_symbol::is_variable() const
+ {return get_type() == OBJECT_TYPE || get_type() == TLS_TYPE;}
+ 
++bool
++elf_symbol::is_in_ksymtab() const
++{return priv_->is_in_ksymtab_;}
++
++void
++elf_symbol::set_is_in_ksymtab(bool is_in_ksymtab)
++{priv_->is_in_ksymtab_ = is_in_ksymtab;}
++
+ /// @name Elf symbol aliases
+ ///
+ /// An alias A for an elf symbol S is a symbol that is defined at the
