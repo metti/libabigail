@@ -58,7 +58,14 @@ namespace abg_compat {
 #if __cplusplus >= 201103L
 
 // <functional>
+using std::bind;
+using std::function;
 using std::hash;
+
+namespace placeholders
+{
+using namespace std::placeholders;
+}
 
 // <memory>
 using std::shared_ptr;
@@ -75,7 +82,14 @@ using std::unordered_set;
 #else
 
 // <functional>
+using std::tr1::bind;
+using std::tr1::function;
 using std::tr1::hash;
+
+namespace placeholders
+{
+using namespace std::tr1::placeholders;
+}
 
 // <memory>
 using std::tr1::shared_ptr;
