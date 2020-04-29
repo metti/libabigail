@@ -1,0 +1,55 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Thu, 30 Apr 2020 00:57:05 +0200
+Subject: abg-cxx-compat: more <functional> support: std::bind and friends
+
+Add abg_compat::{bind,function,placeholders} to the compatibility layer.
+That is made use of in a later patch. As usual, for C++ standards that
+natively support this functionality (C++11 and later), the native
+implementation is aliased into the abg_compat namespace.
+
+	* include/abg-cxx-compat.h: add support for
+	  abg_compat::{bind,function,placeholders}
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ include/abg-cxx-compat.h | 14 ++++++++++++++
+ 1 file changed, 14 insertions(+)
+
+diff --git a/include/abg-cxx-compat.h b/include/abg-cxx-compat.h
+index 1283e9191d46..cab2883b231e 100644
+--- a/include/abg-cxx-compat.h
++++ b/include/abg-cxx-compat.h
+@@ -58,8 +58,15 @@ namespace abg_compat {
+ #if __cplusplus >= 201103L
+ 
+ // <functional>
++using std::bind;
++using std::function;
+ using std::hash;
+ 
++namespace placeholders
++{
++using namespace std::placeholders;
++}
++
+ // <memory>
+ using std::shared_ptr;
+ using std::weak_ptr;
+@@ -75,8 +82,15 @@ using std::unordered_set;
+ #else
+ 
+ // <functional>
++using std::tr1::bind;
++using std::tr1::function;
+ using std::tr1::hash;
+ 
++namespace placeholders
++{
++using namespace std::tr1::placeholders;
++}
++
+ // <memory>
+ using std::tr1::shared_ptr;
+ using std::tr1::weak_ptr;
