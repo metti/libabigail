@@ -988,44 +988,6 @@ const string_elf_symbols_map_type&
 corpus::get_undefined_fun_symbol_map() const
 {return *get_undefined_fun_symbol_map_sptr();}
 
-/// Functor to sort instances of @ref elf_symbol.
-struct elf_symbol_comp_functor
-{
-
-  /// Return true if the first argument is less than the second one.
-  ///
-  /// @param l the first parameter to consider.
-  ///
-  /// @param r the second parameter to consider.
-  ///
-  /// @return true if @p l is less than @p r
-  bool
-  operator()(elf_symbol& l, elf_symbol& r)
-  {return (l.get_id_string() < r.get_id_string());}
-
-  /// Return true if the first argument is less than the second one.
-  ///
-  /// @param l the first parameter to consider.
-  ///
-  /// @param r the second parameter to consider.
-  ///
-  /// @return true if @p l is less than @p r
-  bool
-  operator()(elf_symbol* l, elf_symbol* r)
-  {return operator()(*l, *r);}
-
-  /// Return true if the first argument is less than the second one.
-  ///
-  /// @param l the first parameter to consider.
-  ///
-  /// @param r the second parameter to consider.
-  ///
-  /// @return true if @p l is less than @p r
-  bool
-  operator()(elf_symbol_sptr l, elf_symbol_sptr r)
-  {return operator()(*l, *r);}
-}; // end struct elf_symbol_comp_functor
-
 /// Return a sorted vector of function symbols for this corpus.
 ///
 /// Note that the first time this function is called, the symbols are
@@ -1036,23 +998,13 @@ struct elf_symbol_comp_functor
 const elf_symbols&
 corpus::get_sorted_fun_symbols() const
 {
-  if (priv_->sorted_fun_symbols.empty()
-      && !get_fun_symbol_map().empty())
+  if (priv_->sorted_fun_symbols.empty() && !get_fun_symbol_map().empty())
     {
-      priv_->sorted_fun_symbols.reserve(get_fun_symbol_map().size());
-      for (string_elf_symbols_map_type::const_iterator i =
-	     get_fun_symbol_map().begin();
-	   i != get_fun_symbol_map().end();
-	   ++i)
-	for (elf_symbols::const_iterator s = i->second.begin();
-	     s != i->second.end();
-	     ++s)
-	  priv_->sorted_fun_symbols.push_back(*s);
+      const symtab_reader::symtab_filter filter =
+	  priv_->symtab_->make_filter().functions();
 
-      elf_symbol_comp_functor comp;
-      std::sort(priv_->sorted_fun_symbols.begin(),
-		priv_->sorted_fun_symbols.end(),
-		comp);
+      priv_->sorted_fun_symbols =
+	  elf_symbols(priv_->symtab_->begin(filter), priv_->symtab_->end());
     }
   return priv_->sorted_fun_symbols;
 }
@@ -1068,21 +1020,13 @@ corpus::get_sorted_undefined_fun_symbols() const
   if (priv_->sorted_undefined_fun_symbols.empty()
       && !get_undefined_fun_symbol_map().empty())
     {
-      priv_->sorted_undefined_fun_symbols.reserve
-	(get_undefined_fun_symbol_map().size());
-      for (string_elf_symbols_map_type::const_iterator i =
-	     get_undefined_fun_symbol_map().begin();
-	   i != get_undefined_fun_symbol_map().end();
-	   ++i)
-	for (elf_symbols::const_iterator s = i->second.begin();
-	     s != i->second.end();
-	     ++s)
-	  priv_->sorted_undefined_fun_symbols.push_back(*s);
+      const symtab_reader::symtab_filter filter = priv_->symtab_->make_filter()
+						      .functions()
+						      .undefined_symbols()
+						      .public_symbols(false);
 
-      elf_symbol_comp_functor comp;
-      std::sort(priv_->sorted_undefined_fun_symbols.begin(),
-		priv_->sorted_undefined_fun_symbols.end(),
-		comp);
+      priv_->sorted_undefined_fun_symbols =
+	  elf_symbols(priv_->symtab_->begin(filter), priv_->symtab_->end());
     }
   return priv_->sorted_undefined_fun_symbols;
 }
@@ -1135,22 +1079,13 @@ corpus::get_undefined_var_symbol_map() const
 const elf_symbols&
 corpus::get_sorted_var_symbols() const
 {
-  if (priv_->sorted_var_symbols.empty()
-      && !get_var_symbol_map().empty())
+  if (priv_->sorted_var_symbols.empty() && !get_var_symbol_map().empty())
     {
-      priv_->sorted_var_symbols.reserve(get_var_symbol_map().size());
-      for (string_elf_symbols_map_type::const_iterator i =
-	     get_var_symbol_map().begin();
-	   i != get_var_symbol_map().end();
-	   ++i)
-	for (elf_symbols::const_iterator s = i->second.begin();
-	     s != i->second.end(); ++s)
-	  priv_->sorted_var_symbols.push_back(*s);
+      const symtab_reader::symtab_filter filter =
+	  priv_->symtab_->make_filter().variables();
 
-      elf_symbol_comp_functor comp;
-      std::sort(priv_->sorted_var_symbols.begin(),
-		priv_->sorted_var_symbols.end(),
-		comp);
+      priv_->sorted_var_symbols =
+	  elf_symbols(priv_->symtab_->begin(filter), priv_->symtab_->end());
     }
   return priv_->sorted_var_symbols;
 }
@@ -1166,20 +1101,13 @@ corpus::get_sorted_undefined_var_symbols() const
   if (priv_->sorted_undefined_var_symbols.empty()
       && !get_undefined_var_symbol_map().empty())
     {
-      priv_->sorted_undefined_var_symbols.reserve
-	(get_undefined_var_symbol_map().size());
-      for (string_elf_symbols_map_type::const_iterator i =
-	     get_undefined_var_symbol_map().begin();
-	   i != get_undefined_var_symbol_map().end();
-	   ++i)
-	for (elf_symbols::const_iterator s = i->second.begin();
-	     s != i->second.end(); ++s)
-	  priv_->sorted_undefined_var_symbols.push_back(*s);
+      const symtab_reader::symtab_filter filter = priv_->symtab_->make_filter()
+						      .variables()
+						      .undefined_symbols()
+						      .public_symbols(false);
 
-      elf_symbol_comp_functor comp;
-      std::sort(priv_->sorted_undefined_var_symbols.begin(),
-		priv_->sorted_undefined_var_symbols.end(),
-		comp);
+      priv_->sorted_undefined_var_symbols =
+	  elf_symbols(priv_->symtab_->begin(filter), priv_->symtab_->end());
     }
   return priv_->sorted_undefined_var_symbols;
 }
