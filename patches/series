@@ -12,3 +12,4 @@ Refactor-ELF-symbol-table-reading-by-adding-a-new-symtab-reader.patch
 Integrate-new-symtab-reader-into-corpus-and-read_context.patch
 corpus-make-get_-undefined_-_-var-fun-_symbols-use-the-new-symtab.patch
 corpus-make-get_unreferenced_-function-variable-_symbols-use-the-new-symtab.patch
+abg-reader-avoid-using-the-var-function-_symbol_map.patch

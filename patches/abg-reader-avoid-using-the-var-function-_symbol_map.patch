@@ -1,0 +1,93 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Mon, 4 May 2020 23:41:14 +0200
+Subject: abg-reader: avoid using the (var|function)_symbol_map
+
+Instead of using the corpus var|function_symbol_maps for symbol lookups,
+let build_elf_symbol_from_reference use the symtab::lookup_symbol
+method. That leads to a shorter implementation and we can drop the
+indicative parameter.
+
+	* src/abg-reader.cc (build_elf_symbol_from_reference): drop
+	  last parameter indicating the lookup type and use corpus
+	  symtab for the lookup
+	  (build_function_decl): Adjust accordingly.
+	  (build_var_decl): Likewise.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-reader.cc | 31 ++++++++++---------------------
+ 1 file changed, 10 insertions(+), 21 deletions(-)
+
+diff --git a/src/abg-reader.cc b/src/abg-reader.cc
+index 188c23d2e5cd..313639fddff0 100644
+--- a/src/abg-reader.cc
++++ b/src/abg-reader.cc
+@@ -1150,8 +1150,7 @@ static elf_symbol_sptr
+ build_elf_symbol(read_context&, const xmlNodePtr, bool);
+ 
+ static elf_symbol_sptr
+-build_elf_symbol_from_reference(read_context&, const xmlNodePtr,
+-				bool);
++build_elf_symbol_from_reference(read_context&, const xmlNodePtr);
+ 
+ static string_elf_symbols_map_sptr
+ build_elf_symbol_db(read_context&, const xmlNodePtr, bool);
+@@ -2884,8 +2883,7 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
+ ///
+ /// @return a shared pointer the resutling elf_symbol.
+ static elf_symbol_sptr
+-build_elf_symbol_from_reference(read_context& ctxt, const xmlNodePtr node,
+-				bool function_symbol)
++build_elf_symbol_from_reference(read_context& ctxt, const xmlNodePtr node)
+ {
+   elf_symbol_sptr nil;
+ 
+@@ -2904,20 +2902,13 @@ build_elf_symbol_from_reference(read_context& ctxt, const xmlNodePtr node,
+       if (name.empty())
+ 	return nil;
+ 
+-      string_elf_symbols_map_sptr sym_db =
+-	(function_symbol)
+-	? ctxt.get_corpus()->get_fun_symbol_map_sptr()
+-	: ctxt.get_corpus()->get_var_symbol_map_sptr();
++      const elf_symbols& symbols =
++	  ctxt.get_corpus()->get_symtab()->lookup_symbol(name);
+ 
+-      string_elf_symbols_map_type::const_iterator i = sym_db->find(name);
+-      if (i != sym_db->end())
+-	{
+-	  for (elf_symbols::const_iterator s = i->second.begin();
+-	       s != i->second.end();
+-	       ++s)
+-	    if ((*s)->get_id_string() == sym_id)
+-	      return *s;
+-	}
++      for (elf_symbols::const_iterator symbol = symbols.begin();
++	   symbol != symbols.end(); ++symbol)
++	if ((*symbol)->get_id_string() == sym_id)
++	  return *symbol;
+     }
+ 
+   return nil;
+@@ -3168,8 +3159,7 @@ build_function_decl(read_context&	ctxt,
+ 
+   ctxt.push_decl_to_current_scope(fn_decl, add_to_current_scope);
+ 
+-  elf_symbol_sptr sym = build_elf_symbol_from_reference(ctxt, node,
+-							/*function_sym=*/true);
++  elf_symbol_sptr sym = build_elf_symbol_from_reference(ctxt, node);
+   if (sym)
+     fn_decl->set_symbol(sym);
+ 
+@@ -3400,8 +3390,7 @@ build_var_decl(read_context&	ctxt,
+ 				  locus, mangled_name,
+ 				  vis, bind));
+ 
+-  elf_symbol_sptr sym = build_elf_symbol_from_reference(ctxt, node,
+-							/*function_sym=*/false);
++  elf_symbol_sptr sym = build_elf_symbol_from_reference(ctxt, node);
+   if (sym)
+     decl->set_symbol(sym);
+ 
