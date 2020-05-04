@@ -364,82 +364,55 @@ corpus::priv::build_unreferenced_symbols_tables()
 	  refed_vars[a->get_id_string()] = true;
       }
 
-  if (fun_symbol_map)
+  if (symtab_)
     {
-      // Let's assume that the size of the unreferenced symbols vector
-      // is roughly smaller than the size of the symbol table.
-      unrefed_fun_symbols.reserve(fun_symbol_map->size());
-      for (string_elf_symbols_map_type::const_iterator i
-	     = fun_symbol_map->begin();
-	   i != fun_symbol_map->end();
-	   ++i)
-	for (elf_symbols::const_iterator s = i->second.begin();
-	     s != i->second.end();
-	     ++s)
-	  {
-	    string sym_id = (*s)->get_id_string();
-	    if (refed_funs.find(sym_id) == refed_funs.end())
-	      {
-		bool keep = sym_id_fns_to_keep.empty();
-		for (vector<string>::const_iterator i =
-		       sym_id_fns_to_keep.begin();
-		     i != sym_id_fns_to_keep.end();
-		     ++i)
-		  {
-		    if (*i == sym_id)
-		      {
-			keep = true;
-			break;
-		      }
-		  }
-		if (keep)
-		  unrefed_fun_symbols.push_back(*s);
-	      }
-	  }
+      symtab_reader::symtab_filter filter = symtab_->make_filter();
+      for (symtab_reader::symtab::const_iterator iter = symtab_->begin(filter);
+	   iter != symtab_->end(); iter++)
+	{
+	  const elf_symbol_sptr& symbol = *iter;
+	  string sym_id = symbol->get_id_string();
 
-      comp_elf_symbols_functor comp;
-      std::sort(unrefed_fun_symbols.begin(),
-		unrefed_fun_symbols.end(),
-		comp);
-    }
-
-  if (var_symbol_map)
-    {
-      // Let's assume that the size of the unreferenced symbols vector
-      // is roughly smaller than the size of the symbol table.
-      unrefed_var_symbols.reserve(var_symbol_map->size());
-      for (string_elf_symbols_map_type::const_iterator i
-	     = var_symbol_map->begin();
-	   i != var_symbol_map->end();
-	   ++i)
-	for (elf_symbols::const_iterator s = i->second.begin();
-	     s != i->second.end();
-	     ++s)
-	  {
-	    string sym_id = (*s)->get_id_string();
-	    if (refed_vars.find(sym_id) == refed_vars.end())
-	      {
-		bool keep = sym_id_vars_to_keep.empty();
-		for (vector<string>::const_iterator i =
-		       sym_id_vars_to_keep.begin();
-		     i != sym_id_vars_to_keep.end();
-		     ++i)
-		  {
-		    if (*i == sym_id)
-		      {
-			keep = true;
-			break;
-		      }
-		  }
-		if (keep)
-		  unrefed_var_symbols.push_back(*s);
-	      }
-	  }
-
-      comp_elf_symbols_functor comp;
-      std::sort(unrefed_var_symbols.begin(),
-		unrefed_var_symbols.end(),
-		comp);
+	  if (symbol->is_function())
+	    {
+	      if (refed_funs.find(sym_id) == refed_funs.end())
+		{
+		  bool keep = sym_id_fns_to_keep.empty();
+		  for (vector<string>::const_iterator i =
+			   sym_id_fns_to_keep.begin();
+		       i != sym_id_fns_to_keep.end(); ++i)
+		    {
+		      if (*i == sym_id)
+			{
+			  keep = true;
+			  break;
+			}
+		    }
+		  if (keep)
+		    unrefed_fun_symbols.push_back(symbol);
+		}
+	    }
+	  if (symbol->is_variable())
+	    {
+	      if (refed_vars.find(sym_id) == refed_vars.end())
+		{
+		  bool keep = sym_id_vars_to_keep.empty();
+		  ;
+		  for (vector<string>::const_iterator i =
+			   sym_id_vars_to_keep.begin();
+		       i != sym_id_vars_to_keep.end(); ++i)
+		    {
+		      if (*i == sym_id)
+			{
+			  keep = true;
+			  break;
+			}
+		    }
+		  if (keep)
+		    unrefed_var_symbols.push_back(symbol);
+		}
+	    }
+	}
     }
 }
 
