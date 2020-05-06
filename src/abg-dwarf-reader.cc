@@ -5852,11 +5852,11 @@ public:
   elf_symbol_sptr
   function_symbol_is_exported(GElf_Addr symbol_address) const
   {
-    elf_symbol_sptr symbol = lookup_elf_fn_symbol_from_address(symbol_address);
+    elf_symbol_sptr symbol = symtab()->lookup_symbol(symbol_address);
     if (!symbol)
       return symbol;
 
-    if (!symbol->is_public())
+    if (!symbol->is_function() || !symbol->is_public())
       return elf_symbol_sptr();
 
     address_set_sptr set;
@@ -5865,16 +5865,8 @@ public:
 
     if (looking_at_linux_kernel_binary)
       {
-	if ((set = linux_exported_fn_syms()))
-	  {
-	    if (set->find(symbol_address) != set->end())
-	      return symbol;
-	  }
-	if ((set = linux_exported_gpl_fn_syms()))
-	  {
-	    if (set->find(symbol_address) != set->end())
-	      return symbol;
-	  }
+	if (symbol->is_in_ksymtab())
+	  return symbol;
 	return elf_symbol_sptr();
       }
 
@@ -5892,11 +5884,11 @@ public:
   elf_symbol_sptr
   variable_symbol_is_exported(GElf_Addr symbol_address) const
   {
-    elf_symbol_sptr symbol = lookup_elf_var_symbol_from_address(symbol_address);
+    elf_symbol_sptr symbol = symtab()->lookup_symbol(symbol_address);
     if (!symbol)
       return symbol;
 
-    if (!symbol->is_public())
+    if (!symbol->is_variable() || !symbol->is_public())
       return elf_symbol_sptr();
 
     address_set_sptr set;
@@ -5905,16 +5897,8 @@ public:
 
     if (looking_at_linux_kernel_binary)
       {
-	if ((set = linux_exported_var_syms()))
-	  {
-	    if (set->find(symbol_address) != set->end())
-	      return symbol;
-	  }
-	if ((set = linux_exported_gpl_var_syms()))
-	  {
-	    if (set->find(symbol_address) != set->end())
-	      return symbol;
-	  }
+	if (symbol->is_in_ksymtab())
+	  return symbol;
 	return elf_symbol_sptr();
       }
 
