@@ -26,7 +26,7 @@
 #define __ABG_SPTR_UTILS_H__
 
 #include <regex.h>
-#include <libxml/xmlreader.h>
+
 #include "abg-cxx-compat.h"
 
 namespace abigail
@@ -63,34 +63,6 @@ template<class T>
 shared_ptr<T>
 build_sptr();
 
-/// A convenience typedef for a shared pointer of xmlTextReader.
-typedef shared_ptr<xmlTextReader> reader_sptr;
-
-/// Specialization of sptr_utils::build_sptr for xmlTextReader
-template<>
-reader_sptr
-build_sptr<xmlTextReader>(xmlTextReader *p);
-
-/// A convenience typedef for a shared pointer of xmlChar.
-typedef shared_ptr<xmlChar> xml_char_sptr;
-
-/// Specialization of build_str for xmlChar.
-template<>
-xml_char_sptr build_sptr<xmlChar>(xmlChar *p);
-
-/// A convenience typedef for a shared pointer of regex_t.
-typedef shared_ptr<regex_t> regex_t_sptr;
-
-/// Specialization of sptr_utils::build_sptr for regex_t.
-template<>
-regex_t_sptr
-build_sptr<regex_t>(regex_t *p);
-
-/// Specialization of sptr_utils::build_sptr for regex_t.
-template<>
-regex_t_sptr
-build_sptr<regex_t>();
-
 /// A deleter for shared pointers that ... doesn't delete the object
 /// managed by the shared pointer.
 struct noop_deleter
@@ -100,42 +72,6 @@ struct noop_deleter
   operator()(const T*)
   {}
 };
-
-/// A delete functor for a shared_ptr of regex_t.
-struct regex_t_deleter
-{
-  /// The operator called to de-allocate the pointer to regex_t
-  /// embedded in a shared_ptr<regex_t>
-  ///
-  /// @param r the pointer to regex_t to de-allocate.
-  void
-  operator()(::regex_t* r)
-  {
-    regfree(r);
-    delete r;
-  }
-};//end struct regex_deleter
-
-/// Specialization of sptr_utils::build_sptr for regex_t.
-///
-/// This is used to wrap a pointer to regex_t into a
-/// shared_ptr<regex_t>.
-///
-/// @param p the bare pointer to regex_t to wrap into a shared_ptr<regex_t>.
-///
-/// @return the shared_ptr<regex_t> that wraps @p p.
-template<>
-regex_t_sptr
-build_sptr<regex_t>(regex_t *p);
-
-/// Specialization of sptr_utils::build_sptr for regex_t.
-///
-/// This creates a pointer to regex_t and wraps it into a shared_ptr<regex_t>.
-///
-/// @return the shared_ptr<regex_t> wrapping the newly created regex_t*
-template<>
-regex_t_sptr
-build_sptr<regex_t>();
 
 }// end namespace sptr_utils
 }// end namespace abigail

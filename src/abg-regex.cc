@@ -23,12 +23,11 @@
 /// Some specialization for shared pointer utility templates.
 ///
 
+#include <sstream>
 #include "abg-sptr-utils.h"
+#include "abg-regex.h"
 
 namespace abigail
-{
-
-namespace sptr_utils
 {
 
 /// Specialization of sptr_utils::build_sptr for regex_t.
@@ -40,9 +39,9 @@ namespace sptr_utils
 ///
 /// @return the shared_ptr<regex_t> that wraps @p p.
 template<>
-regex_t_sptr
-build_sptr<regex_t>(regex_t *p)
-{return regex_t_sptr(p, regex_t_deleter());}
+regex::regex_t_sptr
+sptr_utils::build_sptr<regex_t>(regex_t *p)
+{return regex::regex_t_sptr(p, regex::regex_t_deleter());}
 
 /// Specialization of sptr_utils::build_sptr for regex_t.
 ///
@@ -50,9 +49,35 @@ build_sptr<regex_t>(regex_t *p)
 ///
 /// @return the shared_ptr<regex_t> wrapping the newly created regex_t*
 template<>
-regex_t_sptr
-build_sptr<regex_t>()
-{return build_sptr(new regex_t);}
+regex::regex_t_sptr
+sptr_utils::build_sptr<regex_t>()
+{return sptr_utils::build_sptr(new regex_t);}
 
+namespace regex
+{
+
+/// Generate a regex pattern equivalent to testing set membership.
+///
+/// A string will match the resulting pattern regex, if and only if it
+/// was present in the vector.
+///
+/// @param strs a vector of strings
+///
+/// @return a regex pattern
+std::string
+generate_from_strings(const std::vector<std::string>& strs)
+{
+  if (strs.empty())
+    return "^_^";
+  std::ostringstream os;
+  std::vector<std::string>::const_iterator i = strs.begin();
+  os << "^(" << *i++;
+  while (i != strs.end())
+    os << "|" << *i++;
+  os << ")$";
+  return os.str();
 }
-}
+
+}//end namespace regex
+
+}//end namespace abigail

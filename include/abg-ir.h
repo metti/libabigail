@@ -708,19 +708,27 @@ public:
 					translation_unit& tu);
 };//end class translation_unit
 
-struct SharedTranslationUnitComparator
+/// A comparison functor to compare translation units based on their
+/// absolute paths.
+struct shared_translation_unit_comp
 {
+  /// Compare two translations units based on their absolute paths.
+  ///
+  /// @param lhs the first translation unit to consider for the
+  /// comparison.
+  ///
+  /// @param rhs the second translatin unit to consider for the
+  /// comparison.
   bool
   operator()(const translation_unit_sptr& lhs,
 	     const translation_unit_sptr& rhs) const
-  {
-    return lhs->get_absolute_path() < rhs->get_absolute_path();
-  }
-};
+  {return lhs->get_absolute_path() < rhs->get_absolute_path();}
+}; // end struct shared_translation_unit_comp
 
-/// Convenience typedef for a vector of @ref translation_unit_sptr.
-typedef std::set<translation_unit_sptr, SharedTranslationUnitComparator>
-    translation_units;
+/// Convenience typedef for an ordered set of @ref
+/// translation_unit_sptr.
+typedef std::set<translation_unit_sptr,
+		 shared_translation_unit_comp> translation_units;
 
 string
 translation_unit_language_to_string(translation_unit::language);

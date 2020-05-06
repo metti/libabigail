@@ -67,7 +67,7 @@ using zip_utils::open_archive;
 using zip_utils::open_file_in_archive;
 #endif // WITH_ZIP_ARCHIVE
 
-using sptr_utils::regex_t_sptr;
+using regex::regex_t_sptr;
 
 /// Constructor of @ref corpus::exported_decls_builder.
 ///
@@ -560,9 +560,7 @@ corpus::add(const translation_unit_sptr tu)
 
   ABG_ASSERT(tu->get_environment() == get_environment());
 
-  const std::pair<translation_units::const_iterator, bool>& result
-      = priv_->members.insert(tu);
-  ABG_ASSERT(result.second);
+  ABG_ASSERT(priv_->members.insert(tu).second);
 
   if (!tu->get_absolute_path().empty())
     {
