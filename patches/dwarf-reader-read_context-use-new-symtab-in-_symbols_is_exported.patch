@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Wed, 6 May 2020 17:26:31 +0200
+Subject: dwarf-reader: read_context: use new symtab in *_symbols_is_exported
+
+Testing whether a symbol is exported can be simplified using the new
+symtab implementation. The same holds true for whether a symbol is
+exported via ksymtab in case of linux kernel binaries. So, do that.
+
+	* src/abg-dwarf-reader.cc (function_symbol_is_exported): Use new
+	  symtab implementation.
+	  (variable_symbol_is_exported): Likewise.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-dwarf-reader.cc | 32 ++++++++------------------------
+ 1 file changed, 8 insertions(+), 24 deletions(-)
+
+diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
+index d7b73adb4874..87cf34b2e5b7 100644
+--- a/src/abg-dwarf-reader.cc
++++ b/src/abg-dwarf-reader.cc
+@@ -5515,11 +5515,11 @@ public:
+   elf_symbol_sptr
+   function_symbol_is_exported(GElf_Addr symbol_address) const
+   {
+-    elf_symbol_sptr symbol = lookup_elf_fn_symbol_from_address(symbol_address);
++    elf_symbol_sptr symbol = symtab()->lookup_symbol(symbol_address);
+     if (!symbol)
+       return symbol;
+ 
+-    if (!symbol->is_public())
++    if (!symbol->is_function() || !symbol->is_public())
+       return elf_symbol_sptr();
+ 
+     address_set_sptr set;
+@@ -5528,16 +5528,8 @@ public:
+ 
+     if (looking_at_linux_kernel_binary)
+       {
+-	if ((set = linux_exported_fn_syms()))
+-	  {
+-	    if (set->find(symbol_address) != set->end())
+-	      return symbol;
+-	  }
+-	if ((set = linux_exported_gpl_fn_syms()))
+-	  {
+-	    if (set->find(symbol_address) != set->end())
+-	      return symbol;
+-	  }
++	if (symbol->is_in_ksymtab())
++	  return symbol;
+ 	return elf_symbol_sptr();
+       }
+ 
+@@ -5555,11 +5547,11 @@ public:
+   elf_symbol_sptr
+   variable_symbol_is_exported(GElf_Addr symbol_address) const
+   {
+-    elf_symbol_sptr symbol = lookup_elf_var_symbol_from_address(symbol_address);
++    elf_symbol_sptr symbol = symtab()->lookup_symbol(symbol_address);
+     if (!symbol)
+       return symbol;
+ 
+-    if (!symbol->is_public())
++    if (!symbol->is_variable() || !symbol->is_public())
+       return elf_symbol_sptr();
+ 
+     address_set_sptr set;
+@@ -5568,16 +5560,8 @@ public:
+ 
+     if (looking_at_linux_kernel_binary)
+       {
+-	if ((set = linux_exported_var_syms()))
+-	  {
+-	    if (set->find(symbol_address) != set->end())
+-	      return symbol;
+-	  }
+-	if ((set = linux_exported_gpl_var_syms()))
+-	  {
+-	    if (set->find(symbol_address) != set->end())
+-	      return symbol;
+-	  }
++	if (symbol->is_in_ksymtab())
++	  return symbol;
+ 	return elf_symbol_sptr();
+       }
+ 
