@@ -621,6 +621,11 @@ if test x$ABIGAIL_DEVEL != x; then
    CXXFLAGS="-g -Wall -Wextra -Werror"
 fi
 
+if test x$ABIGAIL_DEBUG != x; then
+    CFLAGS="$CFLAGS -O0 -g3 -ggdb"
+    CXXFLAGS="$CXXFLAGS -O0 -g3 -ggdb"
+fi
+
 if test x$ENABLE_ASAN = xyes; then
     CFLAGS="$CFLAGS -fsanitize=address"
     CXXFLAGS="$CXXFLAGS -fsanitize=address"
