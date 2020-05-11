@@ -12,6 +12,7 @@
 
 #include "config.h"
 
+#include <elfutils/libdwfl.h>
 #include <gelf.h>
 #include <string>
 
@@ -133,6 +134,10 @@ architecture_is_ppc64(Elf* elf_handle);
 bool
 architecture_is_big_endian(Elf* elf_handle);
 
+GElf_Addr
+lookup_ppc64_elf_fn_entry_point_address(Elf*	  elf_handle,
+					GElf_Addr fn_desc_address);
+
 //
 // Helpers for Linux Kernel Binaries
 //
@@ -161,6 +166,9 @@ is_dso(Elf* elf_handle);
 
 GElf_Addr
 maybe_adjust_et_rel_sym_addr_to_abs_addr(Elf* elf_handle, GElf_Sym* sym);
+
+bool
+address_is_in_opd_section(Elf* elf_handle, Dwarf_Addr addr);
 
 } // end namespace elf_helpers
 } // end namespace abigail
