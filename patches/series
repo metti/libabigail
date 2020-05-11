@@ -15,3 +15,4 @@ corpus-make-get_unreferenced_-function-variable-_symbols-use-the-new-symtab.patc
 abg-reader-avoid-using-the-var-function-_symbol_map.patch
 dwarf-reader-read_context-use-new-symtab-in-_symbols_is_exported.patch
 Switch-kernel-stuff-over-to-new-symtab-and-drop-unused-code.patch
+abg-elf-helpers-migrate-ppc64-specific-helpers.patch
