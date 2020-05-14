@@ -16,3 +16,4 @@ abg-reader-avoid-using-the-var-function-_symbol_map.patch
 dwarf-reader-read_context-use-new-symtab-in-_symbols_is_exported.patch
 Switch-kernel-stuff-over-to-new-symtab-and-drop-unused-code.patch
 abg-elf-helpers-migrate-ppc64-specific-helpers.patch
+symtab_reader-add-support-for-ppc64-ELFv1-binaries.patch
