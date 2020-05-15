@@ -23,9 +23,21 @@
 /// Some specialization for shared pointer utility templates.
 ///
 
+#include "config.h"
+
 #include <sstream>
-#include "abg-sptr-utils.h"
+#include <ostream>
+
+#include "abg-internal.h"
+
+// <headers defining libabigail's API go under here>
+ABG_BEGIN_EXPORT_DECLARATIONS
+
 #include "abg-regex.h"
+#include "abg-sptr-utils.h"
+
+ABG_END_EXPORT_DECLARATIONS
+// </headers defining libabigail's API>
 
 namespace abigail
 {
@@ -56,6 +68,29 @@ sptr_utils::build_sptr<regex_t>()
 namespace regex
 {
 
+/// Escape regex special charaters in input string.
+///
+/// @param os the output stream being written to.
+///
+/// @param esc the regex_escape object holding a reference to the string
+/// needing to be escaped.
+///
+/// @return the output stream.
+std::ostream&
+operator<<(std::ostream& os, const escape& esc)
+{
+  // ']' and '}' are only conditionally special, so could be removed.
+  static const std::string specials = "^.[]$()|*+?{}\\";
+  const std::string& str = esc.ref;
+  for (std::string::const_iterator i = str.begin(); i != str.end(); ++i)
+    {
+      if (specials.find(*i) != std::string::npos)
+	os << '\\';
+      os << *i;
+    }
+  return os;
+}
+
 /// Generate a regex pattern equivalent to testing set membership.
 ///
 /// A string will match the resulting pattern regex, if and only if it
@@ -68,14 +103,45 @@ std::string
 generate_from_strings(const std::vector<std::string>& strs)
 {
   if (strs.empty())
+    // This cute-looking regex does not match any string.
     return "^_^";
   std::ostringstream os;
   std::vector<std::string>::const_iterator i = strs.begin();
-  os << "^(" << *i++;
+  os << "^(" << escape(*i++);
   while (i != strs.end())
-    os << "|" << *i++;
+    os << "|" << escape(*i++);
   os << ")$";
   return os.str();
+}
+
+/// Compile a regex from a string.
+///
+/// The result is held in a shared pointer. This will be null if regex
+/// compilation fails.
+///
+/// @param str the string representation of the regex.
+///
+/// @return shared pointer holder of a compiled regex object.
+regex_t_sptr
+compile(const std::string& str)
+{
+  regex_t_sptr r = sptr_utils::build_sptr(new regex_t);
+  if (regcomp(r.get(), str.c_str(), REG_EXTENDED))
+    r.reset();
+  return r;
+}
+
+/// See if a string matches a regex.
+///
+/// @param r a shared pointer holder of a compiled regex object.
+///
+/// @param str a string.
+///
+/// @return whether there was a match.
+bool
+match(const regex_t_sptr& r, const std::string& str)
+{
+  return !regexec(r.get(), str.c_str(), 0, NULL, 0);
 }
 
 }//end namespace regex

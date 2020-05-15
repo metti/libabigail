@@ -29,9 +29,9 @@
 #ifndef __ABG_CORPUS_PRIV_H__
 #define __ABG_CORPUS_PRIV_H__
 
-#include "abg-sptr-utils.h"
-#include "abg-regex.h"
 #include "abg-internal.h"
+#include "abg-regex.h"
+#include "abg-sptr-utils.h"
 
 namespace abigail
 {
@@ -123,8 +123,8 @@ public:
 	     i != fns_suppress_regexps_.end();
 	     ++i)
 	  {
-	    regex_t_sptr r = sptr_utils::build_sptr(new regex_t);
-	    if (regcomp(r.get(), i->c_str(), REG_EXTENDED) == 0)
+	    regex_t_sptr r = regex::compile(*i);
+	    if (r)
 	      compiled_fns_suppress_regexp_.push_back(r);
 	  }
       }
@@ -145,8 +145,8 @@ public:
 	     i != fns_keep_regexps_.end();
 	     ++i)
 	  {
-	    regex_t_sptr r = sptr_utils::build_sptr(new regex_t);
-	    if (regcomp(r.get(), i->c_str(), REG_EXTENDED) == 0)
+	    regex_t_sptr r = regex::compile(*i);
+	    if (r)
 	      compiled_fns_keep_regexps_.push_back(r);
 	  }
       }
@@ -167,8 +167,8 @@ public:
 	     i != vars_suppress_regexps_.end();
 	     ++i)
 	  {
-	    regex_t_sptr r = sptr_utils::build_sptr(new regex_t);
-	    if (regcomp(r.get(), i->c_str(), REG_EXTENDED) == 0)
+	    regex_t_sptr r = regex::compile(*i);
+	    if (r)
 	      compiled_vars_suppress_regexp_.push_back(r);
 	  }
       }
@@ -189,8 +189,8 @@ public:
 	     i != vars_keep_regexps_.end();
 	     ++i)
 	  {
-	    regex_t_sptr r = sptr_utils::build_sptr(new regex_t);
-	    if (regcomp(r.get(), i->c_str(), REG_EXTENDED) == 0)
+	    regex_t_sptr r = regex::compile(*i);
+	    if (r)
 	      compiled_vars_keep_regexps_.push_back(r);
 	  }
       }
@@ -521,7 +521,7 @@ public:
 	   compiled_regex_fns_suppress().begin();
 	 i != compiled_regex_fns_suppress().end();
 	 ++i)
-      if (regexec(i->get(), frep.c_str(), 0, NULL, 0) == 0)
+      if (regex::match(*i, frep))
 	{
 	  keep = false;
 	  break;
@@ -554,7 +554,7 @@ public:
 	     compiled_regex_fns_keep().begin();
 	   i != compiled_regex_fns_keep().end();
 	   ++i)
-	if (regexec(i->get(), frep.c_str(), 0, NULL, 0) == 0)
+	if (regex::match(*i, frep))
 	  {
 	    keep = true;
 	    break;
@@ -628,7 +628,7 @@ public:
 	   compiled_regex_vars_suppress().begin();
 	 i != compiled_regex_vars_suppress().end();
 	 ++i)
-      if (regexec(i->get(), frep.c_str(), 0, NULL, 0) == 0)
+      if (regex::match(*i, frep))
 	{
 	  keep = false;
 	  break;
@@ -662,7 +662,7 @@ public:
 	       compiled_regex_vars_keep().begin();
 	     i != compiled_regex_vars_keep().end();
 	     ++i)
-	  if (regexec(i->get(), frep.c_str(), 0, NULL, 0) == 0)
+	  if (regex::match(*i, frep))
 	    {
 	      keep = true;
 	      break;

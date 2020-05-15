@@ -29,9 +29,9 @@
 #define __ABG_SUPPRESSION_PRIV_H__
 
 #include "abg-fwd.h"
-#include "abg-suppression.h"
-#include "abg-sptr-utils.h"
 #include "abg-regex.h"
+#include "abg-sptr-utils.h"
+#include "abg-suppression.h"
 
 namespace abigail
 {
@@ -91,17 +91,8 @@ public:
   const regex::regex_t_sptr&
   get_file_name_regex() const
   {
-    if (!file_name_regex_)
-      {
-	if (!file_name_regex_str_.empty())
-	  {
-	    regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	    if (regcomp(r.get(),
-			file_name_regex_str_.c_str(),
-			REG_EXTENDED) == 0)
-	      file_name_regex_ = r;
-	  }
-      }
+    if (!file_name_regex_ && !file_name_regex_str_.empty())
+      file_name_regex_ = regex::compile(file_name_regex_str_);
     return file_name_regex_;
   }
 
@@ -116,17 +107,8 @@ public:
   const regex::regex_t_sptr&
   get_file_name_not_regex() const
   {
-    if (!file_name_not_regex_)
-      {
-	if (!file_name_not_regex_str_.empty())
-	  {
-	    regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	    if (regcomp(r.get(),
-			file_name_not_regex_str_.c_str(),
-			REG_EXTENDED) == 0)
-	      file_name_not_regex_ = r;
-	  }
-      }
+    if (!file_name_not_regex_ && !file_name_not_regex_str_.empty())
+      file_name_not_regex_ = regex::compile(file_name_not_regex_str_);
     return file_name_not_regex_;
   }
 
@@ -141,17 +123,8 @@ public:
   const regex::regex_t_sptr&
   get_soname_regex() const
   {
-    if (!soname_regex_)
-      {
-	if (!soname_regex_str_.empty())
-	  {
-	    regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	    if (regcomp(r.get(),
-			soname_regex_str_.c_str(),
-			REG_EXTENDED) == 0)
-	      soname_regex_ = r;
-	  }
-      }
+    if (!soname_regex_ && !soname_regex_str_.empty())
+      soname_regex_ = regex::compile(soname_regex_str_);
     return soname_regex_;
   }
 
@@ -166,17 +139,8 @@ public:
   const regex::regex_t_sptr&
   get_soname_not_regex() const
   {
-    if (!soname_not_regex_)
-      {
-	if (!soname_not_regex_str_.empty())
-	  {
-	    regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	    if (regcomp(r.get(),
-			soname_not_regex_str_.c_str(),
-			REG_EXTENDED) == 0)
-	      soname_not_regex_ = r;
-	  }
-      }
+    if (!soname_not_regex_ && !soname_not_regex_str_.empty())
+      soname_not_regex_ = regex::compile(soname_not_regex_str_);
     return soname_not_regex_;
   }
 
@@ -196,14 +160,14 @@ public:
     if (regex::regex_t_sptr regexp = get_soname_regex())
       {
 	has_regexp = true;
-	if (regexec(regexp.get(), soname.c_str(), 0, NULL, 0) != 0)
+	if (!regex::match(regexp, soname))
 	  return false;
       }
 
     if (regex::regex_t_sptr regexp = get_soname_not_regex())
       {
 	has_regexp = true;
-	if (regexec(regexp.get(), soname.c_str(), 0, NULL, 0) == 0)
+	if (regex::match(regexp, soname))
 	  return false;
       }
 
@@ -231,16 +195,14 @@ public:
     if (regex::regex_t_sptr regexp = get_file_name_regex())
       {
 	has_regexp = true;
-	if (regexec(regexp.get(), binary_name.c_str(),
-	  0, NULL, 0) != 0)
+	if (!regex::match(regexp, binary_name))
 	  return false;
       }
 
     if (regex::regex_t_sptr regexp = get_file_name_not_regex())
       {
 	has_regexp = true;
-	if (regexec(regexp.get(), binary_name.c_str(),
-	  0, NULL, 0) == 0)
+	if (regex::match(regexp, binary_name))
 	  return false;
       }
 
@@ -282,13 +244,7 @@ class function_suppression::parameter_spec::priv
   get_type_name_regex() const
   {
     if (!type_name_regex_ && !type_name_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    type_name_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  type_name_regex_ = r;
-      }
+      type_name_regex_ = regex::compile(type_name_regex_str_);
     return type_name_regex_;
   }
 }; // end class function_suppression::parameter_spec::priv
@@ -361,13 +317,7 @@ struct function_suppression::priv
   get_name_regex() const
   {
     if (!name_regex_ && !name_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    name_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  name_regex_ = r;
-      }
+      name_regex_ = regex::compile(name_regex_str_);
     return name_regex_;
   }
 
@@ -384,13 +334,7 @@ struct function_suppression::priv
   get_name_not_regex() const
   {
     if (!name_not_regex_ && !name_not_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    name_not_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  name_not_regex_ = r;
-      }
+      name_not_regex_ = regex::compile(name_not_regex_str_);
     return name_not_regex_;
   }
 
@@ -407,13 +351,7 @@ struct function_suppression::priv
   get_return_type_regex() const
   {
     if (!return_type_regex_ && !return_type_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    return_type_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  return_type_regex_ = r;
-      }
+      return_type_regex_ = regex::compile(return_type_regex_str_);
     return return_type_regex_;
   }
 
@@ -430,13 +368,7 @@ struct function_suppression::priv
   get_symbol_name_regex() const
   {
     if (!symbol_name_regex_ && !symbol_name_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    symbol_name_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  symbol_name_regex_ = r;
-      }
+      symbol_name_regex_ = regex::compile(symbol_name_regex_str_);
     return symbol_name_regex_;
   }
 
@@ -453,13 +385,7 @@ struct function_suppression::priv
   get_symbol_name_not_regex() const
   {
     if (!symbol_name_not_regex_ && !symbol_name_not_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    symbol_name_not_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  symbol_name_not_regex_ = r;
-      }
+      symbol_name_not_regex_ = regex::compile(symbol_name_not_regex_str_);
     return symbol_name_not_regex_;
   }
 
@@ -475,14 +401,8 @@ struct function_suppression::priv
   const regex::regex_t_sptr
   get_symbol_version_regex() const
   {
-    if (!symbol_version_regex_ && ! symbol_version_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    symbol_version_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  symbol_version_regex_ = r;
-      }
+    if (!symbol_version_regex_ && !symbol_version_regex_str_.empty())
+      symbol_version_regex_ = regex::compile(symbol_version_regex_str_);
     return symbol_version_regex_;
   }
 }; // end class function_suppression::priv
@@ -609,13 +529,7 @@ struct variable_suppression::priv
   get_name_regex() const
   {
     if (!name_regex_ && !name_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    name_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  name_regex_ = r;
-      }
+      name_regex_ = regex::compile(name_regex_str_);
     return name_regex_;
   }
 
@@ -632,13 +546,7 @@ struct variable_suppression::priv
   get_name_not_regex() const
   {
     if (!name_not_regex_ && !name_not_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    name_not_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  name_not_regex_ = r;
-      }
+      name_not_regex_ = regex::compile(name_not_regex_str_);
     return name_not_regex_;
   }
 
@@ -655,13 +563,7 @@ struct variable_suppression::priv
   get_symbol_name_regex() const
   {
     if (!symbol_name_regex_ && !symbol_name_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    symbol_name_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  symbol_name_regex_ = r;
-      }
+      symbol_name_regex_ = regex::compile(symbol_name_regex_str_);
     return symbol_name_regex_;
   }
 
@@ -678,12 +580,7 @@ struct variable_suppression::priv
   get_symbol_name_not_regex() const
   {
     if (!symbol_name_not_regex_ && !symbol_name_not_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(), symbol_name_not_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  symbol_name_not_regex_ = r;
-      }
+      symbol_name_not_regex_ = regex::compile(symbol_name_not_regex_str_);
     return symbol_name_not_regex_;
   }
 
@@ -700,13 +597,7 @@ struct variable_suppression::priv
   get_symbol_version_regex()  const
   {
     if (!symbol_version_regex_ && !symbol_version_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    symbol_version_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  symbol_version_regex_ = r;
-      }
+      symbol_version_regex_ = regex::compile(symbol_version_regex_str_);
     return symbol_version_regex_;
   }
 
@@ -723,13 +614,7 @@ struct variable_suppression::priv
   get_type_name_regex() const
   {
     if (!type_name_regex_ && !type_name_regex_str_.empty())
-      {
-	regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	if (regcomp(r.get(),
-		    type_name_regex_str_.c_str(),
-		    REG_EXTENDED) == 0)
-	  type_name_regex_ = r;
-      }
+      type_name_regex_ = regex::compile(type_name_regex_str_);
     return type_name_regex_;
   }
 };// end class variable_supppression::priv
@@ -809,17 +694,8 @@ public:
   const regex::regex_t_sptr
   get_type_name_regex() const
   {
-    if (!type_name_regex_)
-      {
-	if (!type_name_regex_str_.empty())
-	  {
-	    regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	    if (regcomp(r.get(),
-			type_name_regex_str_.c_str(),
-			REG_EXTENDED) == 0)
-	      type_name_regex_ = r;
-	  }
-      }
+    if (!type_name_regex_ && !type_name_regex_str_.empty())
+      type_name_regex_ = regex::compile(type_name_regex_str_);
     return type_name_regex_;
   }
 
@@ -841,17 +717,8 @@ public:
   const regex::regex_t_sptr
   get_type_name_not_regex() const
   {
-    if (!type_name_not_regex_)
-      {
-	if (!type_name_not_regex_str_.empty())
-	  {
-	    regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	    if (regcomp(r.get(),
-			type_name_not_regex_str_.c_str(),
-			REG_EXTENDED) == 0)
-	      type_name_not_regex_ = r;
-	  }
-      }
+    if (!type_name_not_regex_ && !type_name_not_regex_str_.empty())
+      type_name_not_regex_ = regex::compile(type_name_not_regex_str_);
     return type_name_not_regex_;
   }
 
@@ -886,17 +753,10 @@ public:
   const regex::regex_t_sptr
   get_source_location_to_keep_regex() const
   {
-    if (!source_location_to_keep_regex_)
-      {
-	if (!source_location_to_keep_regex_str_.empty())
-	  {
-	    regex::regex_t_sptr r = sptr_utils::build_sptr<regex_t>();
-	    if (regcomp(r.get(),
-			source_location_to_keep_regex_str_.c_str(),
-			REG_EXTENDED) == 0)
-	      source_location_to_keep_regex_ = r;
-	  }
-      }
+    if (!source_location_to_keep_regex_
+	&& !source_location_to_keep_regex_str_.empty())
+      source_location_to_keep_regex_ =
+	  regex::compile(source_location_to_keep_regex_str_);
     return source_location_to_keep_regex_;
   }
 

@@ -21,23 +21,25 @@
 /// @file
 
 #include "config.h"
+
+#include <algorithm>
+#include <cassert>
 #include <cstdio>
 #include <cstring>
-#include <cassert>
 #include <stdexcept>
-#include <algorithm>
 
 #include "abg-cxx-compat.h"
 #include "abg-internal.h"
+
 // <headers defining libabigail's API go under here>
 ABG_BEGIN_EXPORT_DECLARATIONS
 
-#include "abg-sptr-utils.h"
-#include "abg-ir.h"
 #include "abg-corpus.h"
+#include "abg-ir.h"
 #include "abg-reader.h"
-#include "abg-writer.h"
+#include "abg-sptr-utils.h"
 #include "abg-tools-utils.h"
+#include "abg-writer.h"
 
 #if WITH_ZIP_ARCHIVE
 #include "abg-libzip-utils.h"
@@ -377,7 +379,7 @@ corpus::priv::build_unreferenced_symbols_tables()
 	    string sym_id = (*s)->get_id_string();
 	    if (refed_funs.find(sym_id) == refed_funs.end())
 	      {
-		bool keep = sym_id_fns_to_keep.empty() ? true : false;
+		bool keep = sym_id_fns_to_keep.empty();
 		for (vector<string>::const_iterator i =
 		       sym_id_fns_to_keep.begin();
 		     i != sym_id_fns_to_keep.end();
@@ -416,7 +418,7 @@ corpus::priv::build_unreferenced_symbols_tables()
 	    string sym_id = (*s)->get_id_string();
 	    if (refed_vars.find(sym_id) == refed_vars.end())
 	      {
-		bool keep = sym_id_vars_to_keep.empty() ? true : false;;
+		bool keep = sym_id_vars_to_keep.empty();
 		for (vector<string>::const_iterator i =
 		       sym_id_vars_to_keep.begin();
 		     i != sym_id_vars_to_keep.end();

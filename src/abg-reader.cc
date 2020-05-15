@@ -617,41 +617,7 @@ public:
     if (!type)
       return false;
 
-    type_base_sptr t = type;
-
-    types_map_it i = m_types_map.find(id);
-    if (i != m_types_map.end())
-      i->second.push_back(type);
-    else
-      {
-	vector<type_base_sptr> types;
-	types.push_back(type);
-	m_types_map[id] = types;
-      }
-
-    return true;
-  }
-
-  /// Associate an ID with a type.
-  ///
-  /// If ID is an id for an existing type, this function replaces the
-  /// exising type with the new DEFINITION type passe in argument.
-  ///
-  /// @param definition the type to associate witht he ID.
-  ///
-  /// @param id the ID to associate to the type.
-  ///
-  /// @return true upon successful completion, false otherwise.  Note
-  /// that this returns false if the was already associate to an ID
-  /// before.
-  bool
-  key_replacement_of_type_decl(shared_ptr<type_base> definition,
-			       const string& id)
-  {
-    const_types_map_it i = m_types_map.find(id);
-    if (i != m_types_map.end())
-      m_types_map.erase(i);
-    key_type_decl(definition, id);
+    m_types_map[id].push_back(type);
 
     return true;
   }
@@ -2064,7 +2030,7 @@ read_corpus_from_input(read_context& ctxt)
       ctxt.set_corpus_node(node);
     }
 
-  return ctxt.get_corpus();;
+  return ctxt.get_corpus();
 }
 
 /// Parse the input XML document containing an ABI corpus group,
@@ -2442,7 +2408,7 @@ read_static(xmlNodePtr node, bool& is_static)
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "static"))
     {
       string b = CHAR_STR(s);
-      is_static = (b == "yes") ? true : false;
+      is_static = b == "yes";
       return true;
     }
   return false;
@@ -2567,7 +2533,7 @@ read_is_artificial(xmlNodePtr node, bool& is_artificial)
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "is-artificial"))
     {
       string is_artificial_str = CHAR_STR(s) ? CHAR_STR(s) : "";
-      is_artificial = (is_artificial_str == "yes") ? true : false;
+      is_artificial = is_artificial_str == "yes";
       return true;
     }
   return false;
@@ -3008,15 +2974,7 @@ build_elf_symbol_db(read_context& ctxt,
   for (string_elf_symbol_sptr_map_type::const_iterator i = id_sym_map.begin();
        i != id_sym_map.end();
        ++i)
-    {
-      it = map->find(i->second->get_name());
-      if (it == map->end())
-	{
-	  (*map)[i->second->get_name()] = elf_symbols();
-	  it = map->find(i->second->get_name());
-	}
-      it->second.push_back(i->second);
-    }
+    (*map)[i->second->get_name()].push_back(i->second);
 
   // Now build the alias relations
   for (xml_node_ptr_elf_symbol_sptr_map_type::const_iterator x =
@@ -3071,7 +3029,7 @@ build_function_parameter(read_context& ctxt, const xmlNodePtr node)
       xml::build_sptr(xmlGetProp(node, BAD_CAST("is-variadic"))))
     {
       is_variadic_str = CHAR_STR(s) ? CHAR_STR(s) : "";
-      is_variadic = (is_variadic_str == "yes") ? true : false;
+      is_variadic = is_variadic_str == "yes";
     }
 
   bool is_artificial = false;
@@ -3146,7 +3104,7 @@ build_function_decl(read_context&	ctxt,
   string inline_prop;
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "declared-inline"))
     inline_prop = CHAR_STR(s);
-  bool declared_inline = inline_prop == "yes" ? true : false;
+  bool declared_inline = inline_prop == "yes";
 
   decl_base::visibility vis = decl_base::VISIBILITY_NONE;
   read_visibility(node, vis);
@@ -3583,17 +3541,17 @@ build_qualified_type_decl(read_context&	ctxt,
   string const_str;
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "const"))
     const_str = CHAR_STR(s);
-  bool const_cv = const_str == "yes" ? true : false;
+  bool const_cv = const_str == "yes";
 
   string volatile_str;
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "volatile"))
     volatile_str = CHAR_STR(s);
-  bool volatile_cv = volatile_str == "yes" ? true : false;
+  bool volatile_cv = volatile_str == "yes";
 
   string restrict_str;
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "restrict"))
     restrict_str = CHAR_STR(s);
-  bool restrict_cv = restrict_str == "yes" ? true : false;
+  bool restrict_cv = restrict_str == "yes";
 
   qualified_type_def::CV cv = qualified_type_def::CV_NONE;
   if (const_cv)
@@ -3743,7 +3701,7 @@ build_reference_type_def(read_context&		ctxt,
   string kind;
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "kind"))
     kind = CHAR_STR(s); // this should be either "lvalue" or "rvalue".
-  bool is_lvalue = kind == "lvalue" ? true : false;
+  bool is_lvalue = kind == "lvalue";
 
   string type_id;
   if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "type-id"))
@@ -3836,7 +3794,7 @@ build_function_type(read_context&	ctxt,
   environment* env = ctxt.get_environment();
   ABG_ASSERT(env);
   std::vector<shared_ptr<function_decl::parameter> > parms;
-  type_base_sptr return_type = env->get_void_type();;
+  type_base_sptr return_type = env->get_void_type();
 
   class_decl_sptr method_class_type;
   if (is_method_t)

@@ -6028,26 +6028,6 @@ public:
 
   /// Getter for the map of function symbols (name -> sym).
   ///
-  /// @return a shared pointer to the map of function symbols.
-  string_elf_symbols_map_sptr&
-  fun_syms_sptr()
-  {
-    maybe_load_symbol_maps();
-    return fun_syms_;
-  }
-
-  /// Getter for the map of function symbols (name -> sym).
-  ///
-  /// @return a reference to the map of function symbols.
-  const string_elf_symbols_map_type&
-  fun_syms() const
-  {
-    maybe_load_symbol_maps();
-    return *fun_syms_;
-  }
-
-  /// Getter for the map of function symbols (name -> sym).
-  ///
   /// @return a reference to the map of function symbols.
   string_elf_symbols_map_type&
   fun_syms()
@@ -6064,26 +6044,6 @@ public:
   {
     maybe_load_symbol_maps();
     return var_syms_;
-  }
-
-  /// Getter for the map of variable symbols (name -> sym)
-  ///
-  /// @return a shared pointer to the map of variable symbols.
-  string_elf_symbols_map_sptr
-  var_syms_sptr()
-  {
-    maybe_load_symbol_maps();
-    return var_syms_;
-  }
-
-  /// Getter for the map of variable symbols (name -> sym)
-  ///
-  /// @return a reference to the map of variable symbols.
-  const string_elf_symbols_map_type&
-  var_syms() const
-  {
-    maybe_load_symbol_maps();
-    return *var_syms_;
   }
 
   /// Getter for the map of variable symbols (name -> sym)
@@ -6108,40 +6068,6 @@ public:
     return undefined_fun_syms_;
   }
 
-  /// Getter for the map of undefined function symbols (name -> vector
-  /// of symbols).
-  ///
-  /// @return a (smart) pointer to the map of undefined function
-  /// symbols.
-  string_elf_symbols_map_sptr&
-  undefined_fun_syms_sptr()
-  {
-    maybe_load_symbol_maps();
-    return undefined_fun_syms_;
-  }
-
-  /// Getter for the map of undefined function symbols (name -> vector
-  /// of symbols).
-  ///
-  /// @return a reference to the map of undefined function symbols.
-  const string_elf_symbols_map_type&
-  undefined_fun_syms() const
-  {
-    maybe_load_symbol_maps();
-    return *undefined_fun_syms_;
-  }
-
-  /// Getter for the map of undefined function symbols (name -> vector
-  /// of symbols).
-  ///
-  /// @return a reference to the map of undefined function symbols.
-  string_elf_symbols_map_type&
-  undefined_fun_syms()
-  {
-    maybe_load_symbol_maps();
-    return *undefined_fun_syms_;
-  }
-
   /// Getter for the map of undefined variable symbols (name -> vector
   /// of symbols).
   ///
@@ -6152,40 +6078,6 @@ public:
   {
     maybe_load_symbol_maps();
     return undefined_var_syms_;
-  }
-
-  /// Getter for the map of undefined variable symbols (name -> vector
-  /// of symbols).
-  ///
-  /// @return a (smart) pointer to the map of undefined variable
-  /// symbols.
-  string_elf_symbols_map_sptr&
-  undefined_var_syms_sptr()
-  {
-    maybe_load_symbol_maps();
-    return undefined_var_syms_;
-  }
-
-  /// Getter for the map of undefined variable symbols (name -> vector
-  /// of symbols).
-  ///
-  /// @return a reference to the map of undefined variable symbols.
-  const string_elf_symbols_map_type&
-  undefined_var_syms() const
-  {
-    maybe_load_symbol_maps();
-    return *undefined_var_syms_;
-  }
-
-  /// Getter for the map of undefined variable symbols (name -> vector
-  /// of symbols).
-  ///
-  /// @return a reference to the map of undefined variable symbols.
-  string_elf_symbols_map_type&
-  undefined_var_syms()
-  {
-    maybe_load_symbol_maps();
-    return *undefined_var_syms_;
   }
 
   /// Getter for the set of addresses of function symbols that are
@@ -6685,16 +6577,16 @@ public:
 	    // variable symbols
 
 	    string_elf_symbols_map_type::const_iterator it
-		= fun_syms().find(name);
-	    if (it != fun_syms().end())
+		= fun_syms_sptr()->find(name);
+	    if (it != fun_syms_sptr()->end())
 	      {
 		symbol = it->second[0];
 	      }
 
 	    if (!symbol)
 	      {
-		it = var_syms().find(name);
-		if (it != var_syms().end())
+		it = var_syms_sptr()->find(name);
+		if (it != var_syms_sptr()->end())
 		  {
 		    symbol = it->second[0];
 		  }
@@ -13685,8 +13577,7 @@ finish_member_function_reading(Dwarf_Die*		  die,
     if (!f->get_parameters().empty())
       first_parm = f->get_parameters()[0];
 
-    bool is_artificial =
-      first_parm && first_parm->get_is_artificial();;
+    bool is_artificial = first_parm && first_parm->get_is_artificial();
     pointer_type_def_sptr this_ptr_type;
     type_base_sptr other_klass;
 
@@ -14917,7 +14808,7 @@ build_reference_type(read_context&	ctxt,
   // of the current translation unit.
   ABG_ASSERT((size_t) ctxt.cur_transl_unit()->get_address_size() == size);
 
-  bool is_lvalue = (tag == DW_TAG_reference_type) ? true : false;
+  bool is_lvalue = tag == DW_TAG_reference_type;
 
   result.reset(new reference_type_def(utype, is_lvalue, size,
 				      /*alignment=*/0,

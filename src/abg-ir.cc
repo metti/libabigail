@@ -7711,7 +7711,7 @@ is_compatible_with_class_type(const type_base_sptr& t)
   // CPU usage toll in exchange for finer filtering?
 
   // type_base_sptr ty = strip_typedef(t);
-  type_base_sptr ty = peel_typedef_type(t);;
+  type_base_sptr ty = peel_typedef_type(t);
   return is_class_type(ty);
 }
 
@@ -15203,7 +15203,7 @@ enum_type_decl::enumerator::set_name(const string& n)
 {
   const environment* env = get_environment();
   ABG_ASSERT(env);
-  priv_->name_ = env->intern(n);;
+  priv_->name_ = env->intern(n);
 }
 
 /// Getter for the value of @ref enum_type_decl::enumerator.
@@ -16411,13 +16411,13 @@ function_type::get_cached_name(bool internal) const
 {
   if (internal)
     {
-      if (priv_->internal_cached_name_.empty())
+      if (!get_naked_canonical_type() || priv_->internal_cached_name_.empty())
 	priv_->internal_cached_name_ = get_function_type_name(this, internal);
 
       return priv_->internal_cached_name_;
     }
 
-  if (priv_->cached_name_.empty())
+  if (!get_naked_canonical_type() || priv_->cached_name_.empty())
     priv_->cached_name_ = get_function_type_name(this, internal);
 
   return priv_->cached_name_;
