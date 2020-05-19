@@ -1,0 +1,304 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Tue, 19 May 2020 22:10:55 +0200
+Subject: Integrate new symtab reader into corpus and read_context
+
+While reading the corpus in the read_context, also load the new type
+symtab object side-by-side and set it accordingly in the resulting
+corpus. This is still side by side and passive code that gets active in
+the following changes. This is applicable for the dwarf reader as well
+as for the reader that consumes XML.
+
+	* include/abg-corpus.h (corpus::set_symtab): New method declaration.
+	  (corpus::get_symtab): New method declaration.
+	* include/abg-fwd.h (symtab_reader::symtab_sptr): New forward
+	  declaration.
+	* src/abg-corpus-priv.h (corpus::priv::symtab_): New data member.
+	* src/abg-corpus.cc
+	  (corpus::set_symtab): Likewise.
+	  (corpus::get_symtab): Likewise.
+	* src/abg-dwarf-reader.cc (read_context::symtab_): New data member.
+	  (read_context::initialize): reset symtab_ as well
+	  (read_context::symtab): new method that loads a symtab on
+	  first access and returns it.
+	  (read_debug_info_into_corpus): also set the new symtab object
+	  on the current corpus.
+	  (read_corpus_from_elf): Also determine (i.e. load) the new
+	  symtab object and contribute to the load status.
+	* src/abg-reader.cc (read_corpus_from_input): also set the new
+	  type symtab when reading from xml.
+	* tests/test-symtab.cc: Add test assertions.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ include/abg-corpus.h                          |   6 ++++
+ include/abg-fwd.h                             |   8 ++++++
+ src/abg-corpus-priv.h                         |   2 ++
+ src/abg-corpus.cc                             |   9 ++++++
+ src/abg-dwarf-reader.cc                       |  27 ++++++++++++++++++
+ src/abg-reader.cc                             |   3 ++
+ tests/data/test-symtab/basic/no_debug_info.c  |   2 +-
+ tests/data/test-symtab/basic/no_debug_info.so | Bin 15360 -> 15544 bytes
+ tests/test-symtab.cc                          |  15 ++++------
+ 9 files changed, 61 insertions(+), 11 deletions(-)
+
+diff --git a/include/abg-corpus.h b/include/abg-corpus.h
+index 410a9c2459e6..b94926996cde 100644
+--- a/include/abg-corpus.h
++++ b/include/abg-corpus.h
+@@ -169,6 +169,12 @@ public:
+   bool
+   operator==(const corpus&) const;
+ 
++  void
++  set_symtab(symtab_reader::symtab_sptr);
++
++  const symtab_reader::symtab_sptr&
++  get_symtab() const;
++
+   void
+   set_fun_symbol_map(string_elf_symbols_map_sptr);
+ 
+diff --git a/include/abg-fwd.h b/include/abg-fwd.h
+index f6e0c5b286a1..f6e3969a6f36 100644
+--- a/include/abg-fwd.h
++++ b/include/abg-fwd.h
+@@ -1331,6 +1331,14 @@ typedef vector<suppression_sptr> suppressions_type;
+ 
+ } // end namespace suppr
+ 
++namespace symtab_reader
++{
++
++class symtab;
++typedef abg_compat::shared_ptr<symtab> symtab_sptr;
++
++} // end namespace symtab_reader
++
+ void
+ dump(const decl_base_sptr, std::ostream&);
+ 
+diff --git a/src/abg-corpus-priv.h b/src/abg-corpus-priv.h
+index ee8c823964e7..5c1e915ad2f3 100644
+--- a/src/abg-corpus-priv.h
++++ b/src/abg-corpus-priv.h
+@@ -32,6 +32,7 @@
+ #include "abg-internal.h"
+ #include "abg-regex.h"
+ #include "abg-sptr-utils.h"
++#include "abg-symtab-reader.h"
+ 
+ namespace abigail
+ {
+@@ -700,6 +701,7 @@ struct corpus::priv
+   string_elf_symbols_map_sptr			undefined_var_symbol_map;
+   elf_symbols					sorted_var_symbols;
+   elf_symbols					sorted_undefined_var_symbols;
++  symtab_reader::symtab_sptr			symtab_;
+   string_elf_symbols_map_sptr			fun_symbol_map;
+   string_elf_symbols_map_sptr			undefined_fun_symbol_map;
+   elf_symbols					sorted_fun_symbols;
+diff --git a/src/abg-corpus.cc b/src/abg-corpus.cc
+index 9e90b99473d3..94702047dd82 100644
+--- a/src/abg-corpus.cc
++++ b/src/abg-corpus.cc
+@@ -38,6 +38,7 @@ ABG_BEGIN_EXPORT_DECLARATIONS
+ #include "abg-ir.h"
+ #include "abg-reader.h"
+ #include "abg-sptr-utils.h"
++#include "abg-symtab-reader.h"
+ #include "abg-tools-utils.h"
+ #include "abg-writer.h"
+ 
+@@ -905,6 +906,14 @@ corpus::operator==(const corpus& other) const
+ 	  && j == other.get_translation_units().end());
+ }
+ 
++void
++corpus::set_symtab(symtab_reader::symtab_sptr symtab)
++{priv_->symtab_ = symtab;}
++
++const symtab_reader::symtab_sptr&
++corpus::get_symtab() const
++{ return priv_->symtab_; }
++
+ /// Setter of the function symbols map.
+ ///
+ /// @param map a shared pointer to the new function symbols map.
+diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
+index 213638102230..d7b73adb4874 100644
+--- a/src/abg-dwarf-reader.cc
++++ b/src/abg-dwarf-reader.cc
+@@ -50,6 +50,7 @@
+ #include "abg-suppression-priv.h"
+ #include "abg-corpus-priv.h"
+ #include "abg-elf-helpers.h"
++
+ #include "abg-internal.h"
+ 
+ // <headers defining libabigail's API go under here>
+@@ -57,6 +58,7 @@ ABG_BEGIN_EXPORT_DECLARATIONS
+ 
+ #include "abg-dwarf-reader.h"
+ #include "abg-sptr-utils.h"
++#include "abg-symtab-reader.h"
+ #include "abg-tools-utils.h"
+ 
+ ABG_END_EXPORT_DECLARATIONS
+@@ -2277,6 +2279,9 @@ public:
+   bool				drop_undefined_syms_;
+   read_context();
+ 
++private:
++  mutable symtab_reader::symtab_sptr symtab_;
++
+ public:
+ 
+   /// Constructor of read_context.
+@@ -2426,6 +2431,8 @@ public:
+     dt_soname_.clear();
+     elf_architecture_.clear();
+ 
++    symtab_.reset();
++
+     clear_per_translation_unit_data();
+ 
+     memset(&offline_callbacks_, 0, sizeof(offline_callbacks_));
+@@ -5577,6 +5584,22 @@ public:
+     return symbol;
+   }
+ 
++  const symtab_reader::symtab_sptr&
++  symtab() const
++  {
++    using namespace abg_compat::placeholders;
++    if (!symtab_)
++      symtab_ = symtab_reader::symtab::load(
++	  elf_handle(), options_.env,
++	  abg_compat::bind(&read_context::is_elf_symbol_suppressed, this, _1));
++    if (!symtab_)
++      {
++	std::cerr << "Symbol table of '" << elf_path_
++		  << "' could not be loaded\n";
++      }
++    return symtab_;
++  }
++
+   /// Getter for a pointer to the map that associates the address of
+   /// an entry point of a function with the symbol of that function.
+   ///
+@@ -15482,6 +15505,7 @@ read_debug_info_into_corpus(read_context& ctxt)
+     group->add_corpus(ctxt.current_corpus());
+ 
+   // Set symbols information to the corpus.
++  ctxt.current_corpus()->set_symtab(ctxt.symtab());
+   if (!get_ignore_symbol_table(ctxt))
+     {
+       if (ctxt.load_in_linux_kernel_mode()
+@@ -16738,6 +16762,9 @@ read_corpus_from_elf(read_context& ctxt, status& status)
+ 	status |= STATUS_NO_SYMBOLS_FOUND;
+     }
+ 
++  if (!ctxt.symtab() || !ctxt.symtab()->has_symbols())
++    status |= STATUS_NO_SYMBOLS_FOUND;
++
+   if (// If no elf symbol was found ...
+       status & STATUS_NO_SYMBOLS_FOUND
+       // ... or if debug info was found but not the required alternate
+diff --git a/src/abg-reader.cc b/src/abg-reader.cc
+index eb74659f1d46..188c23d2e5cd 100644
+--- a/src/abg-reader.cc
++++ b/src/abg-reader.cc
+@@ -47,6 +47,7 @@ ABG_BEGIN_EXPORT_DECLARATIONS
+ #include "abg-libxml-utils.h"
+ #include "abg-reader.h"
+ #include "abg-corpus.h"
++#include "abg-symtab-reader.h"
+ 
+ #ifdef WITH_ZIP_ARCHIVE
+ #include "abg-libzip-utils.h"
+@@ -1973,6 +1974,8 @@ read_corpus_from_input(read_context& ctxt)
+       // Note that it's possible that both fn_sym_db and var_sym_db
+       // are nil, due to potential suppression specifications.  That's
+       // fine.
++      corp.set_symtab(symtab_reader::symtab::load(fn_sym_db, var_sym_db));
++
+       if (fn_sym_db)
+ 	{
+ 	  corp.set_fun_symbol_map(fn_sym_db);
+diff --git a/tests/data/test-symtab/basic/no_debug_info.c b/tests/data/test-symtab/basic/no_debug_info.c
+index 5bb380ba0db8..8ac09016eb4d 100644
+--- a/tests/data/test-symtab/basic/no_debug_info.c
++++ b/tests/data/test-symtab/basic/no_debug_info.c
+@@ -1 +1 @@
+-// empty!
++void exported_function(){}
+diff --git a/tests/data/test-symtab/basic/no_debug_info.so b/tests/data/test-symtab/basic/no_debug_info.so
+index 827c1eee3e4e8f326af7e360ea444627ee59bee6..0b2310196a2a3a67369f80eb29e9ecefc22dc704 100755
+GIT binary patch
+delta 1147
+zcmZWoOH31C5T3tV9tB!<%cHzPw**bm(Cq`-Vl{1*M`I!w5)LMqVl09tfFOpVCM?DW
+zhJ&qhFdTd|AsW4SASPgpk#I5|(39dxV>oy)f(G?Kg0tN&N}SF7-_HE=`e*)Mj?a%L
+z?3Q^iY*PsQV1N*mfh8HV<=OS>j$NNT<1l0~Rmw`HB*SdRXEwQVUGVEvX&Z5vSu2jN
+zj>ggf#Ek7W;t0FD|IOD}WzFr0h4_JvUAv{Vajf89D27U`EMg^FHZg!mpGu0p>x*?7
+zQ>+SmbUi{BDa=&z2Co|A;DWAO=#8Hp8X4`4MNgd{JUM!LXmGBSyIgRK-^l5T+*nN<
+zUz+>P>kB7XB^RhAKaN;j+u8~dItlv;Hwa}yg^E=GcA*nkoM)8<Ik^ccPw}lHe*bN2
+zE1loOx0=ch7v_)U$`Gsw?D5prD6WcsGx1BZ%T*LARi~Z1Nf@AHIf^oD;;-or8M6;k
+zhB+pDHlpmXvrT;D=y3I9nymCdp)#dxBDF^VQ<?odRSkVuCrM1kW6}q+$5kgbIouAH
+z=ytlDPLI<|9kga~z`&1_&Js=sJ%koErAU?f?ckYMY2auqGQM(-Q9)ss#O!GE6mc9F
+zamZ!iOfZEhmxU#8*i}-_!^hyizUn^*0xpxS8Oo5kElk9>t`c1_;F{ZxA$L0~!keTv
+z;X}8?jQGyo#udPQN>k4YvBP62H-i}38TK`a49qy;sc!+ur$O%AUnfxqd9azeAlmLP
+z`e7gdgfxwcMqKw;=yK6o?xh*;xLg_2NZKZbwuYZVw5`1>+7gMjc7~6%L?g|eSkl<~
+z{{_TlT{XrVujr%wu@U^<IE}KGH~f7sGhUyd4Oqik{N$AcZLAt5(B_i_ZTK4Y;R&B)
+zkTX|8#u;B9dyLF~k3GkfUovRN-^3Mv8{YSdwu^KaIv+JhCA+v2FQKi;%C2I#DaevI
+zN$VY4Y?@#XFuX6wp5P>{PjQjfXUGCkqd)!B0ZJ*19R~t?4RV7T@f@ZCKEsbjRa&A-
+Gt$zTQCEAJr
+
+delta 769
+zcmYjPO=uHA6rPt&tQ(Uy+mLRmfhLHOs?Gl7XR~cF5sGcW9~6V+lp+dMywrnjJTz(j
+zJKFexS`cbZA_yKrK~Igh9PLT;pqCy6Jy>W((An&6>0{=7^SycV-kUe`zFJ>cNy^0>
+z+mj;8vxBV2WH!(!B>Zi`-f0VsTPcyqX4GgZqSra&ZG3qwF^|Js#2gKwL-oYf&gaYe
+z@1AET?rp9f>8ssbT)rK#e63L3iG)|dE6)s~LWx*wQCJQ@_0B#GZCklpe?#8BR$O|}
+zi+U<aJ9v}2s3n~&J}VHHw!;tDlubF@@9+|a6@{WGD_{Hd{BYb%=_xI)tGdcZ8k;oa
+z6Rcveq(%e}OLCNHs>{5rZ6W#aPL=UZy~ay8qbXEJQ;Sd#Ynm+dvK7u`e9{Jl5RXE7
+zge3gqJN+!qnG99GJIL2XyB?>D>@26mg4oa%3gD+cDIDUb=d>`+r4JACsHdI!9oXpl
+zOQ@w~9{+iIWW>Y#Y=@`ZFI!zNZY=J%GWG{ek4z#G8JUiDb-~i8XTIZ3cA}>;edT=R
+z`VBO*5o~22Vm`No?Oa&gds;|_A-S!0F^00CNN&SjT)--~y3gWb37Q_p4<m+-5kfRS
+zLoZRyuhBX_dcrtm#zglnJGf*{HYP%tH9|CxU9&*<VU8B)396$tdVyWOZo(WZ&}&q=
+mev1!dmEbSuw^|?UIF5~<6!RIo2^UZvH^fI-o2@&A1pWhng`7wL
+
+diff --git a/tests/test-symtab.cc b/tests/test-symtab.cc
+index 20e3071c7259..905d8249a6e4 100644
+--- a/tests/test-symtab.cc
++++ b/tests/test-symtab.cc
+@@ -68,14 +68,9 @@ TEST_CASE("Symtab::Empty", "[symtab, basic]")
+   const std::string	     binary = "basic/empty.so";
+   corpus_sptr		     corpus_ptr;
+   const dwarf_reader::status status = read_corpus(binary, corpus_ptr);
+-  REQUIRE(corpus_ptr);
+-
+-  REQUIRE((status & dwarf_reader::STATUS_OK));
++  REQUIRE(!corpus_ptr);
+ 
+-  // TODO: Those two assertions are currently not met. Empty symtabs are
+-  //       currently treated like the error case.
+-  // REQUIRE((status & dwarf_reader::STATUS_OK));
+-  // REQUIRE((status & dwarf_reader::STATUS_NO_SYMBOLS_FOUND));
++  REQUIRE((status & dwarf_reader::STATUS_NO_SYMBOLS_FOUND));
+ }
+ 
+ TEST_CASE("Symtab::NoDebugInfo", "[symtab, basic]")
+@@ -85,9 +80,9 @@ TEST_CASE("Symtab::NoDebugInfo", "[symtab, basic]")
+   const dwarf_reader::status status = read_corpus(binary, corpus_ptr);
+   REQUIRE(corpus_ptr);
+ 
+-  REQUIRE(status
+-	  == (dwarf_reader::STATUS_OK
+-	      | dwarf_reader::STATUS_DEBUG_INFO_NOT_FOUND));
++  REQUIRE(
++    status
++    == (dwarf_reader::STATUS_OK | dwarf_reader::STATUS_DEBUG_INFO_NOT_FOUND));
+ }
+ 
+ // this value indicates in the following helper method, that we do not want to
