@@ -44,6 +44,7 @@ ABG_BEGIN_EXPORT_DECLARATIONS
 
 #include "abg-dwarf-reader.h"
 #include "abg-sptr-utils.h"
+#include "abg-symtab-reader.h"
 #include "abg-tools-utils.h"
 
 ABG_END_EXPORT_DECLARATIONS
@@ -2259,6 +2260,9 @@ public:
   bool				drop_undefined_syms_;
   read_context();
 
+private:
+  mutable symtab_reader::symtab_sptr symtab_;
+
 public:
 
   /// Constructor of read_context.
@@ -2407,6 +2411,8 @@ public:
     dt_needed_.clear();
     dt_soname_.clear();
     elf_architecture_.clear();
+
+    symtab_.reset();
 
     clear_per_translation_unit_data();
 
@@ -5868,6 +5874,21 @@ public:
       }
 
     return symbol;
+  }
+
+  const symtab_reader::symtab_sptr&
+  symtab() const
+  {
+    if (!symtab_)
+      symtab_ = symtab_reader::symtab::load(
+	elf_handle(), options_.env, [&](const elf_symbol_sptr& symbol) {
+	  return is_elf_symbol_suppressed(symbol);
+	});
+
+    if (!symtab_)
+      std::cerr << "Symbol table of '" << elf_path_
+		<< "' could not be loaded\n";
+    return symtab_;
   }
 
   /// Getter for a pointer to the map that associates the address of
@@ -16012,6 +16033,7 @@ read_debug_info_into_corpus(read_context& ctxt)
     group->add_corpus(ctxt.current_corpus());
 
   // Set symbols information to the corpus.
+  ctxt.current_corpus()->set_symtab(ctxt.symtab());
   if (!get_ignore_symbol_table(ctxt))
     {
       if (ctxt.load_in_linux_kernel_mode()
@@ -17344,6 +17366,9 @@ read_corpus_from_elf(read_context& ctxt, status& status)
       if (!ctxt.load_symbol_maps())
 	status |= STATUS_NO_SYMBOLS_FOUND;
     }
+
+  if (!ctxt.symtab() || !ctxt.symtab()->has_symbols())
+    status |= STATUS_NO_SYMBOLS_FOUND;
 
   if (// If no elf symbol was found ...
       status & STATUS_NO_SYMBOLS_FOUND
