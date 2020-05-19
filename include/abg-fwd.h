@@ -1331,6 +1331,14 @@ typedef vector<suppression_sptr> suppressions_type;
 
 } // end namespace suppr
 
+namespace symtab_reader
+{
+
+class symtab;
+typedef abg_compat::shared_ptr<symtab> symtab_sptr;
+
+} // end namespace symtab_reader
+
 void
 dump(const decl_base_sptr, std::ostream&);
 
