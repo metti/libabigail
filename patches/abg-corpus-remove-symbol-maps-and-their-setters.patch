@@ -1,0 +1,570 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Thu, 21 May 2020 00:44:01 +0200
+Subject: abg-corpus: remove symbol maps and their setters
+
+With the prework in previous commits, we are now able to drop the
+public symbols maps in corpus::priv and replace them by private members
+with access through getters. The getters use the new symtab
+implementation to generate the maps on the fly. Setters are not required
+anymore and are removed. Also remove redundant getters.
+
+We could also remove the getters for the symbol maps and the local
+caching variable and leave it all to lookup_symbol, but this is left for
+a later change.
+
+	* include/abg-corpus.h (corpus::set_fun_symbol_map): Remove
+	method declaration.
+	(corpus::set_undefined_fun_symbol_map): Likewise.
+	(corpus::set_var_symbol_map): Likewise.
+	(corpus::set_undefined_var_symbol_map): Likewise.
+	(corpus::get_fun_symbol_map_sptr): Likewise.
+	(corpus::get_undefined_fun_symbol_map_sptr): Likewise.
+	(corpus::get_var_symbol_map_sptr): Likewise.
+	(corpus::get_undefined_var_symbol_map_sptr): Likewise.
+	* src/abg-corpus-priv.h (corpus::priv::var_symbol_map): make
+	private and mutable
+	(corpus::priv::undefined_var_symbol_map): Likewise.
+	(corpus::priv::fun_symbol_map): Likewise.
+	(corpus::priv::undefined_fun_symbol_map): Likewise.
+	(corpus::priv::get_fun_symbol_map): New method declaration.
+	(corpus::priv::get_undefined_fun_symbol_map): Likewise.
+	(corpus::priv::get_var_symbol_map): Likewise.
+	(corpus::priv::get_undefined_var_symbol_map): Likewise.
+	* src/abg-corpus.cc (corpus::priv::get_fun_symbol_map): New
+	method implementation.
+	(corpus::priv::get_undefined_fun_symbol_map): Likewise.
+	(corpus::priv::get_var_symbol_map): Likewise.
+	(corpus::priv::get_undefined_var_symbol_map): Likewise.
+	(corpus::is_empty): depend on symtab only.
+	(corpus::set_fun_symbol_map): Remove method.
+	(corpus::set_undefined_fun_symbol_map): Likewise.
+	(corpus::set_var_symbol_map): Likewise.
+	(corpus::set_undefined_var_symbol_map): Likewise.
+	(corpus::get_fun_symbol_map_sptr): Likewise.
+	(corpus::get_undefined_fun_symbol_map_sptr): Likewise.
+	(corpus::get_var_symbol_map_sptr): Likewise.
+	(corpus::get_undefined_var_symbol_map_sptr): Likewise.
+	(corpus::get_fun_symbol_map): Use corpus::priv proxy method.
+	(corpus::get_undefined_fun_symbol_map): Likewise.
+	(corpus::get_var_symbol_map): Likewise.
+	(corpus::get_undefined_var_symbol_map): Likewise.
+	* src/abg-dwarf-reader.cc (read_debug_info_into_corpus): Do not
+	set corpus symbol maps anymore.
+	* src/abg-reader.cc (read_corpus_from_input): Likewise.
+	* tests/test-symtab.cc (assert_symbol_count): Do not access the
+	corpus symbol maps through sptr anymore.
+	* tests/data/test-read-dwarf/PR25007-sdhci.ko.abi: Adjust
+	expected test output.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ include/abg-corpus.h                          |  24 ---
+ src/abg-corpus-priv.h                         |  21 ++-
+ src/abg-corpus.cc                             | 159 ++++++++----------
+ src/abg-dwarf-reader.cc                       |  48 ------
+ src/abg-reader.cc                             |  11 --
+ .../data/test-read-dwarf/PR25007-sdhci.ko.abi |   2 -
+ tests/test-symtab.cc                          |  15 +-
+ 7 files changed, 99 insertions(+), 181 deletions(-)
+
+diff --git a/include/abg-corpus.h b/include/abg-corpus.h
+index b94926996cde..f517986d8aca 100644
+--- a/include/abg-corpus.h
++++ b/include/abg-corpus.h
+@@ -175,27 +175,9 @@ public:
+   const symtab_reader::symtab_sptr&
+   get_symtab() const;
+ 
+-  void
+-  set_fun_symbol_map(string_elf_symbols_map_sptr);
+-
+-  void
+-  set_undefined_fun_symbol_map(string_elf_symbols_map_sptr);
+-
+-  void
+-  set_var_symbol_map(string_elf_symbols_map_sptr);
+-
+-  void
+-  set_undefined_var_symbol_map(string_elf_symbols_map_sptr);
+-
+-  const string_elf_symbols_map_sptr
+-  get_fun_symbol_map_sptr() const;
+-
+   virtual const string_elf_symbols_map_type&
+   get_fun_symbol_map() const;
+ 
+-  const string_elf_symbols_map_sptr
+-  get_undefined_fun_symbol_map_sptr() const;
+-
+   const string_elf_symbols_map_type&
+   get_undefined_fun_symbol_map() const;
+ 
+@@ -205,15 +187,9 @@ public:
+   const elf_symbols&
+   get_sorted_undefined_fun_symbols() const;
+ 
+-  const string_elf_symbols_map_sptr
+-  get_var_symbol_map_sptr() const;
+-
+   virtual const string_elf_symbols_map_type&
+   get_var_symbol_map() const;
+ 
+-  const string_elf_symbols_map_sptr
+-  get_undefined_var_symbol_map_sptr() const;
+-
+   const string_elf_symbols_map_type&
+   get_undefined_var_symbol_map() const;
+ 
+diff --git a/src/abg-corpus-priv.h b/src/abg-corpus-priv.h
+index f2e895bf1e7d..fcb6d7a66b8e 100644
+--- a/src/abg-corpus-priv.h
++++ b/src/abg-corpus-priv.h
+@@ -30,6 +30,7 @@
+ #define __ABG_CORPUS_PRIV_H__
+ 
+ #include "abg-internal.h"
++#include "abg-ir.h"
+ #include "abg-regex.h"
+ #include "abg-sptr-utils.h"
+ #include "abg-symtab-reader.h"
+@@ -697,11 +698,7 @@ struct corpus::priv
+   string_tu_map_type				path_tu_map;
+   vector<function_decl*>			fns;
+   vector<var_decl*>				vars;
+-  string_elf_symbols_map_sptr			var_symbol_map;
+-  string_elf_symbols_map_sptr			undefined_var_symbol_map;
+   symtab_reader::symtab_sptr			symtab_;
+-  string_elf_symbols_map_sptr			fun_symbol_map;
+-  string_elf_symbols_map_sptr			undefined_fun_symbol_map;
+   // The type maps contained in this data member are populated if the
+   // corpus follows the One Definition Rule and thus if there is only
+   // one copy of a type with a given name, per corpus. Otherwise, if
+@@ -722,10 +719,14 @@ private:
+   priv();
+ 
+   mutable abg_compat::optional<elf_symbols> sorted_var_symbols;
++  mutable abg_compat::optional<string_elf_symbols_map_type> var_symbol_map;
+   mutable abg_compat::optional<elf_symbols> sorted_undefined_var_symbols;
++  mutable abg_compat::optional<string_elf_symbols_map_type> undefined_var_symbol_map;
+   mutable abg_compat::optional<elf_symbols> unrefed_var_symbols;
+   mutable abg_compat::optional<elf_symbols> sorted_fun_symbols;
++  mutable abg_compat::optional<string_elf_symbols_map_type> fun_symbol_map;
+   mutable abg_compat::optional<elf_symbols> sorted_undefined_fun_symbols;
++  mutable abg_compat::optional<string_elf_symbols_map_type> undefined_fun_symbol_map;
+   mutable abg_compat::optional<elf_symbols> unrefed_fun_symbols;
+ 
+ public:
+@@ -747,18 +748,30 @@ public:
+   const elf_symbols&
+   get_sorted_fun_symbols() const;
+ 
++  const string_elf_symbols_map_type&
++  get_fun_symbol_map() const;
++
+   const elf_symbols&
+   get_sorted_undefined_fun_symbols() const;
+ 
++  const string_elf_symbols_map_type&
++  get_undefined_fun_symbol_map() const;
++
+   const elf_symbols&
+   get_unreferenced_function_symbols() const;
+ 
+   const elf_symbols&
+   get_sorted_var_symbols() const;
+ 
++  const string_elf_symbols_map_type&
++  get_var_symbol_map() const;
++
+   const elf_symbols&
+   get_sorted_undefined_var_symbols() const;
+ 
++  const string_elf_symbols_map_type&
++  get_undefined_var_symbol_map() const;
++
+   const elf_symbols&
+   get_unreferenced_variable_symbols() const;
+ 
+diff --git a/src/abg-corpus.cc b/src/abg-corpus.cc
+index 0f5d51820891..1f72904d137f 100644
+--- a/src/abg-corpus.cc
++++ b/src/abg-corpus.cc
+@@ -347,6 +347,22 @@ corpus::priv::get_sorted_fun_symbols() const
+   return *sorted_fun_symbols;
+ }
+ 
++const string_elf_symbols_map_type&
++corpus::priv::get_fun_symbol_map() const
++{
++  if (!fun_symbol_map)
++    {
++      fun_symbol_map = string_elf_symbols_map_type();
++      for (elf_symbols::const_iterator iter = get_sorted_fun_symbols().begin(),
++				       end = get_sorted_fun_symbols().end();
++	   iter != end; ++iter)
++	{
++	  (*fun_symbol_map)[(*iter)->get_name()].push_back(*iter);
++	}
++    }
++  return *fun_symbol_map;
++}
++
+ /// Getter for a sorted vector of the function symbols undefined in
+ /// this corpus.
+ ///
+@@ -368,6 +384,25 @@ corpus::priv::get_sorted_undefined_fun_symbols() const
+   return *sorted_undefined_fun_symbols;
+ }
+ 
++const string_elf_symbols_map_type&
++corpus::priv::get_undefined_fun_symbol_map() const
++{
++  if (!undefined_fun_symbol_map)
++    {
++      undefined_fun_symbol_map = string_elf_symbols_map_type();
++      for (elf_symbols::const_iterator
++	       iter = get_sorted_undefined_fun_symbols().begin(),
++	       end = get_sorted_undefined_fun_symbols().end();
++	   iter != end; ++iter)
++	{
++	  (*undefined_fun_symbol_map)[(*iter)->get_name()].push_back(*iter);
++	}
++    }
++  return *undefined_fun_symbol_map;
++}
++
++
++
+ /// Return a list of symbols that are not referenced by any function of
+ /// corpus::get_functions().
+ ///
+@@ -448,6 +483,22 @@ corpus::priv::get_sorted_var_symbols() const
+   return *sorted_var_symbols;
+ }
+ 
++const string_elf_symbols_map_type&
++corpus::priv::get_var_symbol_map() const
++{
++  if (!var_symbol_map)
++    {
++      var_symbol_map = string_elf_symbols_map_type();
++      for (elf_symbols::const_iterator iter = get_sorted_var_symbols().begin(),
++				       end = get_sorted_var_symbols().end();
++	   iter != end; ++iter)
++	{
++	  (*var_symbol_map)[(*iter)->get_name()].push_back(*iter);
++	}
++    }
++  return *var_symbol_map;
++}
++
+ /// Getter for a sorted vector of the variable symbols undefined in
+ /// this corpus.
+ ///
+@@ -469,6 +520,23 @@ corpus::priv::get_sorted_undefined_var_symbols() const
+   return *sorted_undefined_var_symbols;
+ }
+ 
++const string_elf_symbols_map_type&
++corpus::priv::get_undefined_var_symbol_map() const
++{
++  if (!undefined_var_symbol_map)
++    {
++      undefined_var_symbol_map = string_elf_symbols_map_type();
++      for (elf_symbols::const_iterator
++	       iter = get_sorted_undefined_var_symbols().begin(),
++	       end = get_sorted_undefined_var_symbols().end();
++	   iter != end; ++iter)
++	{
++	  (*undefined_var_symbol_map)[(*iter)->get_name()].push_back(*iter);
++	}
++    }
++  return *undefined_var_symbol_map;
++}
++
+ /// Return a list of symbols that are not referenced by any variable of
+ /// corpus::get_variables().
+ ///
+@@ -954,10 +1022,7 @@ corpus::is_empty() const
+ 	}
+     }
+   return (members_empty
+-	  && priv_->fun_symbol_map
+-	  && priv_->fun_symbol_map->empty()
+-	  && priv_->var_symbol_map
+-	  && priv_->var_symbol_map->empty()
++	  && !get_symtab()->has_symbols()
+ 	  && priv_->soname.empty()
+ 	  && priv_->needed.empty());
+ }
+@@ -991,69 +1056,12 @@ const symtab_reader::symtab_sptr&
+ corpus::get_symtab() const
+ { return priv_->symtab_; }
+ 
+-/// Setter of the function symbols map.
+-///
+-/// @param map a shared pointer to the new function symbols map.
+-void
+-corpus::set_fun_symbol_map(string_elf_symbols_map_sptr map)
+-{priv_->fun_symbol_map = map;}
+-
+-/// Setter for the map of function symbols that are undefined in this
+-/// corpus.
+-///
+-/// @param map a new map for function symbols not defined in this
+-/// corpus.  The key of the map is the name of the function symbol.
+-/// The value is a vector of all the function symbols that have the
+-/// same name.
+-void
+-corpus::set_undefined_fun_symbol_map(string_elf_symbols_map_sptr map)
+-{priv_->undefined_fun_symbol_map = map;}
+-
+-/// Setter of the variable symbols map.
+-///
+-/// @param map a shared pointer to the new variable symbols map.
+-void
+-corpus::set_var_symbol_map(string_elf_symbols_map_sptr map)
+-{priv_->var_symbol_map = map;}
+-
+-/// Setter for the map of variable symbols that are undefined in this
+-/// corpus.
+-///
+-/// @param map a new map for variable symbols not defined in this
+-/// corpus.  The key of the map is the name of the variable symbol.
+-/// The value is a vector of all the variable symbols that have the
+-/// same name.
+-void
+-corpus::set_undefined_var_symbol_map(string_elf_symbols_map_sptr map)
+-{priv_->undefined_var_symbol_map = map;}
+-
+-/// Getter for the function symbols map.
+-///
+-/// @return a shared pointer to the function symbols map.
+-const string_elf_symbols_map_sptr
+-corpus::get_fun_symbol_map_sptr() const
+-{
+-  if (!priv_->fun_symbol_map)
+-    priv_->fun_symbol_map.reset(new string_elf_symbols_map_type);
+-  return priv_->fun_symbol_map;
+-}
+-
+ /// Getter for the function symbols map.
+ ///
+ /// @return a reference to the function symbols map.
+ const string_elf_symbols_map_type&
+ corpus::get_fun_symbol_map() const
+-{return *get_fun_symbol_map_sptr();}
+-
+-/// Getter for the map of function symbols that are undefined in this
+-/// corpus.
+-///
+-/// @return the map of function symbols not defined in this corpus.
+-/// The key of the map is the name of the function symbol.  The value
+-/// is a vector of all the function symbols that have the same name.
+-const string_elf_symbols_map_sptr
+-corpus::get_undefined_fun_symbol_map_sptr() const
+-{return priv_->undefined_fun_symbol_map;}
++{return priv_->get_fun_symbol_map();}
+ 
+ /// Getter for the map of function symbols that are undefined in this
+ /// corpus.
+@@ -1063,7 +1071,7 @@ corpus::get_undefined_fun_symbol_map_sptr() const
+ /// is a vector of all the function symbols that have the same name.
+ const string_elf_symbols_map_type&
+ corpus::get_undefined_fun_symbol_map() const
+-{return *get_undefined_fun_symbol_map_sptr();}
++{return priv_->get_undefined_fun_symbol_map();}
+ 
+ const elf_symbols&
+ corpus::get_sorted_fun_symbols() const
+@@ -1081,33 +1089,12 @@ const elf_symbols&
+ corpus::get_sorted_undefined_var_symbols() const
+ { return priv_->get_sorted_undefined_var_symbols(); }
+ 
+-/// Getter for the variable symbols map.
+-///
+-/// @return a shared pointer to the variable symbols map.
+-const string_elf_symbols_map_sptr
+-corpus::get_var_symbol_map_sptr() const
+-{
+-  if (!priv_->var_symbol_map)
+-    priv_->var_symbol_map.reset(new string_elf_symbols_map_type);
+-  return priv_->var_symbol_map;
+-}
+-
+ /// Getter for the variable symbols map.
+ ///
+ /// @return a reference to the variabl symbols map.
+ const string_elf_symbols_map_type&
+ corpus::get_var_symbol_map() const
+-{return *get_var_symbol_map_sptr();}
+-
+-/// Getter for the map of variable symbols that are undefined in this
+-/// corpus.
+-///
+-/// @return the map of variable symbols not defined in this corpus.
+-/// The key of the map is the name of the variable symbol.  The value
+-/// is a vector of all the variable symbols that have the same name.
+-const string_elf_symbols_map_sptr
+-corpus::get_undefined_var_symbol_map_sptr() const
+-{return priv_->undefined_var_symbol_map;}
++{return priv_->get_var_symbol_map();}
+ 
+ /// Getter for the map of variable symbols that are undefined in this
+ /// corpus.
+@@ -1117,7 +1104,7 @@ corpus::get_undefined_var_symbol_map_sptr() const
+ /// is a vector of all the variable symbols that have the same name.
+ const string_elf_symbols_map_type&
+ corpus::get_undefined_var_symbol_map() const
+-{return *get_undefined_var_symbol_map_sptr();}
++{return priv_->get_undefined_var_symbol_map();}
+ 
+ /// Look in the function symbols map for a symbol with a given name.
+ ///
+diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
+index 73069e844eba..2b978c239243 100644
+--- a/src/abg-dwarf-reader.cc
++++ b/src/abg-dwarf-reader.cc
+@@ -14133,54 +14133,6 @@ read_debug_info_into_corpus(read_context& ctxt)
+ 
+   // Set symbols information to the corpus.
+   ctxt.current_corpus()->set_symtab(ctxt.symtab());
+-  if (!get_ignore_symbol_table(ctxt))
+-    {
+-      if (ctxt.load_in_linux_kernel_mode()
+-	  && is_linux_kernel(ctxt.elf_handle()))
+-	{
+-	  string_elf_symbols_map_sptr exported_fn_symbols_map
+-	    (new string_elf_symbols_map_type);
+-	  symtab_reader::symtab_filter filter =
+-	      ctxt.symtab()->make_filter().functions();
+-
+-	  for (symtab_reader::symtab::const_iterator
+-		   it = ctxt.symtab()->begin(filter),
+-		   end = ctxt.symtab()->end();
+-	       it != end; ++it)
+-	    {
+-	      (*exported_fn_symbols_map)[(*it)->get_name()].push_back(*it);
+-	    }
+-
+-	  ctxt.current_corpus()->set_fun_symbol_map(exported_fn_symbols_map);
+-
+-	  string_elf_symbols_map_sptr exported_var_symbols_map(
+-	      new string_elf_symbols_map_type);
+-	  filter = ctxt.symtab()->make_filter().variables();
+-	  for (symtab_reader::symtab::const_iterator
+-		   it = ctxt.symtab()->begin(filter),
+-		   end = ctxt.symtab()->end();
+-	       it != end; ++it)
+-	    {
+-	      (*exported_var_symbols_map)[(*it)->get_name()].push_back(*it);
+-	    }
+-	  ctxt.current_corpus()->set_var_symbol_map(exported_var_symbols_map);
+-	}
+-      else
+-	{
+-	  ctxt.current_corpus()->set_fun_symbol_map(ctxt.fun_syms_sptr());
+-	  ctxt.current_corpus()->set_var_symbol_map(ctxt.var_syms_sptr());
+-	}
+-
+-      ctxt.current_corpus()->set_undefined_fun_symbol_map
+-	(ctxt.undefined_fun_syms_sptr());
+-      ctxt.current_corpus()->set_undefined_var_symbol_map
+-	(ctxt.undefined_var_syms_sptr());
+-    }
+-  else
+-    {
+-      ctxt.current_corpus()->set_fun_symbol_map(ctxt.fun_syms_sptr());
+-      ctxt.current_corpus()->set_var_symbol_map(ctxt.var_syms_sptr());
+-    }
+ 
+   // Get out now if no debug info is found.
+   if (!ctxt.dwarf())
+diff --git a/src/abg-reader.cc b/src/abg-reader.cc
+index 313639fddff0..fbdcce590bc3 100644
+--- a/src/abg-reader.cc
++++ b/src/abg-reader.cc
+@@ -1974,17 +1974,6 @@ read_corpus_from_input(read_context& ctxt)
+       // are nil, due to potential suppression specifications.  That's
+       // fine.
+       corp.set_symtab(symtab_reader::symtab::load(fn_sym_db, var_sym_db));
+-
+-      if (fn_sym_db)
+-	{
+-	  corp.set_fun_symbol_map(fn_sym_db);
+-	  fn_sym_db.reset();
+-	}
+-      if (var_sym_db)
+-	{
+-	  corp.set_var_symbol_map(var_sym_db);
+-	  var_sym_db.reset();
+-	}
+     }
+ 
+   ctxt.get_environment()->canonicalization_is_done(false);
+diff --git a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
+index d5af7183095f..24c25c06d61c 100644
+--- a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
++++ b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
+@@ -37,8 +37,6 @@
+     <elf-symbol name='sdhci_start_tuning' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
+     <elf-symbol name='sdhci_suspend_host' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
+   </elf-function-symbols>
+-  <elf-variable-symbols>
+-  </elf-variable-symbols>
+   <abi-instr version='1.0' address-size='64' path='/ws/android/kernel/aosp/common-mainline/common/drivers/mmc/host/sdhci.c' comp-dir-path='/ws/android/kernel/aosp/common-mainline/out/android-mainline/common' language='LANG_C89'>
+ 
+ 
+diff --git a/tests/test-symtab.cc b/tests/test-symtab.cc
+index 905d8249a6e4..c144b1d080f6 100644
+--- a/tests/test-symtab.cc
++++ b/tests/test-symtab.cc
+@@ -104,17 +104,19 @@ assert_symbol_count(const std::string& path,
+   REQUIRE((status & dwarf_reader::STATUS_OK));
+   const corpus& corpus = *corpus_ptr;
+ 
++  size_t total_symbols = 0;
++
+   if (function_symbols != N)
+     {
+       CHECK(corpus.get_sorted_fun_symbols().size() == function_symbols);
+       CHECK(corpus.get_fun_symbol_map().size() == function_symbols);
+-      CHECK(corpus.get_fun_symbol_map_sptr()->size() == function_symbols);
++      total_symbols += function_symbols;
+     }
+   if (variable_symbols != N)
+     {
+       CHECK(corpus.get_sorted_var_symbols().size() == variable_symbols);
+       CHECK(corpus.get_var_symbol_map().size() == variable_symbols);
+-      CHECK(corpus.get_var_symbol_map_sptr()->size() == variable_symbols);
++      total_symbols += variable_symbols;
+     }
+   if (undefined_variable_symbols != N)
+     {
+@@ -122,8 +124,7 @@ assert_symbol_count(const std::string& path,
+ 	    == undefined_function_symbols);
+       CHECK(corpus.get_undefined_fun_symbol_map().size()
+ 	    == undefined_function_symbols);
+-      CHECK(corpus.get_undefined_fun_symbol_map_sptr()->size()
+-	    == undefined_function_symbols);
++      total_symbols += undefined_function_symbols;
+     }
+   if (undefined_function_symbols != N)
+     {
+@@ -131,10 +132,12 @@ assert_symbol_count(const std::string& path,
+ 	    == undefined_variable_symbols);
+       CHECK(corpus.get_undefined_var_symbol_map().size()
+ 	    == undefined_variable_symbols);
+-      CHECK(corpus.get_undefined_var_symbol_map_sptr()->size()
+-	    == undefined_variable_symbols);
++      total_symbols += undefined_variable_symbols;
+     }
+ 
++  // assert the corpus reports being empty consistently with the symbol count
++  CHECK(corpus.is_empty() == (total_symbols == 0));
++
+   return corpus_ptr;
+ }
+ 

@@ -347,6 +347,22 @@ corpus::priv::get_sorted_fun_symbols() const
   return *sorted_fun_symbols;
 }
 
+const string_elf_symbols_map_type&
+corpus::priv::get_fun_symbol_map() const
+{
+  if (!fun_symbol_map)
+    {
+      fun_symbol_map = string_elf_symbols_map_type();
+      for (elf_symbols::const_iterator iter = get_sorted_fun_symbols().begin(),
+				       end = get_sorted_fun_symbols().end();
+	   iter != end; ++iter)
+	{
+	  (*fun_symbol_map)[(*iter)->get_name()].push_back(*iter);
+	}
+    }
+  return *fun_symbol_map;
+}
+
 /// Getter for a sorted vector of the function symbols undefined in
 /// this corpus.
 ///
@@ -367,6 +383,25 @@ corpus::priv::get_sorted_undefined_fun_symbols() const
     }
   return *sorted_undefined_fun_symbols;
 }
+
+const string_elf_symbols_map_type&
+corpus::priv::get_undefined_fun_symbol_map() const
+{
+  if (!undefined_fun_symbol_map)
+    {
+      undefined_fun_symbol_map = string_elf_symbols_map_type();
+      for (elf_symbols::const_iterator
+	       iter = get_sorted_undefined_fun_symbols().begin(),
+	       end = get_sorted_undefined_fun_symbols().end();
+	   iter != end; ++iter)
+	{
+	  (*undefined_fun_symbol_map)[(*iter)->get_name()].push_back(*iter);
+	}
+    }
+  return *undefined_fun_symbol_map;
+}
+
+
 
 /// Return a list of symbols that are not referenced by any function of
 /// corpus::get_functions().
@@ -448,6 +483,22 @@ corpus::priv::get_sorted_var_symbols() const
   return *sorted_var_symbols;
 }
 
+const string_elf_symbols_map_type&
+corpus::priv::get_var_symbol_map() const
+{
+  if (!var_symbol_map)
+    {
+      var_symbol_map = string_elf_symbols_map_type();
+      for (elf_symbols::const_iterator iter = get_sorted_var_symbols().begin(),
+				       end = get_sorted_var_symbols().end();
+	   iter != end; ++iter)
+	{
+	  (*var_symbol_map)[(*iter)->get_name()].push_back(*iter);
+	}
+    }
+  return *var_symbol_map;
+}
+
 /// Getter for a sorted vector of the variable symbols undefined in
 /// this corpus.
 ///
@@ -467,6 +518,23 @@ corpus::priv::get_sorted_undefined_var_symbols() const
 	  elf_symbols(symtab_->begin(filter), symtab_->end());
     }
   return *sorted_undefined_var_symbols;
+}
+
+const string_elf_symbols_map_type&
+corpus::priv::get_undefined_var_symbol_map() const
+{
+  if (!undefined_var_symbol_map)
+    {
+      undefined_var_symbol_map = string_elf_symbols_map_type();
+      for (elf_symbols::const_iterator
+	       iter = get_sorted_undefined_var_symbols().begin(),
+	       end = get_sorted_undefined_var_symbols().end();
+	   iter != end; ++iter)
+	{
+	  (*undefined_var_symbol_map)[(*iter)->get_name()].push_back(*iter);
+	}
+    }
+  return *undefined_var_symbol_map;
 }
 
 /// Return a list of symbols that are not referenced by any variable of
@@ -954,10 +1022,7 @@ corpus::is_empty() const
 	}
     }
   return (members_empty
-	  && priv_->fun_symbol_map
-	  && priv_->fun_symbol_map->empty()
-	  && priv_->var_symbol_map
-	  && priv_->var_symbol_map->empty()
+	  && !get_symtab()->has_symbols()
 	  && priv_->soname.empty()
 	  && priv_->needed.empty());
 }
@@ -991,69 +1056,12 @@ const symtab_reader::symtab_sptr&
 corpus::get_symtab() const
 { return priv_->symtab_; }
 
-/// Setter of the function symbols map.
-///
-/// @param map a shared pointer to the new function symbols map.
-void
-corpus::set_fun_symbol_map(string_elf_symbols_map_sptr map)
-{priv_->fun_symbol_map = map;}
-
-/// Setter for the map of function symbols that are undefined in this
-/// corpus.
-///
-/// @param map a new map for function symbols not defined in this
-/// corpus.  The key of the map is the name of the function symbol.
-/// The value is a vector of all the function symbols that have the
-/// same name.
-void
-corpus::set_undefined_fun_symbol_map(string_elf_symbols_map_sptr map)
-{priv_->undefined_fun_symbol_map = map;}
-
-/// Setter of the variable symbols map.
-///
-/// @param map a shared pointer to the new variable symbols map.
-void
-corpus::set_var_symbol_map(string_elf_symbols_map_sptr map)
-{priv_->var_symbol_map = map;}
-
-/// Setter for the map of variable symbols that are undefined in this
-/// corpus.
-///
-/// @param map a new map for variable symbols not defined in this
-/// corpus.  The key of the map is the name of the variable symbol.
-/// The value is a vector of all the variable symbols that have the
-/// same name.
-void
-corpus::set_undefined_var_symbol_map(string_elf_symbols_map_sptr map)
-{priv_->undefined_var_symbol_map = map;}
-
-/// Getter for the function symbols map.
-///
-/// @return a shared pointer to the function symbols map.
-const string_elf_symbols_map_sptr
-corpus::get_fun_symbol_map_sptr() const
-{
-  if (!priv_->fun_symbol_map)
-    priv_->fun_symbol_map.reset(new string_elf_symbols_map_type);
-  return priv_->fun_symbol_map;
-}
-
 /// Getter for the function symbols map.
 ///
 /// @return a reference to the function symbols map.
 const string_elf_symbols_map_type&
 corpus::get_fun_symbol_map() const
-{return *get_fun_symbol_map_sptr();}
-
-/// Getter for the map of function symbols that are undefined in this
-/// corpus.
-///
-/// @return the map of function symbols not defined in this corpus.
-/// The key of the map is the name of the function symbol.  The value
-/// is a vector of all the function symbols that have the same name.
-const string_elf_symbols_map_sptr
-corpus::get_undefined_fun_symbol_map_sptr() const
-{return priv_->undefined_fun_symbol_map;}
+{return priv_->get_fun_symbol_map();}
 
 /// Getter for the map of function symbols that are undefined in this
 /// corpus.
@@ -1063,7 +1071,7 @@ corpus::get_undefined_fun_symbol_map_sptr() const
 /// is a vector of all the function symbols that have the same name.
 const string_elf_symbols_map_type&
 corpus::get_undefined_fun_symbol_map() const
-{return *get_undefined_fun_symbol_map_sptr();}
+{return priv_->get_undefined_fun_symbol_map();}
 
 const elf_symbols&
 corpus::get_sorted_fun_symbols() const
@@ -1083,31 +1091,10 @@ corpus::get_sorted_undefined_var_symbols() const
 
 /// Getter for the variable symbols map.
 ///
-/// @return a shared pointer to the variable symbols map.
-const string_elf_symbols_map_sptr
-corpus::get_var_symbol_map_sptr() const
-{
-  if (!priv_->var_symbol_map)
-    priv_->var_symbol_map.reset(new string_elf_symbols_map_type);
-  return priv_->var_symbol_map;
-}
-
-/// Getter for the variable symbols map.
-///
 /// @return a reference to the variabl symbols map.
 const string_elf_symbols_map_type&
 corpus::get_var_symbol_map() const
-{return *get_var_symbol_map_sptr();}
-
-/// Getter for the map of variable symbols that are undefined in this
-/// corpus.
-///
-/// @return the map of variable symbols not defined in this corpus.
-/// The key of the map is the name of the variable symbol.  The value
-/// is a vector of all the variable symbols that have the same name.
-const string_elf_symbols_map_sptr
-corpus::get_undefined_var_symbol_map_sptr() const
-{return priv_->undefined_var_symbol_map;}
+{return priv_->get_var_symbol_map();}
 
 /// Getter for the map of variable symbols that are undefined in this
 /// corpus.
@@ -1117,7 +1104,7 @@ corpus::get_undefined_var_symbol_map_sptr() const
 /// is a vector of all the variable symbols that have the same name.
 const string_elf_symbols_map_type&
 corpus::get_undefined_var_symbol_map() const
-{return *get_undefined_var_symbol_map_sptr();}
+{return priv_->get_undefined_var_symbol_map();}
 
 /// Look in the function symbols map for a symbol with a given name.
 ///
