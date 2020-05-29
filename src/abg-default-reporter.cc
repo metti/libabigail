@@ -989,44 +989,37 @@ default_reporter::report(const class_or_union_diff& d,
 	}
 
       // report change
-      size_t numchanges =
-	d.class_or_union_diff::get_priv()->sorted_subtype_changed_dm_.size();
-      size_t num_filtered =
-	d.class_or_union_diff::get_priv()->count_filtered_subtype_changed_dm();
-      if (numchanges)
+      size_t num_changes =
+	(d.sorted_subtype_changed_data_members().size()
+	 + d.sorted_changed_data_members().size());
+
+      size_t num_changes_filtered =
+	(d.count_filtered_subtype_changed_data_members()
+	 + d.count_filtered_changed_data_members());
+
+      if (num_changes)
 	{
-	  report_mem_header(out, numchanges, num_filtered,
-			    subtype_change_kind, "data member", indent);
+	  report_mem_header(out, num_changes, num_changes_filtered,
+			    change_kind, "data member", indent);
+
 	  for (var_diff_sptrs_type::const_iterator it =
-		 d.class_or_union_diff::get_priv()->sorted_subtype_changed_dm_.begin();
-	       it != d.class_or_union_diff::get_priv()->sorted_subtype_changed_dm_.end();
+		 d.sorted_changed_data_members().begin();
+	       it != d.sorted_changed_data_members().end();
 	       ++it)
-	    {
-	      if ((*it)->to_be_reported())
-		{
-		  represent(*it, ctxt, out, indent + "  ");
-		}
-	    }
+	    if ((*it)->to_be_reported())
+	      represent(*it, ctxt, out, indent + "  ");
+
+	  for (var_diff_sptrs_type::const_iterator it =
+		 d.sorted_subtype_changed_data_members().begin();
+	       it != d.sorted_subtype_changed_data_members().end();
+	       ++it)
+	    if ((*it)->to_be_reported())
+	      represent(*it, ctxt, out, indent + "  ");
 	}
 
-      numchanges = d.class_or_union_diff::get_priv()->sorted_changed_dm_.size();
-      num_filtered =
-	d.class_or_union_diff::get_priv()->count_filtered_changed_dm();
-      if (numchanges)
-	{
-	  report_mem_header(out, numchanges, num_filtered,
-			    change_kind, "data member", indent);
-	  for (var_diff_sptrs_type::const_iterator it =
-		 d.class_or_union_diff::get_priv()->sorted_changed_dm_.begin();
-	       it != d.class_or_union_diff::get_priv()->sorted_changed_dm_.end();
-	       ++it)
-	    {
-	      if ((*it)->to_be_reported())
-		{
-		  represent(*it, ctxt, out, indent + "  ");
-		}
-	    }
-	}
+      // Report about data members replaced by an anonymous union data
+      // member.
+      maybe_report_data_members_replaced_by_anon_dm(d, out, indent);
     }
 
   // member types

@@ -570,6 +570,174 @@ InOutSpec in_out_specs[] =
     "data/test-diff-filter/PR24787-report-0.txt",
     "output/test-diff-filter/PR24787-report-0.txt",
   },
+  {
+   "data/test-diff-filter/test-PR25661-1-v0.o",
+   "data/test-diff-filter/test-PR25661-1-v1.o",
+   "--no-default-suppression",
+   "data/test-diff-filter/test-PR25661-1-report-1.txt",
+   "output/test-diff-filter/test-PR25661-1-report-1.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-1-v0.o",
+   "data/test-diff-filter/test-PR25661-1-v1.o",
+   "--no-default-suppression --harmless",
+   "data/test-diff-filter/test-PR25661-1-report-2.txt",
+   "output/test-diff-filter/test-PR25661-1-report-2.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-1-v0.o",
+   "data/test-diff-filter/test-PR25661-1-v1.o",
+   "--no-default-suppression --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-1-report-3.txt",
+   "output/test-diff-filter/test-PR25661-1-report-3.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-1-v0.o",
+   "data/test-diff-filter/test-PR25661-1-v1.o",
+   "--no-default-suppression --harmless --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-1-report-4.txt",
+   "output/test-diff-filter/test-PR25661-1-report-4.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-2-v0.o",
+   "data/test-diff-filter/test-PR25661-2-v1.o",
+   "--no-default-suppression",
+   "data/test-diff-filter/test-PR25661-2-report-1.txt",
+   "output/test-diff-filter/test-PR25661-2-report-1.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-2-v0.o",
+   "data/test-diff-filter/test-PR25661-2-v1.o",
+   "--no-default-suppression --harmless",
+   "data/test-diff-filter/test-PR25661-2-report-2.txt",
+   "output/test-diff-filter/test-PR25661-2-report-2.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-2-v0.o",
+   "data/test-diff-filter/test-PR25661-2-v1.o",
+   "--no-default-suppression --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-2-report-3.txt",
+   "output/test-diff-filter/test-PR25661-2-report-3.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-2-v0.o",
+   "data/test-diff-filter/test-PR25661-2-v1.o",
+   "--no-default-suppression --harmless --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-2-report-4.txt",
+   "output/test-diff-filter/test-PR25661-2-report-4.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-3-v0.o",
+   "data/test-diff-filter/test-PR25661-3-v1.o",
+   "--no-default-suppression",
+   "data/test-diff-filter/test-PR25661-3-report-1.txt",
+   "output/test-diff-filter/test-PR25661-3-report-1.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-3-v0.o",
+   "data/test-diff-filter/test-PR25661-3-v1.o",
+   "--no-default-suppression --harmless",
+   "data/test-diff-filter/test-PR25661-3-report-2.txt",
+   "output/test-diff-filter/test-PR25661-3-report-2.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-3-v0.o",
+   "data/test-diff-filter/test-PR25661-3-v1.o",
+   "--no-default-suppression --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-3-report-3.txt",
+   "output/test-diff-filter/test-PR25661-3-report-3.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-3-v0.o",
+   "data/test-diff-filter/test-PR25661-3-v1.o",
+   "--no-default-suppression --harmless --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-3-report-4.txt",
+   "output/test-diff-filter/test-PR25661-3-report-4.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-4-v0.o",
+   "data/test-diff-filter/test-PR25661-4-v1.o",
+   "--no-default-suppression",
+   "data/test-diff-filter/test-PR25661-4-report-1.txt",
+   "output/test-diff-filter/test-PR25661-4-report-1.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-4-v0.o",
+   "data/test-diff-filter/test-PR25661-4-v1.o",
+   "--no-default-suppression --harmless",
+   "data/test-diff-filter/test-PR25661-4-report-2.txt",
+   "output/test-diff-filter/test-PR25661-4-report-2.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-4-v0.o",
+   "data/test-diff-filter/test-PR25661-4-v1.o",
+   "--no-default-suppression --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-4-report-3.txt",
+   "output/test-diff-filter/test-PR25661-4-report-3.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-4-v0.o",
+   "data/test-diff-filter/test-PR25661-4-v1.o",
+   "--no-default-suppression --harmless --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-4-report-4.txt",
+   "output/test-diff-filter/test-PR25661-4-report-4.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-5-v0.o",
+   "data/test-diff-filter/test-PR25661-5-v1.o",
+   "--no-default-suppression",
+   "data/test-diff-filter/test-PR25661-5-report-1.txt",
+   "output/test-diff-filter/test-PR25661-5-report-1.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-5-v0.o",
+   "data/test-diff-filter/test-PR25661-5-v1.o",
+   "--no-default-suppression --harmless",
+   "data/test-diff-filter/test-PR25661-5-report-2.txt",
+   "output/test-diff-filter/test-PR25661-5-report-2.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-5-v0.o",
+   "data/test-diff-filter/test-PR25661-5-v1.o",
+   "--no-default-suppression --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-5-report-3.txt",
+   "output/test-diff-filter/test-PR25661-5-report-3.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-5-v0.o",
+   "data/test-diff-filter/test-PR25661-5-v1.o",
+   "--no-default-suppression --harmless --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-5-report-4.txt",
+   "output/test-diff-filter/test-PR25661-5-report-4.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-6-v0.o",
+   "data/test-diff-filter/test-PR25661-6-v1.o",
+   "--no-default-suppression",
+   "data/test-diff-filter/test-PR25661-6-report-1.txt",
+   "output/test-diff-filter/test-PR25661-6-report-1.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-6-v0.o",
+   "data/test-diff-filter/test-PR25661-6-v1.o",
+   "--no-default-suppression --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-6-report-2.txt",
+   "output/test-diff-filter/test-PR25661-6-report-2.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-6-v0.o",
+   "data/test-diff-filter/test-PR25661-6-v1.o",
+   "--no-default-suppression --harmless",
+   "data/test-diff-filter/test-PR25661-6-report-3.txt",
+   "output/test-diff-filter/test-PR25661-6-report-3.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR25661-6-v0.o",
+   "data/test-diff-filter/test-PR25661-6-v1.o",
+   "--no-default-suppression --harmless --leaf-changes-only",
+   "data/test-diff-filter/test-PR25661-6-report-4.txt",
+   "output/test-diff-filter/test-PR25661-6-report-4.txt",
+  },
   // This should be the last entry
   {NULL, NULL, NULL, NULL, NULL}
 };
@@ -708,7 +876,8 @@ main()
 	{
 	  is_ok = false;
 	  if (!t->diff_cmd.empty())
-	    system(t->diff_cmd.c_str());
+	    if (system(t->diff_cmd.c_str()) == -1)
+	      cerr << "execution of '" << t->diff_cmd << "' failed\n";
 	  if (!t->error_message.empty())
 	    cerr << t->error_message << '\n';
 	}

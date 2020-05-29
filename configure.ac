@@ -617,8 +617,13 @@ DEPS_LIBS="$XML_LIBS $LIBZIP_LIBS $ELF_LIBS $DW_LIBS"
 AC_SUBST(DEPS_LIBS)
 
 if test x$ABIGAIL_DEVEL != x; then
-   CFLAGS="-g -Wall -Wextra -Werror"
-   CXXFLAGS="-g -Wall -Wextra -Werror"
+   CFLAGS="-g -Og -Wall -Wextra -Werror -D_FORTIFY_SOURCE=2"
+   CXXFLAGS="-g -Og -Wall -Wextra -Werror -D_FORTIFY_SOURCE=2 -D_GLIBCXX_DEBUG"
+fi
+
+if test x$ABIGAIL_DEBUG != x; then
+    CFLAGS="$CFLAGS -Og -g3 -ggdb"
+    CXXFLAGS="$CXXFLAGS -Og -g3 -ggdb"
 fi
 
 if test x$ENABLE_ASAN = xyes; then

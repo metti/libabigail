@@ -171,8 +171,18 @@ sort_data_members(const string_decl_base_sptr_map &data_members,
   std::sort(sorted.begin(), sorted.end(), comp);
 }
 
-/// Sort a an instance of @ref string_function_ptr_map map and stuff
-/// a resulting sorted vector of pointers to function_decl.
+/// Sort (in place) a vector of changed data members.
+///
+/// @param to_sort the vector to sort.
+void
+sort_changed_data_members(changed_var_sptrs_type& to_sort)
+{
+  data_member_comp comp;
+  std::sort(to_sort.begin(), to_sort.end(), comp);
+}
+
+/// Sort an instance of @ref string_function_ptr_map map and stuff a
+/// resulting sorted vector of pointers to function_decl.
 ///
 /// @param map the map to sort.
 ///
@@ -2962,6 +2972,7 @@ get_default_harmless_categories_bitmap()
 	  | abigail::comparison::HARMLESS_ENUM_CHANGE_CATEGORY
 	  | abigail::comparison::HARMLESS_SYMBOL_ALIAS_CHANGE_CATEORY
 	  | abigail::comparison::HARMLESS_UNION_CHANGE_CATEGORY
+	  | abigail::comparison::HARMLESS_DATA_MEMBER_CHANGE_CATEGORY
 	  | abigail::comparison::CLASS_DECL_ONLY_DEF_CHANGE_CATEGORY
 	  | abigail::comparison::FN_PARM_TYPE_TOP_CV_CHANGE_CATEGORY
 	  | abigail::comparison::FN_PARM_TYPE_CV_CHANGE_CATEGORY
@@ -3046,6 +3057,14 @@ operator<<(ostream& o, diff_category c)
       if (emitted_a_category)
 	o << "|";
       o << "HARMLESS_ENUM_CHANGE_CATEGORY";
+      emitted_a_category |= true;
+    }
+
+    if (c & HARMLESS_DATA_MEMBER_CHANGE_CATEGORY)
+    {
+      if (emitted_a_category)
+	o << "|";
+      o << "HARMLESS_DATA_MEMBER_CHANGE_CATEGORY";
       emitted_a_category |= true;
     }
 
@@ -4680,11 +4699,13 @@ class_or_union_diff::ensure_lookup_tables_populated(void) const
 	 ++it)
       {
 	unsigned i = it->index();
-	decl_base_sptr d = first_class_or_union()->get_non_static_data_members()[i];
-	string name = d->get_name();
+	var_decl_sptr data_member =
+	  is_var_decl(first_class_or_union()->get_non_static_data_members()[i]);
+	string name = data_member->get_anon_dm_reliable_name();
+
 	ABG_ASSERT(priv_->deleted_data_members_.find(name)
-	       == priv_->deleted_data_members_.end());
-	priv_->deleted_data_members_[name] = d;
+		   == priv_->deleted_data_members_.end());
+	priv_->deleted_data_members_[name] = data_member;
       }
 
     for (vector<insertion>::const_iterator it = e.insertions().begin();
@@ -4699,24 +4720,182 @@ class_or_union_diff::ensure_lookup_tables_populated(void) const
 	    unsigned i = *iit;
 	    decl_base_sptr d =
 	      second_class_or_union()->get_non_static_data_members()[i];
-	    var_decl_sptr dm = is_var_decl(d);
-	    string name = dm->get_name();
+	    var_decl_sptr added_dm = is_var_decl(d);
+	    string name = added_dm->get_anon_dm_reliable_name();
 	    ABG_ASSERT(priv_->inserted_data_members_.find(name)
-		   == priv_->inserted_data_members_.end());
-	    string_decl_base_sptr_map::const_iterator j =
-	      priv_->deleted_data_members_.find(name);
-	    if (j != priv_->deleted_data_members_.end())
+		       == priv_->inserted_data_members_.end());
+
+	    bool ignore_added_anonymous_data_member = false;
+	    if (is_anonymous_data_member(added_dm))
 	      {
-		if (*j->second != *d)
+		//
+		// Handle insertion of anonymous data member to
+		// replace existing data members.
+		//
+		// For instance consider this:
+		//   struct S
+		//   {
+		//     int a;
+		//     int b;
+		//     int c;
+		//   };// end struct S
+		//
+		//   Where the data members 'a' and 'b' are replaced
+		//   by an anonymous data member without changing the
+		//   effective bit layout of the structure:
+		//
+		//   struct S
+		//   {
+		//     struct
+		//     {
+		//       union
+		//       {
+		//         int a;
+		//         char a_1;
+		//       };
+		//       union
+		//       {
+		//         int b;
+		//         char b_1;
+		//       };
+		//     };
+		//     int c;
+		//   }; // end struct S
+		//
+		var_decl_sptr replaced_dm, replacing_dm;
+		bool added_anon_dm_changes_dm = false;
+		// The vector of data members replaced by anonymous
+		// data members.
+		vector<var_decl_sptr> dms_replaced_by_anon_dm;
+
+		//
+		// Let's start collecting the set of data members
+		// which have been replaced by anonymous types in a
+		// harmless way.  These are going to be collected into
+		// dms_replaced_by_anon_dm and, ultimately, into
+		// priv_->dms_replaced_by_adms_
+		//
+		for (string_decl_base_sptr_map::const_iterator it =
+		       priv_->deleted_data_members_.begin();
+		     it != priv_->deleted_data_members_.end();
+		     ++it)
 		  {
-		    var_decl_sptr old_dm = is_var_decl(j->second);
-		    priv_->subtype_changed_dm_[name]=
-		      compute_diff(old_dm, dm, context());
+		    // We don't support this pattern for anonymous
+		    // data members themselves being replaced.  If
+		    // that occurs then we'll just report it verbatim.
+		    if (is_anonymous_data_member(it->second))
+		      continue;
+
+		    string deleted_dm_name = it->second->get_name();
+		    if ((replacing_dm =
+			 find_data_member_from_anonymous_data_member(added_dm,
+								     deleted_dm_name)))
+		      {
+			// So it looks like replacing_dm might have
+			// replaced the data member which name is
+			// 'deleted_dm_name'.  Let's look deeper to be
+			// sure.
+			//
+			// Note that replacing_dm is part (member) of
+			// an anonymous data member that might replace
+			// replaced_dm.
+
+			// So let's get that replaced data member.
+			replaced_dm = is_var_decl(it->second);
+			size_t replaced_dm_offset =
+			  get_data_member_offset(replaced_dm),
+			replacing_dm_offset =
+			  get_absolute_data_member_offset(replacing_dm);
+
+			if (replaced_dm_offset != replacing_dm_offset)
+			  {
+			    // So the replacing data member and the
+			    // replaced data member don't have the
+			    // same offset.  This is not the pattern we
+			    // are looking for.  Rather, it looks like
+			    // the anonymous data member has *changed*
+			    // the data member.
+			    added_anon_dm_changes_dm = true;
+			    break;
+			  }
+
+			if (replaced_dm->get_type()->get_size_in_bits()
+			    == replaced_dm->get_type()->get_size_in_bits())
+			  dms_replaced_by_anon_dm.push_back(replaced_dm);
+			else
+			  {
+			    added_anon_dm_changes_dm = true;
+			    break;
+			  }
+		      }
 		  }
-		priv_->deleted_data_members_.erase(j);
+
+		// Now walk dms_replaced_by_anon_dm to fill up
+		// priv_->dms_replaced_by_adms_ with the set of data
+		// members replaced by anonymous data members.
+		if (!added_anon_dm_changes_dm
+		    && !dms_replaced_by_anon_dm.empty())
+		  {
+		    // See if the added data member isn't too big.
+		    type_base_sptr added_dm_type = added_dm->get_type();
+		    ABG_ASSERT(added_dm_type);
+		    var_decl_sptr new_next_dm =
+		      get_next_data_member(second_class_or_union(),
+					   added_dm);
+		    var_decl_sptr old_next_dm =
+		      first_class_or_union()->find_data_member(new_next_dm);
+
+		    if (!old_next_dm
+			|| (old_next_dm
+			    && (get_absolute_data_member_offset(old_next_dm)
+				== get_absolute_data_member_offset(new_next_dm))))
+		      {
+			// None of the data members that are replaced
+			// by the added union should be considered as
+			// having been deleted.
+			ignore_added_anonymous_data_member = true;
+			for (vector<var_decl_sptr>::const_iterator i =
+			       dms_replaced_by_anon_dm.begin();
+			     i != dms_replaced_by_anon_dm.end();
+			     ++i)
+			  {
+			    string n = (*i)->get_name();
+			    priv_->dms_replaced_by_adms_[n] =
+			      added_dm;
+			    priv_->deleted_data_members_.erase(n);
+			  }
+		      }
+		  }
 	      }
-	    else
-	      priv_->inserted_data_members_[name] = d;
+
+	    if (!ignore_added_anonymous_data_member)
+	      {
+		// Detect changed data members.
+		//
+		// A changed data member (that we shall name D) is a data
+		// member that satisfies the conditions below:
+		//
+		// 1/ It must have been added.
+		//
+		// 2/ It must have been deleted as well.
+		//
+		// 3/ It there must be a non-empty difference between the
+		// deleted D and the added D.
+		string_decl_base_sptr_map::const_iterator j =
+		  priv_->deleted_data_members_.find(name);
+		if (j != priv_->deleted_data_members_.end())
+		  {
+		    if (*j->second != *d)
+		      {
+			var_decl_sptr old_dm = is_var_decl(j->second);
+			priv_->subtype_changed_dm_[name]=
+			  compute_diff(old_dm, added_dm, context());
+		      }
+		    priv_->deleted_data_members_.erase(j);
+		  }
+		else
+		  priv_->inserted_data_members_[name] = d;
+	      }
 	  }
       }
 
@@ -4765,9 +4944,9 @@ class_or_union_diff::ensure_lookup_tables_populated(void) const
 	priv_->deleted_dm_by_offset_.erase(i->first);
 	priv_->inserted_dm_by_offset_.erase(i->first);
 	priv_->deleted_data_members_.erase
-	  (i->second->first_var()->get_name());
+	  (i->second->first_var()->get_anon_dm_reliable_name());
 	priv_->inserted_data_members_.erase
-	  (i->second->second_var()->get_name());
+	  (i->second->second_var()->get_anon_dm_reliable_name());
       }
   }
   sort_string_data_member_diff_sptr_map(priv_->subtype_changed_dm_,
@@ -4970,6 +5149,77 @@ class_or_union_diff::deleted_member_fns() const
 const string_member_function_sptr_map&
 class_or_union_diff::inserted_member_fns() const
 {return get_priv()->inserted_member_functions_;}
+
+/// Getter of the sorted vector of data members that got replaced by
+/// another data member.
+///
+/// @return sorted vector of changed data member.
+const var_diff_sptrs_type&
+class_or_union_diff::sorted_changed_data_members() const
+{return get_priv()->sorted_changed_dm_;}
+
+/// Count the number of /filtered/ data members that got replaced by
+/// another data member.
+///
+/// @return the number of changed data member that got filtered out.
+size_t
+class_or_union_diff::count_filtered_changed_data_members(bool local) const
+{return get_priv()->count_filtered_changed_dm(local);}
+
+/// Getter of the sorted vector of data members with a (sub-)type change.
+///
+/// @return sorted vector of changed data member.
+const var_diff_sptrs_type&
+class_or_union_diff::sorted_subtype_changed_data_members() const
+{return get_priv()->sorted_subtype_changed_dm_;}
+
+/// Count the number of /filtered/ data members with a sub-type change.
+///
+/// @return the number of changed data member that got filtered out.
+size_t
+class_or_union_diff::count_filtered_subtype_changed_data_members(bool local) const
+{return get_priv()->count_filtered_subtype_changed_dm(local);}
+
+/// Get the map of data members that got replaced by anonymous data
+/// members.
+///
+/// The key of a map entry is the name of the replaced data member and
+/// the value is the anonymous data member that replaces it.
+///
+/// @return the map of data members replaced by anonymous data
+/// members.
+const string_decl_base_sptr_map&
+class_or_union_diff::data_members_replaced_by_adms() const
+{return get_priv()->dms_replaced_by_adms_;}
+
+/// Get an ordered vector of of data members that got replaced by
+/// anonymous data members.
+///
+/// This returns a vector of pair of two data members: the one that
+/// was replaced, and the anonymous data member that replaced it.
+///
+/// @return the sorted vector data members replaced by anonymous data members.
+const changed_var_sptrs_type&
+class_or_union_diff::ordered_data_members_replaced_by_adms() const
+{
+  if (priv_->dms_replaced_by_adms_ordered_.empty())
+    {
+      for (string_decl_base_sptr_map::const_iterator it =
+	     priv_->dms_replaced_by_adms_.begin();
+	   it != priv_->dms_replaced_by_adms_.end();
+	   ++it)
+	{
+	  const var_decl_sptr dm =
+	    first_class_or_union()->find_data_member(it->first);
+	  ABG_ASSERT(dm);
+	  changed_var_sptr changed_dm(dm, is_data_member(it->second));
+	  priv_->dms_replaced_by_adms_ordered_.push_back(changed_dm);
+	}
+      sort_changed_data_members(priv_->dms_replaced_by_adms_ordered_);
+    }
+
+  return priv_->dms_replaced_by_adms_ordered_;
+}
 
 /// @return the edit script of the member function templates of the two
 /// @ref class_or_union.
@@ -11414,8 +11664,8 @@ void
 propagate_categories(corpus_diff_sptr diff_tree)
 {propagate_categories(diff_tree.get());}
 
-/// A tree node visitor that knows how to categorizes a given in the
-/// SUPPRESSED_CATEGORY category and how to propagate that
+/// A tree node visitor that knows how to categorizes a given diff
+/// node in the SUPPRESSED_CATEGORY category and how to propagate that
 /// categorization.
 struct suppression_categorization_visitor : public diff_node_visitor
 {
@@ -11491,6 +11741,12 @@ struct suppression_categorization_visitor : public diff_node_visitor
 	// Note that all pointer/reference diff node changes are
 	// potentially considered local, i.e, local changes of the
 	// pointed-to-type are considered local to the pointer itself.
+	//
+	// Similarly, changes local to the type of function parameters,
+	// variables (and data members) and classe (that are not of
+	// LOCAL_NON_TYPE_CHANGE_KIND kind) and that have been
+	// suppressed can propagate their SUPPRESSED_CATEGORY-ness to
+	// those kinds of diff node.
 	!(d->get_category() & SUPPRESSED_CATEGORY)
 	&& (!d->has_local_changes()
 	    || is_pointer_diff(d)
@@ -11502,6 +11758,10 @@ struct suppression_categorization_visitor : public diff_node_visitor
 	    || (is_fn_parm_diff(d)
 		&& (!(d->has_local_changes() & LOCAL_NON_TYPE_CHANGE_KIND)))
 	    || (is_function_type_diff(d)
+		&& (!(d->has_local_changes() & LOCAL_NON_TYPE_CHANGE_KIND)))
+	    || (is_var_diff(d)
+		&& (!(d->has_local_changes() & LOCAL_NON_TYPE_CHANGE_KIND)))
+	    ||  (is_class_diff(d)
 		&& (!(d->has_local_changes() & LOCAL_NON_TYPE_CHANGE_KIND)))))
       {
 	// Note that we handle private diff nodes differently from
@@ -11534,8 +11794,8 @@ struct suppression_categorization_visitor : public diff_node_visitor
 		  has_private_child = true;
 		else if (child->get_class_of_equiv_category()
 			 & SUPPRESSED_CATEGORY)
-		  // Propagation of the SUPPRESSED_CATEGORY is going
-		  // to be handled later below.
+		  // Propagation of the SUPPRESSED_CATEGORY has been
+		  // handled above already.
 		  ;
 		else
 		  has_non_private_child = true;

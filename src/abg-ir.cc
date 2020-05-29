@@ -2537,8 +2537,98 @@ elf_symbol::version::operator=(const elf_symbol::version& o)
 
 // </elf_symbol stuff>
 
+// <class dm_context_rel stuff>
+struct dm_context_rel::priv
+{
+  bool is_laid_out_;
+  size_t offset_in_bits_;
+  var_decl* anonymous_data_member_;
+
+  priv(bool is_static = false)
+    : is_laid_out_(!is_static),
+      offset_in_bits_(0),
+      anonymous_data_member_()
+  {}
+
+  priv(bool is_laid_out, size_t offset_in_bits)
+    : is_laid_out_(is_laid_out),
+      offset_in_bits_(offset_in_bits),
+      anonymous_data_member_()
+  {}
+}; //end struct dm_context_rel::priv
+
+dm_context_rel::dm_context_rel()
+  : context_rel(),
+    priv_(new priv)
+{}
+
+dm_context_rel::dm_context_rel(scope_decl* s,
+			       bool is_laid_out,
+			       size_t offset_in_bits,
+			       access_specifier a,
+			       bool is_static)
+  : context_rel(s, a, is_static),
+    priv_(new priv(is_laid_out, offset_in_bits))
+{}
+
+dm_context_rel::dm_context_rel(scope_decl* s)
+  : context_rel(s),
+    priv_(new priv())
+{}
+
+bool
+dm_context_rel::get_is_laid_out() const
+{return priv_->is_laid_out_;}
+
+void
+dm_context_rel::set_is_laid_out(bool f)
+{priv_->is_laid_out_ = f;}
+
+size_t
+dm_context_rel::get_offset_in_bits() const
+{return priv_->offset_in_bits_;}
+
+void
+dm_context_rel::set_offset_in_bits(size_t o)
+{priv_->offset_in_bits_ = o;}
+
+bool
+dm_context_rel::operator==(const dm_context_rel& o) const
+{
+  if (!context_rel::operator==(o))
+    return false;
+
+  return (priv_->is_laid_out_ == o.priv_->is_laid_out_
+	    && priv_->offset_in_bits_ == o.priv_->offset_in_bits_);
+}
+
+bool
+dm_context_rel::operator!=(const dm_context_rel& o) const
+{return !operator==(o);}
+
+/// Return a non-nil value if this data member context relationship
+/// has an anonymous data member.  That means, if the data member this
+/// relation belongs to is part of an anonymous data member.
+///
+/// @return the containing anonymous data member of this data member
+/// relationship.  Nil if there is none.
+const var_decl*
+dm_context_rel::get_anonymous_data_member() const
+{return priv_->anonymous_data_member_;}
+
+/// Set the containing anonymous data member of this data member
+/// context relationship. That means that the data member this
+/// relation belongs to is part of an anonymous data member.
+///
+/// @param anon_dm the containing anonymous data member of this data
+/// member relationship.  Nil if there is none.
+void
+dm_context_rel::set_anonymous_data_member(var_decl* anon_dm)
+{priv_->anonymous_data_member_ = anon_dm;}
+
 dm_context_rel::~dm_context_rel()
 {}
+// </class dm_context_rel stuff>
 
 // <environment stuff>
 
@@ -2650,7 +2740,32 @@ struct type_topo_comp
 	if (s1 == s2)
 	  if (qualified_type_def * q = is_qualified_type(f))
 	    if (q->get_cv_quals() == qualified_type_def::CV_NONE)
-	      return true;
+	      if (!is_qualified_type(s))
+		// We are looking at two types that are the result of
+		// an optimization that happens during the IR
+		// construction.  Namely, type f is a cv-qualified
+		// type with no qualifier (no const, no volatile, no
+		// nothing, we call it an empty-qualified type).
+		// These are the result of an optimization which
+		// removes "redundant qualifiers" from some types.
+		// For instance, consider a "const reference".  The
+		// const there is redundant because a reference is
+		// always const.  So as a result of the optimizaton
+		// that type is going to be transformed into an
+		// empty-qualified reference. If we don't make that
+		// optimization, then we risk having spurious change
+		// reports down the road.  But then, as a consequence
+		// of that optimization, we need to sort the
+		// empty-qualified type and its non-qualified variant
+		// e.g, to ensure stability in the abixml output; both
+		// types are logically equal, but here, we decide that
+		// the empty-qualified one is topologically "less
+		// than" the non-qualified counterpart.
+		//
+		// So here, type f is an empty-qualified type and type
+		// s is its non-qualified variant.  We decide that f
+		// is topologically less than s.
+		return true;
 	return (s1 < s2);
       }
 
@@ -4423,6 +4538,71 @@ is_data_member(const decl_base *d)
   return 0;
 }
 
+/// Get the first non-anonymous data member of a given anonymous data
+/// member.
+///
+/// E.g:
+///
+///   struct S
+///   {
+///     union // <-- for this anonymous data member, the function
+///           // returns a.
+///     {
+///       int a;
+///       charb;
+///     };
+///   };
+///
+/// @return anon_dm the anonymous data member to consider.
+///
+/// @return the first non-anonymous data member of @p anon_dm.  If no
+/// data member was found then this function returns @p anon_dm.
+const var_decl_sptr
+get_first_non_anonymous_data_member(const var_decl_sptr anon_dm)
+{
+  if (!anon_dm || !is_anonymous_data_member(anon_dm))
+    return anon_dm;
+
+  class_or_union_sptr klass = anonymous_data_member_to_class_or_union(anon_dm);
+ var_decl_sptr first = *klass->get_non_static_data_members().begin();
+
+ if (is_anonymous_data_member(first))
+   return get_first_non_anonymous_data_member(first);
+
+ return first;
+}
+
+/// In the context of a given class or union, this function returns
+/// the data member that is located after a given data member.
+///
+/// @param klass the class or union to consider.
+///
+/// @param the data member to consider.
+///
+/// @return the data member that is located right after @p
+/// data_member.
+const var_decl_sptr
+get_next_data_member(const class_or_union_sptr &klass,
+		     const var_decl_sptr &data_member)
+{
+  if (!klass ||!data_member)
+    return var_decl_sptr();
+
+  for (class_or_union::data_members::const_iterator it =
+	 klass->get_non_static_data_members().begin();
+       it != klass->get_non_static_data_members().end();
+       ++it)
+    if (**it == *data_member)
+      {
+	++it;
+	if (it != klass->get_non_static_data_members().end())
+	  return get_first_non_anonymous_data_member(*it);
+	break;
+      }
+
+  return var_decl_sptr();
+}
+
 /// Test if a decl is an anonymous data member.
 ///
 /// @param d the decl to consider.
@@ -4544,7 +4724,7 @@ is_anonymous_data_member(const var_decl& d)
 ///
 /// @return the @ref class_or_union type of the anonymous data member
 /// @p d.
-const class_or_union*
+class_or_union*
 anonymous_data_member_to_class_or_union(const var_decl* d)
 {
   if ((d = is_anonymous_data_member(d)))
@@ -4656,6 +4836,53 @@ get_data_member_offset(const var_decl_sptr m)
 uint64_t
 get_data_member_offset(const decl_base_sptr d)
 {return get_data_member_offset(dynamic_pointer_cast<var_decl>(d));}
+
+/// Get the absolute offset of a data member.
+///
+/// If the data member is part of an anonymous data member then this
+/// returns the absolute offset -- relative to the beginning of the
+/// containing class of the anonymous data member.
+///
+/// @param m the data member to consider.
+///
+/// @return the aboslute offset of the data member @p m.
+uint64_t
+get_absolute_data_member_offset(const var_decl& m)
+{
+  ABG_ASSERT(is_data_member(m));
+  const dm_context_rel* ctxt_rel =
+    dynamic_cast<const dm_context_rel*>(m.get_context_rel());
+  ABG_ASSERT(ctxt_rel);
+
+  const var_decl *containing_anonymous_data_member =
+    ctxt_rel->get_anonymous_data_member();
+
+  uint64_t containing_anonymous_data_member_offset = 0;
+  if (containing_anonymous_data_member)
+    containing_anonymous_data_member_offset =
+      get_absolute_data_member_offset(*containing_anonymous_data_member);
+
+  return (ctxt_rel->get_offset_in_bits()
+	  +
+	  containing_anonymous_data_member_offset);
+}
+
+/// Get the absolute offset of a data member.
+///
+/// If the data member is part of an anonymous data member then this
+/// returns the absolute offset -- relative to the beginning of the
+/// containing class of the anonymous data member.
+///
+/// @param m the data member to consider.
+///
+/// @return the aboslute offset of the data member @p m.
+uint64_t
+get_absolute_data_member_offset(const var_decl_sptr& m)
+{
+  if (!m)
+    return 0;
+  return get_absolute_data_member_offset(*m);
+}
 
 /// Get the size of a given variable.
 ///
@@ -5621,7 +5848,7 @@ canonical_type_hash::operator()(const type_base_sptr& l) const
 ///
 /// @param l the canonical type to hash.
 ///
-/// @return the the pointer value of the canonical type of @p l.
+/// @return the pointer value of the canonical type of @p l.
 size_t
 canonical_type_hash::operator()(const type_base *l) const
 {return reinterpret_cast<size_t>(l);}
@@ -7403,6 +7630,29 @@ is_at_class_scope(const decl_base& decl)
   if (class_or_union* cl = is_union_type(scope))
     return cl;
   return 0;
+}
+
+/// Find a data member inside an anonymous data member.
+///
+/// An anonymous data member has a type which is a class or union.
+/// This function looks for a data member inside the type of that
+/// anonymous data member.
+///
+/// @param anon_dm the anonymous data member to consider.
+///
+/// @param name the name of the data member to look for.
+var_decl_sptr
+find_data_member_from_anonymous_data_member(const var_decl_sptr& anon_dm,
+					    const string& name)
+{
+  const class_or_union* containing_class_or_union =
+    anonymous_data_member_to_class_or_union(anon_dm.get());
+
+  if (!containing_class_or_union)
+    return var_decl_sptr();
+
+  var_decl_sptr result = containing_class_or_union->find_data_member(name);
+  return result;
 }
 
 /// Tests whether a given decl is at template scope.
@@ -15860,7 +16110,9 @@ var_decl::get_pretty_representation(bool internal, bool qualified_name) const
     }
   else
     {
-      if (is_anonymous_data_member(this))
+      if (/*The current var_decl is to be used as an anonymous data
+	    member.  */
+	  get_name().empty())
 	{
 	  // Display the anonymous data member in a way that
 	  // makes sense.
@@ -15901,6 +16153,30 @@ var_decl::get_pretty_representation(bool internal, bool qualified_name) const
 	}
     }
   return result;
+}
+
+/// Get a name that is valid even for an anonymous data member.
+///
+/// If the current @ref var_decl is an anonymous data member, then
+/// return its pretty representation. As of now, that pretty
+/// representation is actually its flat representation as returned by
+/// get_class_or_union_flat_representation().
+///
+/// Otherwise, just return the name of the current @ref var_decl.
+///
+/// @param qualified if true, return the qualified name.  This doesn't
+/// have an effet if the current @ref var_decl represents an anonymous
+/// data member.
+string
+var_decl::get_anon_dm_reliable_name(bool qualified) const
+{
+  string name;
+  if (is_anonymous_data_member(this))
+    name = get_pretty_representation(true, qualified);
+  else
+    name = get_name();
+
+  return name;
 }
 
 /// This implements the ir_traversable_base::traverse pure virtual
@@ -18093,6 +18369,39 @@ class_or_union::remove_member_decl(decl_base_sptr decl)
   remove_member_type(t);
 }
 
+/// Fixup the members of the type of an anonymous data member.
+///
+/// Walk all data members of (the type of) a given anonymous data
+/// member and set a particular property of the relationship between
+/// each data member and its containing type.
+///
+/// That property records the fact that the data member belongs to the
+/// anonymous data member we consider.
+///
+/// In the future, if there are other properties of this relationship
+/// to set in this manner, they ought to be added here.
+///
+/// @param anon_dm the anonymous data member to consider.
+void
+class_or_union::maybe_fixup_members_of_anon_data_member(var_decl_sptr& anon_dm)
+{
+  class_or_union * anon_dm_type =
+    anonymous_data_member_to_class_or_union(anon_dm.get());
+  if (!anon_dm_type)
+    return;
+
+  for (class_or_union::data_members::const_iterator it =
+	 anon_dm_type->get_non_static_data_members().begin();
+       it != anon_dm_type->get_non_static_data_members().end();
+       ++it)
+    {
+      dm_context_rel *rel =
+	dynamic_cast<dm_context_rel*>((*it)->get_context_rel());
+      ABG_ASSERT(rel);
+      rel->set_anonymous_data_member(anon_dm.get());
+    }
+}
+
 /// Insert a member type.
 ///
 /// @param t the type to insert in the @ref class_or_union type.
@@ -18453,7 +18762,6 @@ class_or_union::add_data_member(var_decl_sptr v, access_specifier access,
   set_member_access_specifier(v, access);
   set_member_is_static(v, is_static);
 
-
   if (!is_static)
     {
       // If this is a non-static variable, add it to the set of
@@ -18471,6 +18779,13 @@ class_or_union::add_data_member(var_decl_sptr v, access_specifier access,
       if (!is_already_in)
 	priv_->non_static_data_members_.push_back(v);
     }
+
+  // If v is an anonymous data member, then fixup its data members.
+  // For now, the only thing the fixup does is to make the data
+  // members of the anonymous data member be aware of their containing
+  // anonymous data member.  That is helpful to compute the absolute
+  // bit offset of each of the members of the anonymous data member.
+  maybe_fixup_members_of_anon_data_member(v);
 }
 
 /// Get the data members of this @ref class_or_union.
@@ -18495,8 +18810,73 @@ class_or_union::find_data_member(const string& name) const
        ++i)
     if ((*i)->get_name() == name)
       return *i;
+
+  // We haven't found a data member with the name 'name'.  Let's look
+  // closer again, this time in our anonymous data members.
+  for (data_members::const_iterator i = get_data_members().begin();
+       i != get_data_members().end();
+       ++i)
+    if (is_anonymous_data_member(*i))
+      {
+	class_or_union_sptr type = is_class_or_union_type((*i)->get_type());
+	ABG_ASSERT(type);
+	if (var_decl_sptr data_member = type->find_data_member(name))
+	  return data_member;
+      }
+
   return var_decl_sptr();
 }
+
+/// Find an anonymous data member in the class.
+///
+/// @param v the anonymous data member to find.
+///
+/// @return the anonymous data member found, or nil if none was found.
+const var_decl_sptr
+class_or_union::find_anonymous_data_member(const var_decl_sptr& v) const
+{
+  if (!v->get_name().empty())
+    return var_decl_sptr();
+
+  for (data_members::const_iterator it = get_non_static_data_members().begin();
+       it != get_non_static_data_members().end();
+       ++it)
+    {
+      if (is_anonymous_data_member(*it))
+	if ((*it)->get_pretty_representation(true, true)
+	    == v->get_pretty_representation(true, true))
+	  return *it;
+    }
+
+  return var_decl_sptr();
+}
+
+/// Find a given data member.
+///
+/// This function takes a @ref var_decl as an argument.  If it has a
+/// non-empty name, then it tries to find a data member which has the
+/// same name as the argument.
+///
+/// If it has an empty name, then the @ref var_decl is considered as
+/// an anonymous data member.  In that case, this function tries to
+/// find an anonymous data member which type equals that of the @ref
+/// var_decl argument.
+///
+/// @param v this carries either the name of the data member we need
+/// to look for, or the type of the anonymous data member we are
+/// looking for.
+const var_decl_sptr
+class_or_union::find_data_member(const var_decl_sptr& v) const
+{
+  if (!v)
+    return var_decl_sptr();
+
+  if (v->get_name().empty())
+    return find_anonymous_data_member(v);
+
+  return find_data_member(v->get_name());
+}
+
 
 /// Get the non-static data memebers of this @ref class_or_union.
 ///
@@ -22800,15 +23180,7 @@ lookup_data_member(const type_base* type,
   if (!cou)
     return 0;
 
-  for (class_or_union::data_members::const_iterator i =
-	 cou->get_data_members().begin();
-       i != cou->get_data_members().end();
-       ++i)
-    {
-      if ((*i)->get_name() == dm_name)
-	return i->get();
-    }
-  return 0;
+  return cou->find_data_member(dm_name).get();
 }
 
 /// Get the function parameter designated by its index.
