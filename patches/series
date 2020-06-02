@@ -18,3 +18,4 @@ Switch-kernel-stuff-over-to-new-symtab-and-drop-unused-code.patch
 abg-elf-helpers-migrate-ppc64-specific-helpers.patch
 symtab_reader-add-support-for-ppc64-ELFv1-binaries.patch
 abg-corpus-remove-symbol-maps-and-their-setters.patch
+dwarf-reader-drop-now-unused-code-related-symbol-table-reading.patch
