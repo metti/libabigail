@@ -853,7 +853,8 @@ private:
 	     const version&	ve,
 	     visibility		vi,
 	     bool		is_linux_string_cst = false,
-	     bool		is_in_ksymtab = false);
+	     bool		is_in_ksymtab = false,
+	     bool		is_suppressed = false);
 
   elf_symbol(const elf_symbol&);
 
@@ -877,7 +878,8 @@ public:
 	 const version&	    ve,
 	 visibility	    vi,
 	 bool		    is_linux_string_cst = false,
-	 bool		    is_in_ksymtab = false);
+	 bool		    is_in_ksymtab = false,
+	 bool		    is_suppressed = false);
 
   const environment*
   get_environment() const;
@@ -950,6 +952,12 @@ public:
 
   void
   set_is_in_ksymtab(bool is_in_ksymtab);
+
+  bool
+  is_suppressed() const;
+
+  void
+  set_is_suppressed(bool is_suppressed);
 
   const elf_symbol_sptr
   get_main_symbol() const;
