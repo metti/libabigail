@@ -6,3 +6,4 @@ Fix-has_net_changes-for-leaf-changes-only-mode.patch
 abg-cxx-compat-add-simplified-version-of-std-optional-2.patch
 abg-cxx-compat-more-functional-support-std-bind-and-friends.patch
 abg-ir-elf_symbol-add-is_in_ksymtab-field.patch
+abg-ir-elf_symbol-add-is_suppressed-field.patch

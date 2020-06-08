@@ -1,0 +1,159 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Mon, 8 Jun 2020 17:47:05 +0200
+Subject: abg-ir: elf_symbol: add is_suppressed field
+
+In the context of libabigail and a single library run (when reading from
+dwarf or from xml), a symbol is either suppressed or it is not. While
+one could argue that this is a property of the read_context, the
+read_context might not be around anymore when the symbol still is.
+Hence, persist the 'is_suppressed' state along with the symbol itself.
+
+        * include/abg-ir.h (elf_symbol::elf_symbol): Add is_suppressed
+        parameter.
+        (elf_symbol::create): Likewise.
+        (elf_symbol::is_suppressed): New getter declaration.
+        (elf_symbol::set_is_suppressed): New setter declaration.
+        * src/abg-ir.cc (elf_symbol::priv::priv): Add is_suppressed
+        parameter.
+        (elf_symbol::priv::is_suppressed_): New field.
+        (elf_symbol::elf_symbol): Add is_suppressed parameter.
+        (elf_symbol::create): Likewise.
+        (elf_symbol::is_suppressed): New getter implementation.
+        (elf_symbol::set_is_suppressed): New setter implementation.
+
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ include/abg-ir.h | 12 ++++++++++--
+ src/abg-ir.cc    | 29 ++++++++++++++++++++++-------
+ 2 files changed, 32 insertions(+), 9 deletions(-)
+
+diff --git a/include/abg-ir.h b/include/abg-ir.h
+index 5766385c8b73..838d3f80695a 100644
+--- a/include/abg-ir.h
++++ b/include/abg-ir.h
+@@ -853,7 +853,8 @@ private:
+ 	     const version&	ve,
+ 	     visibility		vi,
+ 	     bool		is_linux_string_cst = false,
+-	     bool		is_in_ksymtab = false);
++	     bool		is_in_ksymtab = false,
++	     bool		is_suppressed = false);
+ 
+   elf_symbol(const elf_symbol&);
+ 
+@@ -877,7 +878,8 @@ public:
+ 	 const version&	    ve,
+ 	 visibility	    vi,
+ 	 bool		    is_linux_string_cst = false,
+-	 bool		    is_in_ksymtab = false);
++	 bool		    is_in_ksymtab = false,
++	 bool		    is_suppressed = false);
+ 
+   const environment*
+   get_environment() const;
+@@ -951,6 +953,12 @@ public:
+   void
+   set_is_in_ksymtab(bool is_in_ksymtab);
+ 
++  bool
++  is_suppressed() const;
++
++  void
++  set_is_suppressed(bool is_suppressed);
++
+   const elf_symbol_sptr
+   get_main_symbol() const;
+ 
+diff --git a/src/abg-ir.cc b/src/abg-ir.cc
+index 44021132b04d..44529c6617b0 100644
+--- a/src/abg-ir.cc
++++ b/src/abg-ir.cc
+@@ -1301,6 +1301,7 @@ struct elf_symbol::priv
+   bool			is_common_;
+   bool			is_linux_string_cst_;
+   bool			is_in_ksymtab_;
++  bool			is_suppressed_;
+   elf_symbol_wptr	main_symbol_;
+   elf_symbol_wptr	next_alias_;
+   elf_symbol_wptr	next_common_instance_;
+@@ -1316,7 +1317,8 @@ struct elf_symbol::priv
+       is_defined_(false),
+       is_common_(false),
+       is_linux_string_cst_(false),
+-      is_in_ksymtab_(false)
++      is_in_ksymtab_(false),
++      is_suppressed_(false)
+   {}
+ 
+   priv(const environment*	  e,
+@@ -1330,7 +1332,8 @@ struct elf_symbol::priv
+        const elf_symbol::version& ve,
+        elf_symbol::visibility	  vi,
+        bool			  is_linux_string_cst,
+-       bool			  is_in_ksymtab)
++       bool			  is_in_ksymtab,
++       bool			  is_suppressed)
+     : env_(e),
+       index_(i),
+       size_(s),
+@@ -1342,7 +1345,8 @@ struct elf_symbol::priv
+       is_defined_(d),
+       is_common_(c),
+       is_linux_string_cst_(is_linux_string_cst),
+-      is_in_ksymtab_(is_in_ksymtab)
++      is_in_ksymtab_(is_in_ksymtab),
++      is_suppressed_(is_suppressed)
+   {
+     if (!is_common_)
+       is_common_ = type_ == COMMON_TYPE;
+@@ -1399,7 +1403,8 @@ elf_symbol::elf_symbol(const environment* e,
+ 		       const version&	  ve,
+ 		       visibility	  vi,
+ 		       bool		  is_linux_string_cst,
+-		       bool		  is_in_ksymtab)
++		       bool		  is_in_ksymtab,
++		       bool		  is_suppressed)
+   : priv_(new priv(e,
+ 		   i,
+ 		   s,
+@@ -1411,7 +1416,8 @@ elf_symbol::elf_symbol(const environment* e,
+ 		   ve,
+ 		   vi,
+ 		   is_linux_string_cst,
+-		   is_in_ksymtab))
++		   is_in_ksymtab,
++		   is_suppressed))
+ {}
+ 
+ /// Factory of instances of @ref elf_symbol.
+@@ -1469,11 +1475,12 @@ elf_symbol::create(const environment* e,
+ 		   const version&     ve,
+ 		   visibility	      vi,
+ 		   bool		      is_linux_string_cst,
+-		   bool		      is_in_ksymtab)
++		   bool		      is_in_ksymtab,
++		   bool		      is_suppressed)
+ {
+   elf_symbol_sptr sym(new elf_symbol(e, i, s, n, t, b, d, c, ve, vi,
+ 				     is_linux_string_cst,
+-				     is_in_ksymtab));
++				     is_in_ksymtab, is_suppressed));
+   sym->priv_->main_symbol_ = sym;
+   return sym;
+ }
+@@ -1701,6 +1708,14 @@ void
+ elf_symbol::set_is_in_ksymtab(bool is_in_ksymtab)
+ {priv_->is_in_ksymtab_ = is_in_ksymtab;}
+ 
++bool
++elf_symbol::is_suppressed() const
++{return priv_->is_suppressed_;}
++
++void
++elf_symbol::set_is_suppressed(bool is_suppressed)
++{priv_->is_suppressed_ = is_suppressed;}
++
+ /// @name Elf symbol aliases
+ ///
+ /// An alias A for an elf symbol S is a symbol that is defined at the
