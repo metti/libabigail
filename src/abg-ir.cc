@@ -1301,6 +1301,7 @@ struct elf_symbol::priv
   bool			is_common_;
   bool			is_linux_string_cst_;
   bool			is_in_ksymtab_;
+  bool			is_suppressed_;
   elf_symbol_wptr	main_symbol_;
   elf_symbol_wptr	next_alias_;
   elf_symbol_wptr	next_common_instance_;
@@ -1316,7 +1317,8 @@ struct elf_symbol::priv
       is_defined_(false),
       is_common_(false),
       is_linux_string_cst_(false),
-      is_in_ksymtab_(false)
+      is_in_ksymtab_(false),
+      is_suppressed_(false)
   {}
 
   priv(const environment*	  e,
@@ -1330,7 +1332,8 @@ struct elf_symbol::priv
        const elf_symbol::version& ve,
        elf_symbol::visibility	  vi,
        bool			  is_linux_string_cst,
-       bool			  is_in_ksymtab)
+       bool			  is_in_ksymtab,
+       bool			  is_suppressed)
     : env_(e),
       index_(i),
       size_(s),
@@ -1342,7 +1345,8 @@ struct elf_symbol::priv
       is_defined_(d),
       is_common_(c),
       is_linux_string_cst_(is_linux_string_cst),
-      is_in_ksymtab_(is_in_ksymtab)
+      is_in_ksymtab_(is_in_ksymtab),
+      is_suppressed_(is_suppressed)
   {
     if (!is_common_)
       is_common_ = type_ == COMMON_TYPE;
@@ -1399,7 +1403,8 @@ elf_symbol::elf_symbol(const environment* e,
 		       const version&	  ve,
 		       visibility	  vi,
 		       bool		  is_linux_string_cst,
-		       bool		  is_in_ksymtab)
+		       bool		  is_in_ksymtab,
+		       bool		  is_suppressed)
   : priv_(new priv(e,
 		   i,
 		   s,
@@ -1411,7 +1416,8 @@ elf_symbol::elf_symbol(const environment* e,
 		   ve,
 		   vi,
 		   is_linux_string_cst,
-		   is_in_ksymtab))
+		   is_in_ksymtab,
+		   is_suppressed))
 {}
 
 /// Factory of instances of @ref elf_symbol.
@@ -1469,11 +1475,12 @@ elf_symbol::create(const environment* e,
 		   const version&     ve,
 		   visibility	      vi,
 		   bool		      is_linux_string_cst,
-		   bool		      is_in_ksymtab)
+		   bool		      is_in_ksymtab,
+		   bool		      is_suppressed)
 {
   elf_symbol_sptr sym(new elf_symbol(e, i, s, n, t, b, d, c, ve, vi,
 				     is_linux_string_cst,
-				     is_in_ksymtab));
+				     is_in_ksymtab, is_suppressed));
   sym->priv_->main_symbol_ = sym;
   return sym;
 }
@@ -1700,6 +1707,14 @@ elf_symbol::is_in_ksymtab() const
 void
 elf_symbol::set_is_in_ksymtab(bool is_in_ksymtab)
 {priv_->is_in_ksymtab_ = is_in_ksymtab;}
+
+bool
+elf_symbol::is_suppressed() const
+{return priv_->is_suppressed_;}
+
+void
+elf_symbol::set_is_suppressed(bool is_suppressed)
+{priv_->is_suppressed_ = is_suppressed;}
 
 /// @name Elf symbol aliases
 ///
