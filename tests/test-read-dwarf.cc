@@ -256,20 +256,20 @@ InOutSpec in_out_specs[] =
   {
     "data/test-read-dwarf/test25-bogus-binary.elf",
     "",
-    "",
-    "",
+    nullptr,
+    nullptr,
   },
   {
     "data/test-read-dwarf/test26-bogus-binary.elf",
     "",
-    "",
-    "",
+    nullptr,
+    nullptr,
   },
   {
     "data/test-read-dwarf/test27-bogus-binary.elf",
     "",
-    "",
-    "",
+    nullptr,
+    nullptr,
   },
   // This should be the last entry.
   {NULL, NULL, NULL, NULL}
@@ -345,10 +345,11 @@ struct test_task : public abigail::workers::task
     abigail::corpus_sptr corp = read_corpus_from_elf(*ctxt, status);
     // if there is no output and no input, assume that we do not care about the
     // actual read result, just that it succeeded.
-    if (in_abi_path.empty() && out_abi_path.empty()) {
+    if (!spec.in_abi_path && !spec.out_abi_path)
+      {
 	// Phew! we made it here and we did not crash! yay!
 	return;
-    }
+      }
     if (!corp)
       {
 	error_message = string("failed to read ") + in_elf_path  + "\n";
@@ -394,7 +395,7 @@ struct test_task : public abigail::workers::task
 	is_ok = false;
       }
 
-    in_abi_path = in_abi_base +  spec.in_abi_path;
+    in_abi_path = in_abi_base + spec.in_abi_path;
     cmd = "diff -u " + in_abi_path + " " + out_abi_path;
     if (system(cmd.c_str()))
       is_ok = false;
