@@ -1,0 +1,287 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Giuliano Procida <gprocida@google.com>
+Date: Thu, 2 Apr 2020 17:01:11 +0100
+Subject: abidiff: Flag indirect struct/union changes.
+
+Adds --flag-indirect option.
+This applies to --leaf-changes-only mode.
+
+Signed-off-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ include/abg-comparison.h                      |  6 ++
+ src/abg-comparison-priv.h                     |  2 +
+ src/abg-comparison.cc                         | 16 ++++++
+ src/abg-leaf-reporter.cc                      | 55 ++++++++++++++++++-
+ tests/data/Makefile.am                        |  1 +
+ .../test-leaf-peeling-report-indirect.txt     | 41 ++++++++++++++
+ tests/test-abidiff-exit.cc                    |  9 +++
+ tools/abidiff.cc                              |  9 ++-
+ 8 files changed, 136 insertions(+), 3 deletions(-)
+ create mode 100644 tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt
+
+diff --git a/include/abg-comparison.h b/include/abg-comparison.h
+index 51a78d29d228..87ef2510dd1e 100644
+--- a/include/abg-comparison.h
++++ b/include/abg-comparison.h
+@@ -840,6 +840,12 @@ public:
+   void
+   show_redundant_changes(bool f);
+ 
++  bool
++  flag_indirect_changes() const;
++
++  void
++  flag_indirect_changes(bool f);
++
+   bool
+   show_symbols_unreferenced_by_debug_info() const;
+ 
+diff --git a/src/abg-comparison-priv.h b/src/abg-comparison-priv.h
+index 420e7014421c..864f5a1cf6d2 100644
+--- a/src/abg-comparison-priv.h
++++ b/src/abg-comparison-priv.h
+@@ -215,6 +215,7 @@ struct diff_context::priv
+   bool					show_linkage_names_;
+   bool					show_locs_;
+   bool					show_redundant_changes_;
++  bool					flag_indirect_changes_;
+   bool					show_syms_unreferenced_by_di_;
+   bool					show_added_syms_unreferenced_by_di_;
+   bool					show_unreachable_types_;
+@@ -244,6 +245,7 @@ struct diff_context::priv
+       show_linkage_names_(false),
+       show_locs_(true),
+       show_redundant_changes_(true),
++      flag_indirect_changes_(false),
+       show_syms_unreferenced_by_di_(true),
+       show_added_syms_unreferenced_by_di_(true),
+       show_unreachable_types_(false),
+diff --git a/src/abg-comparison.cc b/src/abg-comparison.cc
+index 5797c9dd7f3f..f4979c1334b5 100644
+--- a/src/abg-comparison.cc
++++ b/src/abg-comparison.cc
+@@ -1762,6 +1762,22 @@ void
+ diff_context::show_redundant_changes(bool f)
+ {priv_->show_redundant_changes_ = f;}
+ 
++/// A getter for the flag that says if we should flag indirect class
++/// and union changes in leaf-changes-only mode.
++///
++/// @return the flag.
++bool
++diff_context::flag_indirect_changes() const
++{return priv_->flag_indirect_changes_;}
++
++/// A setter for the flag that says if we should flag indirect class
++/// and union changes in leaf-changes-only mode.
++///
++/// @param f the flag to set.
++void
++diff_context::flag_indirect_changes(bool f)
++{priv_->flag_indirect_changes_ = f;}
++
+ /// Getter for the flag that indicates if symbols not referenced by
+ /// any debug info are to be compared and reported about.
+ ///
+diff --git a/src/abg-leaf-reporter.cc b/src/abg-leaf-reporter.cc
+index f9d905abaeaf..59c81240b780 100644
+--- a/src/abg-leaf-reporter.cc
++++ b/src/abg-leaf-reporter.cc
+@@ -45,6 +45,50 @@ bool
+ leaf_reporter::diff_to_be_reported(const diff *d) const
+ {return d && d->to_be_reported() && d->has_local_changes();}
+ 
++/// See if a diff is important.
++///
++/// All changes to non-class/unions are important.
++/// Changes to class/unions are important if there are
++///   new or removed members
++///   a non-boring change to a member
++/// A non-boring change is one where the type decl has changed.
++/// So an unimportant change is one where the class/struct
++/// may have changed size but its declaration is unchanged.
++static bool
++is_important(const diff *d)
++{
++  const class_or_union_diff* cou_dif = dynamic_cast<const class_or_union_diff*>(d);
++  if (cou_dif) {
++    if (cou_dif->member_fns_changes())
++      return true;
++    if (cou_dif->data_members_changes()) {
++      if (cou_dif->class_or_union_diff::get_priv()->
++	  get_deleted_non_static_data_members_number())
++	return true;
++      if (cou_dif->class_or_union_diff::get_priv()->inserted_data_members_.size())
++	return true;
++
++      auto& changed_dm = cou_dif->class_or_union_diff::get_priv()->sorted_changed_dm_;
++      for (const auto& sub_dif : changed_dm) {
++	auto n1 = sub_dif->first_var()->get_pretty_representation();
++	auto n2 = sub_dif->second_var()->get_pretty_representation();
++	if (n1 != n2)
++	  return true;
++      }
++
++      auto& subtype_changed_dm = cou_dif->class_or_union_diff::get_priv()->sorted_subtype_changed_dm_;
++      for (const auto& sub_dif : subtype_changed_dm) {
++	auto n1 = sub_dif->first_var()->get_pretty_representation();
++	auto n2 = sub_dif->second_var()->get_pretty_representation();
++	if (n1 != n2)
++	  return true;
++      }
++    }
++    return false;
++  }
++  return true;
++}
++
+ /// Report the changes carried by the diffs contained in an instance
+ /// of @ref string_diff_ptr_map.
+ ///
+@@ -83,9 +127,16 @@ report_diffs(const reporter_base& r,
+ 	  report_loc_info((*i)->first_subject(),
+ 			  *(*i)->context(), out);
+ 
+-	  out << "' changed:\n";
++	  diff* canon_diff = (*i)->get_canonical_diff();
++
++	  out << "' changed";
++	  // Work out whether the diff has only indirect changes.
++	  if ((*i)->context()->flag_indirect_changes()
++	      && !is_important(canon_diff))
++	    out << " (indirectly)";
++	  out << ":\n";
+ 
+-	  (*i)->get_canonical_diff()->report(out, indent + "  ");
++	  canon_diff->report(out, indent + "  ");
+ 	  started_to_emit = true;
+ 	}
+     }
+diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
+index 6592ba322cbc..3cdcacd86759 100644
+--- a/tests/data/Makefile.am
++++ b/tests/data/Makefile.am
+@@ -135,6 +135,7 @@ test-abidiff-exit/test-leaf-peeling-v0.o \
+ test-abidiff-exit/test-leaf-peeling-v1.cc \
+ test-abidiff-exit/test-leaf-peeling-v1.o \
+ test-abidiff-exit/test-leaf-peeling-report.txt \
++test-abidiff-exit/test-leaf-peeling-report-indirect.txt \
+ test-abidiff-exit/test-leaf-cxx-members-v0.cc \
+ test-abidiff-exit/test-leaf-cxx-members-v0.o \
+ test-abidiff-exit/test-leaf-cxx-members-v1.cc \
+diff --git a/tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt b/tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt
+new file mode 100644
+index 000000000000..6a3e479978a5
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt
+@@ -0,0 +1,41 @@
++Leaf changes summary: 6 artifacts changed
++Changed leaf types summary: 6 leaf types changed
++Removed/Changed/Added functions summary: 0 Removed, 0 Changed, 0 Added function
++Removed/Changed/Added variables summary: 0 Removed, 0 Changed, 0 Added variable
++
++'struct foo at test-leaf-peeling-v0.cc:2:1' changed:
++  type size changed from 32 to 64 (in bits)
++  there are data member changes:
++    type 'int' of 'foo::z' changed:
++      type name changed from 'int' to 'long int'
++      type size changed from 32 to 64 (in bits)
++
++'struct ops1 at test-leaf-peeling-v0.cc:6:1' changed:
++  type size hasn't changed
++  there are data member changes:
++    type 'int*' of 'ops1::x' changed:
++      pointer type changed from: 'int*' to: 'int**'
++
++'struct ops2 at test-leaf-peeling-v0.cc:10:1' changed (indirectly):
++  type size changed from 320 to 640 (in bits)
++  there are data member changes:
++    'foo ops2::y[10]' size changed from 320 to 640 (in bits) (by +320 bits)
++
++'struct ops3 at test-leaf-peeling-v0.cc:14:1' changed:
++  type size hasn't changed
++  there are data member changes:
++    type 'void (int&)*' of 'ops3::spong' changed:
++      pointer type changed from: 'void (int&)*' to: 'void (int&&)*'
++
++'struct ops4 at test-leaf-peeling-v0.cc:18:1' changed:
++  type size hasn't changed
++  there are data member changes:
++    type 'int*' of 'ops4::x' changed:
++      entity changed from 'int*' to 'int&'
++      type size hasn't changed
++
++'struct ops5 at test-leaf-peeling-v0.cc:22:1' changed:
++  type size hasn't changed
++  there are data member changes:
++    type 'int*' of 'ops5::x' changed:
++      pointer type changed from: 'int*' to: 'int***'
+diff --git a/tests/test-abidiff-exit.cc b/tests/test-abidiff-exit.cc
+index 4d9c19437e60..2a5ac24995c0 100644
+--- a/tests/test-abidiff-exit.cc
++++ b/tests/test-abidiff-exit.cc
+@@ -166,6 +166,15 @@ InOutSpec in_out_specs[] =
+     "data/test-abidiff-exit/test-leaf-peeling-report.txt",
+     "output/test-abidiff-exit/test-leaf-peeling-report.txt"
+   },
++  {
++    "data/test-abidiff-exit/test-leaf-peeling-v0.o",
++    "data/test-abidiff-exit/test-leaf-peeling-v1.o",
++    "",
++    "--leaf-changes-only --flag-indirect",
++    abigail::tools_utils::ABIDIFF_ABI_CHANGE,
++    "data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt",
++    "output/test-abidiff-exit/test-leaf-peeling-report-indirect.txt"
++  },
+   {
+     "data/test-abidiff-exit/test-leaf-cxx-members-v0.o",
+     "data/test-abidiff-exit/test-leaf-cxx-members-v1.o",
+diff --git a/tools/abidiff.cc b/tools/abidiff.cc
+index 162d5ebc388a..f9cd71135859 100644
+--- a/tools/abidiff.cc
++++ b/tools/abidiff.cc
+@@ -109,6 +109,7 @@ struct options
+   bool			show_harmful_changes;
+   bool			show_harmless_changes;
+   bool			show_redundant_changes;
++  bool			flag_indirect_changes;
+   bool			show_symbols_not_referenced_by_debug_info;
+   bool			show_impacted_interfaces;
+   bool			dump_diff_tree;
+@@ -150,6 +151,7 @@ struct options
+       show_harmful_changes(true),
+       show_harmless_changes(),
+       show_redundant_changes(),
++      flag_indirect_changes(),
+       show_symbols_not_referenced_by_debug_info(true),
+       show_impacted_interfaces(),
+       dump_diff_tree(),
+@@ -235,6 +237,8 @@ display_usage(const string& prog_name, ostream& out)
+     << " --redundant  display redundant changes\n"
+     << " --no-redundant  do not display redundant changes "
+     "(this is the default)\n"
++    << " --flag-indirect  label class/union diffs as indirect when all members "
++    << "have the same names and type names (leaf mode only)\n"
+     << " --impacted-interfaces  display interfaces impacted by leaf changes\n"
+     << " --dump-diff-tree  emit a debug dump of the internal diff tree to "
+     "the error output stream\n"
+@@ -570,6 +574,8 @@ parse_command_line(int argc, char* argv[], options& opts)
+ 	opts.show_redundant_changes = true;
+       else if (!strcmp(argv[i], "--no-redundant"))
+ 	opts.show_redundant_changes = false;
++      else if (!strcmp(argv[i], "--flag-indirect"))
++	opts.flag_indirect_changes = true;
+       else if (!strcmp(argv[i], "--impacted-interfaces"))
+ 	opts.show_impacted_interfaces = true;
+       else if (!strcmp(argv[i], "--dump-diff-tree"))
+@@ -690,7 +696,8 @@ set_diff_context_from_opts(diff_context_sptr ctxt,
+   // redundancy analysis pass altogether.  That could help save a
+   // couple of CPU cycle here and there!
+   ctxt->show_redundant_changes(opts.show_redundant_changes
+-                               || opts.leaf_changes_only);
++			       || opts.leaf_changes_only);
++  ctxt->flag_indirect_changes(opts.flag_indirect_changes);
+   ctxt->show_symbols_unreferenced_by_debug_info
+     (opts.show_symbols_not_referenced_by_debug_info);
+   ctxt->show_added_symbols_unreferenced_by_debug_info

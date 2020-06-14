@@ -44,10 +44,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 135 insertions(+)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index a60f46255c16..e07697673af5 100644
+index 05130730d5ec..0d49170fc545 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -7689,6 +7689,66 @@ public:
+@@ -6162,6 +6162,66 @@ public:
  
      symbol_address = maybe_adjust_fn_sym_address(symbol_address);
      symbol = lookup_elf_symbol_from_address(symbol_address);
@@ -95,16 +95,16 @@ index a60f46255c16..e07697673af5 100644
 +	    // variable symbols
 +
 +	    string_elf_symbols_map_type::const_iterator it
-+		= fun_syms().find(name);
-+	    if (it != fun_syms().end())
++		= fun_syms_sptr()->find(name);
++	    if (it != fun_syms_sptr()->end())
 +	      {
 +		symbol = it->second[0];
 +	      }
 +
 +	    if (!symbol)
 +	      {
-+		it = var_syms().find(name);
-+		if (it != var_syms().end())
++		it = var_syms_sptr()->find(name);
++		if (it != var_syms_sptr()->end())
 +		  {
 +		    symbol = it->second[0];
 +		  }
@@ -114,7 +114,7 @@ index a60f46255c16..e07697673af5 100644
      return symbol;
    }
  
-@@ -8075,6 +8135,81 @@ public:
+@@ -6548,6 +6608,81 @@ public:
  	    adjusted_symbol_address =
  	      maybe_adjust_var_sym_address(symbol_address);
  	    symbol = lookup_elf_symbol_from_address(adjusted_symbol_address);
@@ -160,8 +160,8 @@ index a60f46255c16..e07697673af5 100644
 +		    if (it != fun_syms().end())
 +		      {
 +			symbol = it->second[0];
-+			for (I = fun_addr_sym_map().begin(),
-+			    E = fun_addr_sym_map().end();
++			for (I = fun_addr_sym_map_->begin(),
++			    E = fun_addr_sym_map_->end();
 +			     I != E; ++I)
 +			  {
 +			    if (I->second->get_name() == name)

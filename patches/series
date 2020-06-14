@@ -1,8 +1,9 @@
 #
 # mm-next patches on top of origin/master
 #
-
+abipkgdiff-remove-unused-includes-of-elfutils-libdw.h-and-elf.h.patch
 dwarf-reader-support-ksymtab-symbol-lookup-by-name.patch
 dwarf-reader-name-based-lookup-add-support-for-aliased-symbols.patch
-reader-context-do-not-reuse-current-corpus-and-corpus_group.patch
-corpus-writer-sort-emitted-translation-units-by-path-name.patch
+abidiff-Flag-indirect-struct-union-changes.patch
+Fix-has_net_changes-for-leaf-changes-only-mode.patch
+Fix-bug-that-suppressed-DWARF-read-tests.patch

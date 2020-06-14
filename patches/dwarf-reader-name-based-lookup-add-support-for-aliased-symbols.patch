@@ -21,17 +21,17 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 6 insertions(+), 4 deletions(-)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index e07697673af5..db3c0860c30b 100644
+index 0d49170fc545..1676d5483b9f 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -8176,14 +8176,15 @@ public:
+@@ -6649,14 +6649,15 @@ public:
  			= fun_syms().find(name);
  		    if (it != fun_syms().end())
  		      {
 -			symbol = it->second[0];
 +			symbol = it->second[0]->get_main_symbol();
- 			for (I = fun_addr_sym_map().begin(),
- 			    E = fun_addr_sym_map().end();
+ 			for (I = fun_addr_sym_map_->begin(),
+ 			    E = fun_addr_sym_map_->end();
  			     I != E; ++I)
  			  {
 -			    if (I->second->get_name() == name)
@@ -42,7 +42,7 @@ index e07697673af5..db3c0860c30b 100644
  			      }
  			  }
  		      }
-@@ -8195,14 +8196,15 @@ public:
+@@ -6668,14 +6669,15 @@ public:
  			it = var_syms().find(name);
  			if (it != var_syms().end())
  			  {
