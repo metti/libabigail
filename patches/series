@@ -6,4 +6,3 @@ dwarf-reader-name-based-lookup-add-support-for-aliased-symbols.patch
 abidiff-Flag-indirect-struct-union-changes.patch
 Fix-has_net_changes-for-leaf-changes-only-mode.patch
 Fix-bug-that-suppressed-DWARF-read-tests.patch
-abg-writer-Add-support-for-stable-hash-type-ids.patch
