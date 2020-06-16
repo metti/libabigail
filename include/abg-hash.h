@@ -23,8 +23,8 @@
 #ifndef __ABG_HASH_H__
 #define __ABG_HASH_H__
 
+#include <stdint.h>
 #include <cstddef>
-#include <cstdint>
 #include <string>
 
 namespace abigail
