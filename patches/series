@@ -1,7 +1,5 @@
 #
 # mm-next patches on top of origin/master
 #
-dwarf-reader-support-ksymtab-symbol-lookup-by-name.patch
-dwarf-reader-name-based-lookup-add-support-for-aliased-symbols.patch
 abidiff-Flag-indirect-struct-union-changes.patch
 Fix-has_net_changes-for-leaf-changes-only-mode.patch
