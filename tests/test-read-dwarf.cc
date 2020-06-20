@@ -356,22 +356,22 @@ InOutSpec in_out_specs[] =
     "data/test-read-dwarf/test25-bogus-binary.elf",
     "",
     SEQUENCE_TYPE_ID_STYLE,
-    nullptr,
-    nullptr,
+    NULL,
+    NULL,
   },
   {
     "data/test-read-dwarf/test26-bogus-binary.elf",
     "",
     SEQUENCE_TYPE_ID_STYLE,
-    nullptr,
-    nullptr,
+    NULL,
+    NULL,
   },
   {
     "data/test-read-dwarf/test27-bogus-binary.elf",
     "",
     SEQUENCE_TYPE_ID_STYLE,
-    nullptr,
-    nullptr,
+    NULL,
+    NULL,
   },
   // This should be the last entry.
   {NULL, NULL, SEQUENCE_TYPE_ID_STYLE, NULL, NULL}

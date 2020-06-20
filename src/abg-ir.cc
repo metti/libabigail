@@ -1725,11 +1725,7 @@ elf_symbol::is_main_symbol() const
 ///@return the alias, or NULL if there is no alias.
 elf_symbol_sptr
 elf_symbol::get_next_alias() const
-{
-  if (priv_->next_alias_.expired())
-    return elf_symbol_sptr();
-  return elf_symbol_sptr(priv_->next_alias_);
-}
+{return priv_->next_alias_.lock();}
 
 
 /// Check if the current elf_symbol has an alias.
@@ -1828,11 +1824,7 @@ elf_symbol::has_other_common_instances() const
 /// @return the next common instance, or nil if there is not any.
 elf_symbol_sptr
 elf_symbol::get_next_common_instance() const
-{
-  if (priv_->next_common_instance_.expired())
-    return elf_symbol_sptr();
-  return elf_symbol_sptr(priv_->next_common_instance_);
-}
+{return priv_->next_common_instance_.lock();}
 
 /// Add a common instance to the current common elf symbol.
 ///
@@ -3542,6 +3534,15 @@ decl_base::decl_base(const decl_base& d)
 const interned_string&
 decl_base::peek_qualified_name() const
 {return priv_->qualified_name_;}
+
+/// Clear the qualified name of this decl.
+///
+/// This is useful to ensure that the cache for the qualified name of
+/// the decl is refreshed right after type canonicalization, for
+/// instance.
+void
+decl_base::clear_qualified_name()
+{priv_->qualified_name_.clear();}
 
 /// Setter for the qualified name.
 ///
@@ -12109,11 +12110,7 @@ type_base::type_base(const environment* e, size_t s, size_t a)
 /// type.
 type_base_sptr
 type_base::get_canonical_type() const
-{
-  if (priv_->canonical_type.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->canonical_type);
-}
+{return priv_->canonical_type.lock();}
 
 /// Getter of the canonical type pointer.
 ///
@@ -13117,6 +13114,17 @@ qualified_type_def::build_name(bool fully_qualified, bool internal) const
 				    fully_qualified, internal);
 }
 
+/// This function is automatically invoked whenever an instance of
+/// this type is canonicalized.
+///
+/// It's an overload of the virtual type_base::on_canonical_type_set.
+///
+/// We put here what is thus meant to be executed only at the point of
+/// type canonicalization.
+void
+qualified_type_def::on_canonical_type_set()
+{clear_qualified_name();}
+
 /// Constructor of the qualified_type_def
 ///
 /// @param type the underlying type
@@ -13400,11 +13408,7 @@ qualified_type_def::get_cv_quals_string_prefix() const
 /// Getter of the underlying type
 shared_ptr<type_base>
 qualified_type_def::get_underlying_type() const
-{
-  if (priv_->underlying_type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->underlying_type_);
-}
+{return priv_->underlying_type_.lock();}
 
 /// Non-member equality operator for @ref qualified_type_def
 ///
@@ -13517,6 +13521,17 @@ struct pointer_type_def::priv
     : naked_pointed_to_type_()
   {}
 }; //end struct pointer_type_def
+
+/// This function is automatically invoked whenever an instance of
+/// this type is canonicalized.
+///
+/// It's an overload of the virtual type_base::on_canonical_type_set.
+///
+/// We put here what is thus meant to be executed only at the point of
+/// type canonicalization.
+void
+pointer_type_def::on_canonical_type_set()
+{clear_qualified_name();}
 
 pointer_type_def::pointer_type_def(const type_base_sptr&	pointed_to,
 				   size_t			size_in_bits,
@@ -13639,11 +13654,7 @@ pointer_type_def::operator==(const pointer_type_def& other) const
 /// @return the pointed-to type.
 const type_base_sptr
 pointer_type_def::get_pointed_to_type() const
-{
-  if (priv_->pointed_to_type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->pointed_to_type_);
-}
+{return priv_->pointed_to_type_.lock();}
 
 /// Getter of a naked pointer to the pointed-to type.
 ///
@@ -13803,6 +13814,17 @@ operator!=(const pointer_type_def_sptr& l, const pointer_type_def_sptr& r)
 
 // <reference_type_def definitions>
 
+/// This function is automatically invoked whenever an instance of
+/// this type is canonicalized.
+///
+/// It's an overload of the virtual type_base::on_canonical_type_set.
+///
+/// We put here what is thus meant to be executed only at the point of
+/// type canonicalization.
+void
+reference_type_def::on_canonical_type_set()
+{clear_qualified_name();}
+
 reference_type_def::reference_type_def(const type_base_sptr	pointed_to,
 				       bool			lvalue,
 				       size_t			size_in_bits,
@@ -13938,11 +13960,7 @@ reference_type_def::operator==(const reference_type_def& o) const
 
 type_base_sptr
 reference_type_def::get_pointed_to_type() const
-{
-  if (pointed_to_type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(pointed_to_type_);
-}
+{return pointed_to_type_.lock();}
 
 bool
 reference_type_def::is_lvalue() const
@@ -14258,11 +14276,7 @@ array_type_def::subrange_type::subrange_type(const environment* env,
 /// @return the underlying type.
 type_base_sptr
 array_type_def::subrange_type::get_underlying_type() const
-{
-  if (priv_->underlying_type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->underlying_type_);
-}
+{return priv_->underlying_type_.lock();}
 
 /// Setter of the underlying type of the subrange, that is, the type
 /// that defines the range.
@@ -14796,11 +14810,7 @@ array_type_def::operator==(const type_base& o) const
 /// @return the type of an array element.
 const type_base_sptr
 array_type_def::get_element_type() const
-{
-  if (priv_->element_type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->element_type_);
-}
+{return priv_->element_type_.lock();}
 
 /// Setter of the type of array element.
 ///
@@ -15666,11 +15676,7 @@ typedef_decl::get_pretty_representation(bool internal,
 /// @return the underlying_type.
 type_base_sptr
 typedef_decl::get_underlying_type() const
-{
-  if (priv_->underlying_type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->underlying_type_);
-}
+{return priv_->underlying_type_.lock();}
 
 /// This implements the ir_traversable_base::traverse pure virtual
 /// function.
@@ -15760,11 +15766,7 @@ var_decl::var_decl(const string&	name,
 /// @return the type of the variable.
 const type_base_sptr
 var_decl::get_type() const
-{
-  if (priv_->type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->type_);
-}
+{return priv_->type_.lock();}
 
 /// Getter of the type of the variable.
 ///
@@ -16272,6 +16274,20 @@ struct function_type::priv
   }
 };// end struc function_type::priv
 
+/// This function is automatically invoked whenever an instance of
+/// this type is canonicalized.
+///
+/// It's an overload of the virtual type_base::on_canonical_type_set.
+///
+/// We put here what is thus meant to be executed only at the point of
+/// type canonicalization.
+void
+function_type::on_canonical_type_set()
+{
+  priv_->cached_name_.clear();
+  priv_->internal_cached_name_.clear();
+}
+
 /// The most straightforward constructor for the function_type class.
 ///
 /// @param return_type the return type of the function type.
@@ -16357,11 +16373,7 @@ function_type::function_type(const environment* env,
 /// @return the return type.
 type_base_sptr
 function_type::get_return_type() const
-{
-  if (priv_->return_type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->return_type_);
-}
+{return priv_->return_type_.lock();}
 
 /// Setter of the return type of the current instance of @ref
 /// function_type.
@@ -17203,11 +17215,7 @@ function_decl::get_first_non_implicit_parm() const
 /// @return the type of the current instance of @ref function_decl.
 const shared_ptr<function_type>
 function_decl::get_type() const
-{
-  if (priv_->type_.expired())
-    return function_type_sptr();
-  return function_type_sptr(priv_->type_);
-}
+{return priv_->type_.lock();}
 
 /// Fast getter of the type of the current instance of @ref function_decl.
 ///
@@ -17727,11 +17735,7 @@ function_decl::parameter::parameter(const type_base_sptr	type,
 
 const type_base_sptr
 function_decl::parameter::get_type()const
-{
-  if (priv_->type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->type_);
-}
+{return priv_->type_.lock();}
 
 /// @return a copy of the type name of the parameter.
 interned_string
@@ -18567,11 +18571,7 @@ class_or_union::set_is_declaration_only(bool f)
 /// @return the naming typedef, if any.  Otherwise, returns nil.
 typedef_decl_sptr
 class_or_union::get_naming_typedef() const
-{
-  if (priv_->naming_typedef_.expired())
-    return typedef_decl_sptr();
-  return typedef_decl_sptr(priv_->naming_typedef_);
-}
+{return priv_->naming_typedef_.lock();}
 
 /// Set the naming typedef of the current instance of @ref class_decl.
 ///
@@ -18609,11 +18609,7 @@ class_or_union::set_definition_of_declaration(class_or_union_sptr d)
 /// @return the definition of this decl-only class.
 const class_or_union_sptr
 class_or_union::get_definition_of_declaration() const
-{
-  if (priv_->definition_of_declaration_.expired())
-    return class_or_union_sptr();
-  return class_or_union_sptr(priv_->definition_of_declaration_);
-}
+{return priv_->definition_of_declaration_.lock();}
 
 ///  If this @ref class_or_union is declaration-only, get its
 ///  definition, if any.
@@ -19916,11 +19912,7 @@ class_decl::base_spec::base_spec(const class_decl_sptr& base,
 /// @return the base class.
 class_decl_sptr
 class_decl::base_spec::get_base_class() const
-{
-  if (priv_->base_class_.expired())
-    return class_decl_sptr();
-  return class_decl_sptr(priv_->base_class_);
-}
+{return priv_->base_class_.lock();}
 
 /// Getter of the "is-virtual" proprerty of the base class specifier.
 ///
@@ -21896,11 +21888,7 @@ template_parameter::get_index() const
 
 const template_decl_sptr
 template_parameter::get_enclosing_template_decl() const
-{
-  if (priv_->template_decl_.expired())
-    return template_decl_sptr();
-  return template_decl_sptr(priv_->template_decl_);
-}
+{return priv_->template_decl_.lock();}
 
 bool
 template_parameter::get_hashing_has_started() const
@@ -22068,11 +22056,7 @@ non_type_tparameter::non_type_tparameter(unsigned		index,
 /// @return the type of the template parameter.
 const type_base_sptr
 non_type_tparameter::get_type() const
-{
-  if (priv_->type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->type_);
-}
+{return priv_->type_.lock();}
 
 /// Get the hash value of the current instance.
 ///
@@ -22241,11 +22225,7 @@ type_composition::type_composition(unsigned		index,
 /// @return the composed type.
 const type_base_sptr
 type_composition::get_composed_type() const
-{
-  if (priv_->type_.expired())
-    return type_base_sptr();
-  return type_base_sptr(priv_->type_);
-}
+{return priv_->type_.lock();}
 
 /// Setter for the resulting composed type.
 ///
