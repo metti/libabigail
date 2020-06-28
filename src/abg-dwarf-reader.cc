@@ -13003,8 +13003,16 @@ function_is_suppressed(const read_context& ctxt,
       if (!ctxt.get_function_address(function_die, fn_addr))
 	return true;
 
-      if (!ctxt.function_symbol_is_exported(fn_addr))
+      elf_symbol_sptr symbol = ctxt.function_symbol_is_exported(fn_addr);
+      if (!symbol)
 	return true;
+      if (!symbol->is_suppressed())
+	return false;
+      if (symbol->has_aliases() && symbol->is_main_symbol())
+	for (elf_symbol_sptr a = symbol->get_next_alias();
+	     !a->is_main_symbol(); a = a->get_next_alias())
+	  if (!a->is_suppressed())
+	    return false;
     }
 
   return suppr::function_is_suppressed(ctxt, qualified_name,
@@ -13108,8 +13116,16 @@ variable_is_suppressed(const read_context& ctxt,
       if (!ctxt.get_variable_address(variable_die, var_addr))
 	return true;
 
-      if (!ctxt.variable_symbol_is_exported(var_addr))
+      elf_symbol_sptr symbol = ctxt.variable_symbol_is_exported(var_addr);
+      if (!symbol)
 	return true;
+      if (!symbol->is_suppressed())
+	return false;
+      if (symbol->has_aliases() && symbol->is_main_symbol())
+	for (elf_symbol_sptr a = symbol->get_next_alias();
+	     !a->is_main_symbol(); a = a->get_next_alias())
+	  if (!a->is_suppressed())
+	    return false;
     }
 
   return suppr::variable_is_suppressed(ctxt, qualified_name,
