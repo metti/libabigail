@@ -411,6 +411,14 @@ test-read-dwarf/test3.c		\
 test-read-dwarf/test3.so		\
 test-read-dwarf/test3.so.abi		\
 test-read-dwarf/test3.so.hash.abi	\
+test-read-dwarf/test3-alias-1.so.hash.abi \
+test-read-dwarf/test3-alias-1.suppr \
+test-read-dwarf/test3-alias-2.so.hash.abi \
+test-read-dwarf/test3-alias-2.suppr \
+test-read-dwarf/test3-alias-3.so.hash.abi \
+test-read-dwarf/test3-alias-3.suppr \
+test-read-dwarf/test3-alias-4.so.hash.abi \
+test-read-dwarf/test3-alias-4.suppr \
 test-read-dwarf/test4.c		\
 test-read-dwarf/test4.so		\
 test-read-dwarf/test4.so.abi		\
