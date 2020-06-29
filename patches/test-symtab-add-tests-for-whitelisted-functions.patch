@@ -1,0 +1,234 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Mon, 29 Jun 2020 15:06:48 +0200
+Subject: test-symtab: add tests for whitelisted functions
+
+Extend the test functionality in test-symtab to allow processing of KMI
+whitelists and add additional test cases for whitelist handling.
+
+	* tests/data/Makefile.am: add new test files
+	* tests/data/test-symtab/basic/ofov_all.whitelist: New test file,
+	* tests/data/test-symtab/basic/ofov_function.whitelist: Likewise.
+	* tests/data/test-symtab/basic/ofov_irrelevant.whitelist: Likewise.
+	* tests/data/test-symtab/basic/ofov_variable.whitelist: Likewise.
+	* tests/test-symtab.cc (read_corpus): Add support for whitelists.
+	(assert_symbol_count): Likewise.
+	(Symtab::SymtabWithWhitelist): New testcase.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ tests/data/Makefile.am                        |   4 +
+ .../one_function_one_variable_all.whitelist   |   3 +
+ ...e_function_one_variable_function.whitelist |   2 +
+ ...function_one_variable_irrelevant.whitelist |   2 +
+ ...e_function_one_variable_variable.whitelist |   2 +
+ tests/test-symtab.cc                          | 103 ++++++++++++++++--
+ 6 files changed, 109 insertions(+), 7 deletions(-)
+ create mode 100644 tests/data/test-symtab/basic/one_function_one_variable_all.whitelist
+ create mode 100644 tests/data/test-symtab/basic/one_function_one_variable_function.whitelist
+ create mode 100644 tests/data/test-symtab/basic/one_function_one_variable_irrelevant.whitelist
+ create mode 100644 tests/data/test-symtab/basic/one_function_one_variable_variable.whitelist
+
+diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
+index 767ae859a4f7..c9a59a847bf0 100644
+--- a/tests/data/Makefile.am
++++ b/tests/data/Makefile.am
+@@ -1769,6 +1769,10 @@ test-symtab/basic/no_debug_info.c \
+ test-symtab/basic/no_debug_info.so \
+ test-symtab/basic/one_function_one_variable.c \
+ test-symtab/basic/one_function_one_variable.so \
++test-symtab/basic/one_function_one_variable_variable.whitelist \
++test-symtab/basic/one_function_one_variable_function.whitelist \
++test-symtab/basic/one_function_one_variable_irrelevant.whitelist \
++test-symtab/basic/one_function_one_variable_all.whitelist \
+ test-symtab/basic/one_function_one_variable_undefined.c \
+ test-symtab/basic/one_function_one_variable_undefined.so \
+ test-symtab/basic/single_function.c \
+diff --git a/tests/data/test-symtab/basic/one_function_one_variable_all.whitelist b/tests/data/test-symtab/basic/one_function_one_variable_all.whitelist
+new file mode 100644
+index 000000000000..02ea310960ff
+--- /dev/null
++++ b/tests/data/test-symtab/basic/one_function_one_variable_all.whitelist
+@@ -0,0 +1,3 @@
++[abi_whitelist]
++  exported_function
++  exported_variable
+diff --git a/tests/data/test-symtab/basic/one_function_one_variable_function.whitelist b/tests/data/test-symtab/basic/one_function_one_variable_function.whitelist
+new file mode 100644
+index 000000000000..893accc14118
+--- /dev/null
++++ b/tests/data/test-symtab/basic/one_function_one_variable_function.whitelist
+@@ -0,0 +1,2 @@
++[abi_whitelist]
++  exported_function
+diff --git a/tests/data/test-symtab/basic/one_function_one_variable_irrelevant.whitelist b/tests/data/test-symtab/basic/one_function_one_variable_irrelevant.whitelist
+new file mode 100644
+index 000000000000..180ef9064e8f
+--- /dev/null
++++ b/tests/data/test-symtab/basic/one_function_one_variable_irrelevant.whitelist
+@@ -0,0 +1,2 @@
++[abi_whitelist]
++  irrelevant
+diff --git a/tests/data/test-symtab/basic/one_function_one_variable_variable.whitelist b/tests/data/test-symtab/basic/one_function_one_variable_variable.whitelist
+new file mode 100644
+index 000000000000..49d838f2c559
+--- /dev/null
++++ b/tests/data/test-symtab/basic/one_function_one_variable_variable.whitelist
+@@ -0,0 +1,2 @@
++[abi_whitelist]
++  exported_variable
+diff --git a/tests/test-symtab.cc b/tests/test-symtab.cc
+index c144b1d080f6..09e5193fa667 100644
+--- a/tests/test-symtab.cc
++++ b/tests/test-symtab.cc
+@@ -26,11 +26,14 @@
+ 
+ #include <iostream>
+ #include <limits>
++#include <string>
+ #include <vector>
+ 
+ #include "abg-corpus.h"
+ #include "abg-dwarf-reader.h"
++#include "abg-fwd.h"
+ #include "abg-ir.h"
++#include "abg-tools-utils.h"
+ #include "lib/catch.hpp"
+ #include "test-utils.h"
+ 
+@@ -41,12 +44,16 @@ using dwarf_reader::read_context_sptr;
+ using dwarf_reader::read_corpus_from_elf;
+ using ir::environment;
+ using ir::environment_sptr;
++using suppr::suppressions_type;
+ 
+ static const std::string test_data_dir =
+     std::string(abigail::tests::get_src_dir()) + "/tests/data/test-symtab/";
+ 
+ dwarf_reader::status
+-read_corpus(const std::string path, corpus_sptr& result)
++read_corpus(
++  const std::string&		  path,
++  corpus_sptr&			  result,
++  const std::vector<std::string>& whitelist_paths = std::vector<std::string>())
+ {
+   const std::string& absolute_path = test_data_dir + path;
+ 
+@@ -56,6 +63,15 @@ read_corpus(const std::string path, corpus_sptr& result)
+       absolute_path, debug_info_root_paths, env.get(),
+       /* load_all_type = */ true, /* linux_kernel_mode = */ true);
+ 
++  if (!whitelist_paths.empty())
++    {
++      const suppressions_type& wl_suppr =
++	tools_utils::gen_suppr_spec_from_kernel_abi_whitelists(
++	  whitelist_paths);
++      REQUIRE_FALSE(wl_suppr.empty());
++      dwarf_reader::add_read_context_suppressions(*ctxt, wl_suppr);
++    }
++
+   dwarf_reader::status status = dwarf_reader::STATUS_UNKNOWN;
+   result = read_corpus_from_elf(*ctxt, status);
+ 
+@@ -91,14 +107,17 @@ TEST_CASE("Symtab::NoDebugInfo", "[symtab, basic]")
+ #define N std::numeric_limits<size_t>::max()
+ 
+ corpus_sptr
+-assert_symbol_count(const std::string& path,
+-		    size_t	       function_symbols = 0,
+-		    size_t	       variable_symbols = 0,
+-		    size_t	       undefined_function_symbols = 0,
+-		    size_t	       undefined_variable_symbols = 0)
++assert_symbol_count(
++  const std::string&		  path,
++  size_t			  function_symbols = 0,
++  size_t			  variable_symbols = 0,
++  size_t			  undefined_function_symbols = 0,
++  size_t			  undefined_variable_symbols = 0,
++  const std::vector<std::string>& whitelist_paths = std::vector<std::string>())
+ {
+   corpus_sptr		     corpus_ptr;
+-  const dwarf_reader::status status = read_corpus(path, corpus_ptr);
++  const dwarf_reader::status status =
++    read_corpus(path, corpus_ptr, whitelist_paths);
+   REQUIRE(corpus_ptr);
+ 
+   REQUIRE((status & dwarf_reader::STATUS_OK));
+@@ -203,6 +222,76 @@ TEST_CASE("Symtab::SimpleSymtabs", "[symtab, basic]")
+   }
+ }
+ 
++TEST_CASE("Symtab::SymtabWithWhitelist", "[symtab, whitelist]")
++{
++  GIVEN("a binary with one function and one variable exported")
++  {
++    const std::string binary = "basic/one_function_one_variable.so";
++
++    GIVEN("we read the binary without any whitelists")
++    {
++      const corpus_sptr& corpus = assert_symbol_count(binary, 1, 1);
++      CHECK(corpus->lookup_function_symbol("exported_function"));
++      CHECK(!corpus->lookup_variable_symbol("exported_function"));
++      CHECK(corpus->lookup_variable_symbol("exported_variable"));
++      CHECK(!corpus->lookup_function_symbol("exported_variable"));
++    }
++
++    GIVEN("we read the binary with all symbols on the whitelists")
++    {
++      std::vector<std::string> whitelists;
++      whitelists.push_back(test_data_dir
++			   + "basic/one_function_one_variable_all.whitelist");
++      const corpus_sptr& corpus =
++	assert_symbol_count(binary, 1, 1, 0, 0, whitelists);
++      CHECK(corpus->lookup_function_symbol("exported_function"));
++      CHECK(!corpus->lookup_variable_symbol("exported_function"));
++      CHECK(corpus->lookup_variable_symbol("exported_variable"));
++      CHECK(!corpus->lookup_function_symbol("exported_variable"));
++    }
++
++    GIVEN("we read the binary with only irrelevant symbols whitelisted")
++    {
++      std::vector<std::string> whitelists;
++      whitelists.push_back(
++	test_data_dir
++	+ "basic/one_function_one_variable_irrelevant.whitelist");
++
++      corpus_sptr		 corpus_ptr;
++      const dwarf_reader::status status =
++	read_corpus(binary, corpus_ptr, whitelists);
++      REQUIRE(!corpus_ptr);
++      REQUIRE((status & dwarf_reader::STATUS_NO_SYMBOLS_FOUND));
++    }
++
++    GIVEN("we read the binary with only the function whitelisted")
++    {
++      std::vector<std::string> whitelists;
++      whitelists.push_back(
++	test_data_dir + "basic/one_function_one_variable_function.whitelist");
++      const corpus_sptr& corpus =
++	assert_symbol_count(binary, 1, 0, 0, 0, whitelists);
++      CHECK(corpus->lookup_function_symbol("exported_function"));
++      CHECK(!corpus->lookup_variable_symbol("exported_function"));
++      CHECK(!corpus->lookup_variable_symbol("exported_variable"));
++      CHECK(!corpus->lookup_function_symbol("exported_variable"));
++    }
++
++    GIVEN("we read the binary with only the variable whitelisted")
++    {
++      std::vector<std::string> whitelists;
++      whitelists.push_back(
++	test_data_dir + "basic/one_function_one_variable_variable.whitelist");
++      const corpus_sptr& corpus =
++	assert_symbol_count(binary, 0, 1, 0, 0, whitelists);
++      CHECK(!corpus->lookup_function_symbol("exported_function"));
++      CHECK(!corpus->lookup_variable_symbol("exported_function"));
++      CHECK(corpus->lookup_variable_symbol("exported_variable"));
++      CHECK(!corpus->lookup_function_symbol("exported_variable"));
++    }
++  }
++}
++
+ static const char* kernel_versions[] = { "4.14", "4.19", "5.4", "5.6" };
+ static const size_t nr_kernel_versions =
+     sizeof(kernel_versions) / sizeof(kernel_versions[0]);
