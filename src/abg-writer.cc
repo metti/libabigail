@@ -26,14 +26,15 @@
 /// native XML format is named "abixml".
 
 #include "config.h"
-#include <assert.h>
-#include <iomanip>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <stack>
 #include <algorithm>
+#include <assert.h>
+#include <fstream>
+#include <iomanip>
+#include <ios>
+#include <iostream>
+#include <sstream>
+#include <stack>
+#include <vector>
 
 #include "abg-cxx-compat.h"
 #include "abg-tools-utils.h"
@@ -3058,6 +3059,11 @@ write_elf_symbol(const elf_symbol_sptr&	sym,
 
   if (sym->is_common_symbol())
     o << " is-common='yes'";
+
+  if (sym->get_crc() != 0)
+    o << " crc='"
+      << std::hex << std::showbase << sym->get_crc() << "'"
+      << std::dec << std::noshowbase;
 
   o << "/>";
 
