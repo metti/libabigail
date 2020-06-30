@@ -315,6 +315,19 @@ public:
   load(string_elf_symbols_map_sptr function_symbol_map,
        string_elf_symbols_map_sptr variables_symbol_map);
 
+  /// Notify the symtab about the name of the main symbol at a given address.
+  ///
+  /// From just alone the symtab we can't guess the main symbol of a bunch of
+  /// aliased symbols that all point to the same address. During processing of
+  /// additional information (such as DWARF), this information becomes apparent
+  /// and we can adjust the addr->symbol lookup map as well as the alias
+  /// reference of the symbol objects.
+  ///
+  /// @param addr the addr that we are updating the main symbol for
+  /// @param name the name of the main symbol
+  void
+  hint_main_symbol(GElf_Addr addr, const std::string& name);
+
 private:
   /// Default constructor. Private to enforce creation by factory methods.
   symtab();

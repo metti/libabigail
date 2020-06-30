@@ -357,6 +357,23 @@ symtab::load_(string_elf_symbols_map_sptr function_symbol_map,
 }
 
 void
+symtab::hint_main_symbol(GElf_Addr addr, const std::string& name)
+{
+  // get one symbol (i.e. the current main symbol)
+  elf_symbol_sptr symbol = lookup_symbol(addr);
+
+  if (!symbol)
+    return;
+
+  // determine the new main symbol by attempting an update
+  elf_symbol_sptr new_main = symbol->update_main_symbol(name);
+
+  // also update the default symbol we return when looked up by address
+  if (new_main)
+    addr_symbol_map_[addr] = new_main;
+}
+
+void
 symtab::update_function_entry_address_symbol_map(
     Elf*		   elf_handle,
     GElf_Sym*		   native_symbol,

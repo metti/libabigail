@@ -1744,14 +1744,14 @@ elf_symbol::set_is_suppressed(bool is_suppressed)
 ///@return the main symbol.
 const elf_symbol_sptr
 elf_symbol::get_main_symbol() const
-{return elf_symbol_sptr(priv_->main_symbol_);}
+{return priv_->main_symbol_.lock();}
 
 /// Get the main symbol of an alias chain.
 ///
 ///@return the main symbol.
 elf_symbol_sptr
 elf_symbol::get_main_symbol()
-{return elf_symbol_sptr(priv_->main_symbol_);}
+{return priv_->main_symbol_.lock();}
 
 /// Tests whether this symbol is the main symbol.
 ///
@@ -1826,6 +1826,50 @@ elf_symbol::add_alias(const elf_symbol_sptr& alias)
 
   alias->priv_->next_alias_ = get_main_symbol();
   alias->priv_->main_symbol_ = get_main_symbol();
+}
+
+/// Update the main symbol for a group of aliased symbols
+///
+/// If after the construction of the symbols (in order of discovery), the
+/// actual main symbol can be identified (e.g. as the symbol that actually is
+/// defined in the code), this method offers a way of updating the main symbol
+/// through one of the aliased symbols.
+///
+/// For that, locate the new main symbol by name and update all references to
+/// the main symbol among the group of aliased symbols.
+///
+/// @param name the name of the main symbol
+///
+/// @return the new main elf_symbol
+elf_symbol_sptr
+elf_symbol::update_main_symbol(const std::string& name)
+{
+
+  if (!has_aliases() || (is_main_symbol() && get_name() == name))
+    return get_main_symbol();
+
+  // find the new main symbol
+  elf_symbol_sptr new_main;
+  for (elf_symbol_sptr a = get_next_alias(); a.get() != this;
+       a = a->get_next_alias())
+    if (a->get_name() == name)
+      {
+	new_main = a;
+	break;
+      }
+
+  if (!new_main)
+    return get_main_symbol();
+
+  // ensure the main symbol references itself as main symbol
+  new_main->priv_->main_symbol_ = new_main;
+
+  // now update all remaining aliases
+  for (elf_symbol_sptr a = new_main->get_next_alias();
+       a.get() != new_main.get(); a = a->get_next_alias())
+    a->priv_->main_symbol_ = new_main;
+
+  return new_main;
 }
 
 /// Return true if the symbol is a common one.
