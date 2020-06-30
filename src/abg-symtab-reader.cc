@@ -176,6 +176,7 @@ symtab::load_(Elf*	       elf_handle,
 
   const bool is_kernel = elf_helpers::is_linux_kernel(elf_handle);
   abg_compat::unordered_set<std::string> exported_kernel_symbols;
+  abg_compat::unordered_map<std::string, uint64_t> crc_values;
 
   const bool is_ppc64 = elf_helpers::architecture_is_ppc64(elf_handle);
 
@@ -218,6 +219,13 @@ symtab::load_(Elf*	       elf_handle,
       if (is_kernel && name.rfind("__ksymtab_", 0) == 0)
 	{
 	  ABG_ASSERT(exported_kernel_symbols.insert(name.substr(10)).second);
+	  continue;
+	}
+      if (is_kernel && name.rfind("__crc_", 0) == 0)
+	{
+	  ABG_ASSERT(
+	    crc_values.insert(std::make_pair(name.substr(6), sym->st_value))
+	      .second);
 	  continue;
 	}
 
@@ -317,6 +325,23 @@ symtab::load_(Elf*	       elf_handle,
 	    (*sym_it)->set_is_in_ksymtab(true);
 	}
       has_ksymtab_entries_ = true;
+    }
+
+  // Now add the CRC values
+  for (abg_compat::unordered_map<std::string, uint64_t>::const_iterator
+	 it = crc_values.begin(),
+	 end = crc_values.end();
+       it != end; ++it)
+    {
+      const name_symbol_map_type::const_iterator r =
+	name_symbol_map_.find(it->first);
+      if (r == name_symbol_map_.end())
+	continue;
+
+      for (elf_symbols::const_iterator sym_it = r->second.begin(),
+				       sym_end = r->second.end();
+	   sym_it != sym_end; ++sym_it)
+	(*sym_it)->set_crc(it->second);
     }
 
   // sort the symbols for deterministic output
