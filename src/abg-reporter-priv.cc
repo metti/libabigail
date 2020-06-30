@@ -1194,6 +1194,23 @@ maybe_report_diff_for_symbol(const elf_symbol_sptr&	symbol1,
       reported = true;
     }
 
+  if (symbol1->get_crc() != 0 && symbol2->get_crc() != 0
+      && symbol1->get_crc() != symbol2->get_crc())
+    {
+      if (reported)
+	out << ",\n" << indent << "its CRC changed from ";
+      else
+	out << "\n" << indent << "CRC value changed from ";
+
+      out << std::showbase << std::hex;
+
+      out << symbol1->get_crc() << " to " << symbol2->get_crc();
+
+      out << std::noshowbase << std::dec;
+
+      reported = true;
+    }
+
   if (reported)
     out << "\n";
 
