@@ -10872,7 +10872,7 @@ corpus_diff::has_net_changes() const
     return (architecture_changed()
 	    || soname_changed()
 	    || stats.net_num_func_removed()
-	    || (leaf && stats.num_leaf_type_changes())
+	    || (leaf && stats.net_num_leaf_type_changes())
 	    || (leaf ? stats.net_num_leaf_func_changes()
 		     : stats.net_num_func_changed())
 	    || stats.net_num_func_added()

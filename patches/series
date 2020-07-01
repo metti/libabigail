@@ -25,3 +25,4 @@ symtab-dwarf-reader-allow-hinting-of-main-symbols-for-aliases.patch
 dwarf-reader-writer-consider-aliases-when-dealing-with-suppressions.patch
 symtab-Add-support-for-MODVERSIONS-CRC-checksums.patch
 reader-symtab-Improve-handling-for-suppressed-aliases.patch
+abidiff-Fix-leaf-mode-has_net_changes-logic.patch

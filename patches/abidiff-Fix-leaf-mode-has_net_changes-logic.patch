@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Giuliano Procida <gprocida@google.com>
+Date: Wed, 1 Jul 2020 10:28:26 +0100
+Subject: abidiff: Fix leaf mode has_net_changes logic.
+
+Commit 19732f34925efb11286b151970a04a9318c034bc was an attempt to fix
+two issues with corpus_diff::has_net_changes for --leaf-changes-only
+mode.
+
+It ensured that type changes were accounted for when determining if
+there had been an ABI change. Unfortunately, it should have checked
+for *net* type changes. This commit corrects that mistake.
+
+	* src/abg-comparison.cc (corpus_diff::has_net_changes): Call
+	net_num_leaf_type_changes instead of num_leaf_type_changes.
+
+Fixes: 19732f34925e ("Fix has_net_changes for --leaf-changes-only mode.")
+Signed-off-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-comparison.cc | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/abg-comparison.cc b/src/abg-comparison.cc
+index 63c8741b63f0..85e5db9bae25 100644
+--- a/src/abg-comparison.cc
++++ b/src/abg-comparison.cc
+@@ -10872,7 +10872,7 @@ corpus_diff::has_net_changes() const
+     return (architecture_changed()
+ 	    || soname_changed()
+ 	    || stats.net_num_func_removed()
+-	    || (leaf && stats.num_leaf_type_changes())
++	    || (leaf && stats.net_num_leaf_type_changes())
+ 	    || (leaf ? stats.net_num_leaf_func_changes()
+ 		     : stats.net_num_func_changed())
+ 	    || stats.net_num_func_added()
