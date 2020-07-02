@@ -1,0 +1,169 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Thu, 2 Jul 2020 15:23:15 +0200
+Subject: reader/symtab: Improve handling for suppressed aliases
+
+When reading from XML with a symbol whitelist that leads to suppression
+of aliased symbols, abidiff would hit an assertion and crash when
+looking up the aliased symbol due to it being suppressed. In the new
+symtab reader we can still suppress a symbol without removing it from
+the lookup. Make use of that property to fix this bug.
+
+A test has been added for this as well.
+
+	* src/abg-reader.cc (build_elf_symbol): Improve handling of
+	suppressed aliased symbols when reading from XML.
+	* src/abg-symtab-reader.cc (load): Likewise.
+	* tests/data/Makefile.am: Add new test data files.
+	* tests/data/test-abidiff-exit/test-missing-alias-report.txt: New test file.
+	* tests/data/test-abidiff-exit/test-missing-alias.abi: Likewise.
+	* tests/data/test-abidiff-exit/test-missing-alias.suppr: Likewise.
+	* tests/test-abidiff-exit.cc: Add support for whitelists and add
+	new testcase.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-reader.cc                                |  7 +++++--
+ src/abg-symtab-reader.cc                         | 16 ++++++++++++++--
+ tests/data/Makefile.am                           |  3 +++
+ .../test-missing-alias-report.txt                |  0
+ .../test-abidiff-exit/test-missing-alias.abi     | 12 ++++++++++++
+ .../test-abidiff-exit/test-missing-alias.suppr   |  4 ++++
+ tests/test-abidiff-exit.cc                       |  9 +++++++++
+ 7 files changed, 47 insertions(+), 4 deletions(-)
+ create mode 100644 tests/data/test-abidiff-exit/test-missing-alias-report.txt
+ create mode 100644 tests/data/test-abidiff-exit/test-missing-alias.abi
+ create mode 100644 tests/data/test-abidiff-exit/test-missing-alias.suppr
+
+diff --git a/src/abg-reader.cc b/src/abg-reader.cc
+index 3f636d00f9b8..d71e2d43503a 100644
+--- a/src/abg-reader.cc
++++ b/src/abg-reader.cc
+@@ -2850,7 +2850,8 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
+ 
+   elf_symbol::version version(version_string, is_default_version);
+ 
+-  if (drop_if_suppressed && suppr::is_elf_symbol_suppressed(ctxt, name, type))
++  const bool is_suppressed = suppr::is_elf_symbol_suppressed(ctxt, name, type);
++  if (drop_if_suppressed && is_suppressed)
+     return elf_symbol_sptr();
+ 
+   const environment* env = ctxt.get_environment();
+@@ -2860,6 +2861,8 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
+ 					 version, visibility,
+ 					 /*is_linux_string_cst=*/false);
+ 
++  e->set_is_suppressed(is_suppressed);
++
+   if (crc != 0)
+     e->set_crc(crc);
+ 
+@@ -2950,7 +2953,7 @@ build_elf_symbol_db(read_context& ctxt,
+   elf_symbol_sptr sym;
+   for (xmlNodePtr n = node->children; n; n = n->next)
+     {
+-      if ((sym = build_elf_symbol(ctxt, n, /*drop_if_suppress=*/true)))
++      if ((sym = build_elf_symbol(ctxt, n, /*drop_if_suppress=*/false)))
+ 	{
+ 	  id_sym_map[sym->get_id_string()] = sym;
+ 	  xml_node_ptr_elf_symbol_map[n] = sym;
+diff --git a/src/abg-symtab-reader.cc b/src/abg-symtab-reader.cc
+index c50c0f643386..424817106e70 100644
+--- a/src/abg-symtab-reader.cc
++++ b/src/abg-symtab-reader.cc
+@@ -361,7 +361,13 @@ symtab::load_(string_elf_symbols_map_sptr function_symbol_map,
+ 	     end = function_symbol_map->end();
+ 	 it != end; ++it)
+       {
+-	symbols_.insert(symbols_.end(), it->second.begin(), it->second.end());
++	for (elf_symbols::const_iterator sym_it = it->second.begin(),
++					 sym_end = it->second.end();
++	     sym_it != sym_end; ++sym_it)
++	  {
++	    if (!(*sym_it)->is_suppressed())
++	      symbols_.push_back(*sym_it);
++	  }
+ 	ABG_ASSERT(name_symbol_map_.insert(*it).second);
+       }
+ 
+@@ -371,7 +377,13 @@ symtab::load_(string_elf_symbols_map_sptr function_symbol_map,
+ 	     end = variables_symbol_map->end();
+ 	 it != end; ++it)
+       {
+-	symbols_.insert(symbols_.end(), it->second.begin(), it->second.end());
++	for (elf_symbols::const_iterator sym_it = it->second.begin(),
++					 sym_end = it->second.end();
++	     sym_it != sym_end; ++sym_it)
++	  {
++	    if (!(*sym_it)->is_suppressed())
++	      symbols_.push_back(*sym_it);
++	  }
+ 	ABG_ASSERT(name_symbol_map_.insert(*it).second);
+       }
+ 
+diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
+index d8d9918ace8d..bec160b2d4ee 100644
+--- a/tests/data/Makefile.am
++++ b/tests/data/Makefile.am
+@@ -162,6 +162,9 @@ test-abidiff-exit/test-fun-param-v0.o \
+ test-abidiff-exit/test-fun-param-v1.abi \
+ test-abidiff-exit/test-fun-param-v1.c \
+ test-abidiff-exit/test-fun-param-v1.o \
++test-abidiff-exit/test-missing-alias-report.txt \
++test-abidiff-exit/test-missing-alias.abi \
++test-abidiff-exit/test-missing-alias.suppr \
+ \
+ test-diff-dwarf/test0-v0.cc		\
+ test-diff-dwarf/test0-v0.o			\
+diff --git a/tests/data/test-abidiff-exit/test-missing-alias-report.txt b/tests/data/test-abidiff-exit/test-missing-alias-report.txt
+new file mode 100644
+index 000000000000..e69de29bb2d1
+diff --git a/tests/data/test-abidiff-exit/test-missing-alias.abi b/tests/data/test-abidiff-exit/test-missing-alias.abi
+new file mode 100644
+index 000000000000..07a13f5e6d15
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-missing-alias.abi
+@@ -0,0 +1,12 @@
++<abi-corpus path='test.so' soname='test.so'>
++  <elf-function-symbols>
++    <elf-symbol name='__foo' type='func-type' binding='global-binding' visibility='default-visibility' alias='foo' is-defined='yes'/>
++    <elf-symbol name='foo' type='func-type' binding='weak-binding' visibility='default-visibility' is-defined='yes'/>
++  </elf-function-symbols>
++  <abi-instr version='1.0' address-size='64' path='test.c' language='LANG_C89'>
++    <type-decl name='void' id='48b5725f'/>
++    <function-decl name='__foo' mangled-name='__foo' filepath='test.c' line='8' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='__foo'>
++      <return type-id='48b5725f'/>
++    </function-decl>
++  </abi-instr>
++</abi-corpus>
+diff --git a/tests/data/test-abidiff-exit/test-missing-alias.suppr b/tests/data/test-abidiff-exit/test-missing-alias.suppr
+new file mode 100644
+index 000000000000..bcebae43a350
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-missing-alias.suppr
+@@ -0,0 +1,4 @@
++[suppress_function]
++  symbol_name_not_regexp = ^__foo$
++  drop = true
++
+diff --git a/tests/test-abidiff-exit.cc b/tests/test-abidiff-exit.cc
+index 2a5ac24995c0..24646bd2ab26 100644
+--- a/tests/test-abidiff-exit.cc
++++ b/tests/test-abidiff-exit.cc
+@@ -221,6 +221,15 @@ InOutSpec in_out_specs[] =
+     "data/test-abidiff-exit/test-fun-param-report.txt",
+     "output/test-abidiff-exit/test-fun-param-report.txt"
+   },
++  {
++    "data/test-abidiff-exit/test-missing-alias.abi",
++    "data/test-abidiff-exit/test-missing-alias.abi",
++    "data/test-abidiff-exit/test-missing-alias.suppr",
++    "",
++    abigail::tools_utils::ABIDIFF_OK,
++    "data/test-abidiff-exit/test-missing-alias-report.txt",
++    "output/test-abidiff-exit/test-missing-alias-report.txt"
++  },
+   {0, 0, 0 ,0,  abigail::tools_utils::ABIDIFF_OK, 0, 0}
+ };
+ 
