@@ -851,8 +851,11 @@ private:
 	     bool		d,
 	     bool		c,
 	     const version&	ve,
-	     visibility	vi,
-	     bool		is_linux_string_cst = false);
+	     visibility		vi,
+	     bool		is_linux_string_cst = false,
+	     bool		is_in_ksymtab = false,
+	     uint64_t		crc = 0,
+	     bool		is_suppressed = false);
 
   elf_symbol(const elf_symbol&);
 
@@ -865,17 +868,20 @@ public:
   create();
 
   static elf_symbol_sptr
-  create(const environment*	e,
-	 size_t		i,
-	 size_t		s,
-	 const string&		n,
-	 type			t,
-	 binding		b,
-	 bool			d,
-	 bool			c,
-	 const version&	ve,
-	 visibility		vi,
-	 bool			is_linux_string_cst = false);
+  create(const environment* e,
+	 size_t		    i,
+	 size_t		    s,
+	 const string&	    n,
+	 type		    t,
+	 binding	    b,
+	 bool		    d,
+	 bool		    c,
+	 const version&	    ve,
+	 visibility	    vi,
+	 bool		    is_linux_string_cst = false,
+	 bool		    is_in_ksymtab = false,
+	 uint64_t	    crc = 0,
+	 bool		    is_suppressed = false);
 
   const environment*
   get_environment() const;
@@ -943,6 +949,24 @@ public:
   bool
   is_variable() const;
 
+  bool
+  is_in_ksymtab() const;
+
+  void
+  set_is_in_ksymtab(bool is_in_ksymtab);
+
+  uint64_t
+  get_crc() const;
+
+  void
+  set_crc(uint64_t crc);
+
+  bool
+  is_suppressed() const;
+
+  void
+  set_is_suppressed(bool is_suppressed);
+
   const elf_symbol_sptr
   get_main_symbol() const;
 
@@ -951,6 +975,9 @@ public:
 
   bool
   is_main_symbol() const;
+
+  elf_symbol_sptr
+  update_main_symbol(const std::string&);
 
   elf_symbol_sptr
   get_next_alias() const;
@@ -1390,6 +1417,9 @@ protected:
 
   const interned_string&
   peek_qualified_name() const;
+
+  void
+  clear_qualified_name();
 
   void
   set_qualified_name(const interned_string&) const;
@@ -2024,6 +2054,7 @@ class qualified_type_def : public virtual type_base, public virtual decl_base
 
 protected:
   string build_name(bool, bool internal = false) const;
+  virtual void on_canonical_type_set();
 
 public:
 
@@ -2126,6 +2157,9 @@ class pointer_type_def : public virtual type_base, public virtual decl_base
   // Forbidden.
   pointer_type_def();
 
+protected:
+  virtual void on_canonical_type_set();
+
 public:
 
   /// A hasher for instances of pointer_type_def
@@ -2179,6 +2213,9 @@ class reference_type_def : public virtual type_base, public virtual decl_base
 
   // Forbidden.
   reference_type_def();
+
+protected:
+  virtual void on_canonical_type_set();
 
 public:
 
@@ -3067,6 +3104,9 @@ class function_type : public virtual type_base
 {
   struct priv;
   typedef shared_ptr<priv> priv_sptr;
+
+protected:
+  virtual void on_canonical_type_set();
 
 public:
   /// Hasher for an instance of function_type

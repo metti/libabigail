@@ -47,6 +47,7 @@ ABG_BEGIN_EXPORT_DECLARATIONS
 #include "abg-libxml-utils.h"
 #include "abg-reader.h"
 #include "abg-corpus.h"
+#include "abg-symtab-reader.h"
 
 #ifdef WITH_ZIP_ARCHIVE
 #include "abg-libzip-utils.h"
@@ -1149,8 +1150,7 @@ static elf_symbol_sptr
 build_elf_symbol(read_context&, const xmlNodePtr, bool);
 
 static elf_symbol_sptr
-build_elf_symbol_from_reference(read_context&, const xmlNodePtr,
-				bool);
+build_elf_symbol_from_reference(read_context&, const xmlNodePtr);
 
 static string_elf_symbols_map_sptr
 build_elf_symbol_db(read_context&, const xmlNodePtr, bool);
@@ -1973,16 +1973,7 @@ read_corpus_from_input(read_context& ctxt)
       // Note that it's possible that both fn_sym_db and var_sym_db
       // are nil, due to potential suppression specifications.  That's
       // fine.
-      if (fn_sym_db)
-	{
-	  corp.set_fun_symbol_map(fn_sym_db);
-	  fn_sym_db.reset();
-	}
-      if (var_sym_db)
-	{
-	  corp.set_var_symbol_map(var_sym_db);
-	  var_sym_db.reset();
-	}
+      corp.set_symtab(symtab_reader::symtab::load(fn_sym_db, var_sym_db));
     }
 
   ctxt.get_environment()->canonicalization_is_done(false);
@@ -2844,6 +2835,10 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
 	is_default_version = true;
     }
 
+  uint64_t crc = 0;
+  if (xml_char_sptr s = XML_NODE_GET_ATTRIBUTE(node, "crc"))
+    crc = strtol(CHAR_STR(s), NULL, 0);
+
   elf_symbol::type type = elf_symbol::NOTYPE_TYPE;
   read_elf_symbol_type(node, type);
 
@@ -2864,6 +2859,10 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
 					 is_defined, is_common,
 					 version, visibility,
 					 /*is_linux_string_cst=*/false);
+
+  if (crc != 0)
+    e->set_crc(crc);
+
   return e;
 }
 
@@ -2881,8 +2880,7 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
 ///
 /// @return a shared pointer the resutling elf_symbol.
 static elf_symbol_sptr
-build_elf_symbol_from_reference(read_context& ctxt, const xmlNodePtr node,
-				bool function_symbol)
+build_elf_symbol_from_reference(read_context& ctxt, const xmlNodePtr node)
 {
   elf_symbol_sptr nil;
 
@@ -2901,20 +2899,13 @@ build_elf_symbol_from_reference(read_context& ctxt, const xmlNodePtr node,
       if (name.empty())
 	return nil;
 
-      string_elf_symbols_map_sptr sym_db =
-	(function_symbol)
-	? ctxt.get_corpus()->get_fun_symbol_map_sptr()
-	: ctxt.get_corpus()->get_var_symbol_map_sptr();
+      const elf_symbols& symbols =
+	  ctxt.get_corpus()->get_symtab()->lookup_symbol(name);
 
-      string_elf_symbols_map_type::const_iterator i = sym_db->find(name);
-      if (i != sym_db->end())
-	{
-	  for (elf_symbols::const_iterator s = i->second.begin();
-	       s != i->second.end();
-	       ++s)
-	    if ((*s)->get_id_string() == sym_id)
-	      return *s;
-	}
+      for (elf_symbols::const_iterator symbol = symbols.begin();
+	   symbol != symbols.end(); ++symbol)
+	if ((*symbol)->get_id_string() == sym_id)
+	  return *symbol;
     }
 
   return nil;
@@ -3165,8 +3156,7 @@ build_function_decl(read_context&	ctxt,
 
   ctxt.push_decl_to_current_scope(fn_decl, add_to_current_scope);
 
-  elf_symbol_sptr sym = build_elf_symbol_from_reference(ctxt, node,
-							/*function_sym=*/true);
+  elf_symbol_sptr sym = build_elf_symbol_from_reference(ctxt, node);
   if (sym)
     fn_decl->set_symbol(sym);
 
@@ -3397,8 +3387,7 @@ build_var_decl(read_context&	ctxt,
 				  locus, mangled_name,
 				  vis, bind));
 
-  elf_symbol_sptr sym = build_elf_symbol_from_reference(ctxt, node,
-							/*function_sym=*/false);
+  elf_symbol_sptr sym = build_elf_symbol_from_reference(ctxt, node);
   if (sym)
     decl->set_symbol(sym);
 

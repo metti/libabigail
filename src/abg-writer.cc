@@ -26,14 +26,15 @@
 /// native XML format is named "abixml".
 
 #include "config.h"
-#include <assert.h>
-#include <iomanip>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <vector>
-#include <stack>
 #include <algorithm>
+#include <assert.h>
+#include <fstream>
+#include <iomanip>
+#include <ios>
+#include <iostream>
+#include <sstream>
+#include <stack>
+#include <vector>
 
 #include "abg-cxx-compat.h"
 #include "abg-tools-utils.h"
@@ -1693,26 +1694,42 @@ write_elf_symbol_visibility(elf_symbol::visibility v, ostream& o)
 ///
 /// @return true upon successful completion.
 static bool
-write_elf_symbol_aliases(const elf_symbol& sym, ostream& o)
+write_elf_symbol_aliases(const elf_symbol& sym, ostream& out)
 {
   if (!sym.is_main_symbol() || !sym.has_aliases())
     return false;
 
-  bool emitted = false;
-  o << " alias='";
-  for (elf_symbol_sptr s = sym.get_next_alias();
-       !s->is_main_symbol();
+
+  std::vector<std::string> aliases;
+  for (elf_symbol_sptr s = sym.get_next_alias(); s && !s->is_main_symbol();
        s = s->get_next_alias())
     {
-      if (s->get_next_alias()->is_main_symbol())
-	o << s->get_id_string() << "'";
-      else
-	o << s->get_id_string() << ",";
+      if (s->is_suppressed())
+	continue;
 
-      emitted = true;
+      if (sym.is_in_ksymtab() != s->is_in_ksymtab())
+	continue;
+
+      aliases.push_back(s->get_id_string());
     }
 
-  return emitted;
+  if (!aliases.empty())
+    {
+      out << " alias='";
+      std::string separator;
+      for (std::vector<std::string>::const_iterator it = aliases.begin(),
+						    end = aliases.end();
+	   it != end; ++it)
+	{
+	  out << separator << *it;
+	  separator = ",";
+	}
+
+      out << "'";
+      return true;
+    }
+
+  return false;
 }
 
 /// Write an XML attribute for the reference to a symbol for the
@@ -1726,7 +1743,10 @@ write_elf_symbol_aliases(const elf_symbol& sym, ostream& o)
 static bool
 write_elf_symbol_reference(const elf_symbol& sym, ostream& o)
 {
-  o << " elf-symbol-id='" << sym.get_id_string() << "'";
+  auto actual_sym = &sym;
+  while (actual_sym->is_suppressed() && actual_sym->has_aliases())
+    actual_sym = actual_sym->get_next_alias().get();
+  o << " elf-symbol-id='" << actual_sym->get_id_string() << "'";
   return true;
 }
 
@@ -3039,6 +3059,10 @@ write_elf_symbol(const elf_symbol_sptr&	sym,
 
   if (sym->is_common_symbol())
     o << " is-common='yes'";
+
+  if (sym->get_crc() != 0)
+    o << " crc='" << std::hex << std::showbase << sym->get_crc() << "'"
+      << std::dec << std::noshowbase;
 
   o << "/>";
 

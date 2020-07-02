@@ -24,13 +24,14 @@
 ///
 /// Definitions for the Internal Representation artifacts of libabigail.
 
-#include <cxxabi.h>
-#include <vector>
-#include <utility>
 #include <algorithm>
+#include <cstdint>
+#include <cxxabi.h>
 #include <iterator>
-#include <typeinfo>
 #include <sstream>
+#include <typeinfo>
+#include <utility>
+#include <vector>
 
 #include "abg-cxx-compat.h"
 #include "abg-internal.h"
@@ -1300,6 +1301,9 @@ struct elf_symbol::priv
   //     STT_COMMON definition of that name that has the largest size.
   bool			is_common_;
   bool			is_linux_string_cst_;
+  bool			is_in_ksymtab_;
+  uint64_t		crc_;
+  bool			is_suppressed_;
   elf_symbol_wptr	main_symbol_;
   elf_symbol_wptr	next_alias_;
   elf_symbol_wptr	next_common_instance_;
@@ -1314,20 +1318,26 @@ struct elf_symbol::priv
       visibility_(elf_symbol::DEFAULT_VISIBILITY),
       is_defined_(false),
       is_common_(false),
-      is_linux_string_cst_(false)
+      is_linux_string_cst_(false),
+      is_in_ksymtab_(false),
+      crc_(0),
+      is_suppressed_(false)
   {}
 
-  priv(const environment*		e,
-       size_t				i,
-       size_t				s,
-       const string&			n,
-       elf_symbol::type		t,
-       elf_symbol::binding		b,
-       bool				d,
-       bool				c,
-       const elf_symbol::version&	ve,
-       elf_symbol::visibility		vi,
-       bool				is_linux_string_cst)
+  priv(const environment*	  e,
+       size_t			  i,
+       size_t			  s,
+       const string&		  n,
+       elf_symbol::type		  t,
+       elf_symbol::binding	  b,
+       bool			  d,
+       bool			  c,
+       const elf_symbol::version& ve,
+       elf_symbol::visibility	  vi,
+       bool			  is_linux_string_cst,
+       bool			  is_in_ksymtab,
+       uint64_t			  crc,
+       bool			  is_suppressed)
     : env_(e),
       index_(i),
       size_(s),
@@ -1338,7 +1348,10 @@ struct elf_symbol::priv
       visibility_(vi),
       is_defined_(d),
       is_common_(c),
-      is_linux_string_cst_(is_linux_string_cst)
+      is_linux_string_cst_(is_linux_string_cst),
+      is_in_ksymtab_(is_in_ksymtab),
+      crc_(crc),
+      is_suppressed_(is_suppressed)
   {
     if (!is_common_)
       is_common_ = type_ == COMMON_TYPE;
@@ -1384,19 +1397,34 @@ elf_symbol::elf_symbol()
 ///
 /// @param is_linux_string_cst true if the symbol is a Linux Kernel
 /// string constant defined in the __ksymtab_strings section.
-elf_symbol::elf_symbol(const environment*	e,
-		       size_t			i,
-		       size_t			s,
-		       const string&		n,
-		       type			t,
-		       binding			b,
-		       bool			d,
-		       bool			c,
-		       const version&		ve,
-		       visibility		vi,
-		       bool			is_linux_string_cst)
-  : priv_(new priv(e, i, s, n, t, b, d,
-		   c, ve, vi, is_linux_string_cst))
+elf_symbol::elf_symbol(const environment* e,
+		       size_t		  i,
+		       size_t		  s,
+		       const string&	  n,
+		       type		  t,
+		       binding		  b,
+		       bool		  d,
+		       bool		  c,
+		       const version&	  ve,
+		       visibility	  vi,
+		       bool		  is_linux_string_cst,
+		       bool		  is_in_ksymtab,
+		       uint64_t		  crc,
+		       bool		  is_suppressed)
+  : priv_(new priv(e,
+		   i,
+		   s,
+		   n,
+		   t,
+		   b,
+		   d,
+		   c,
+		   ve,
+		   vi,
+		   is_linux_string_cst,
+		   is_in_ksymtab,
+		   crc,
+		   is_suppressed))
 {}
 
 /// Factory of instances of @ref elf_symbol.
@@ -1443,20 +1471,24 @@ elf_symbol::create()
 /// @return a (smart) pointer to a newly created instance of @ref
 /// elf_symbol.
 elf_symbol_sptr
-elf_symbol::create(const environment*	e,
-		   size_t		i,
-		   size_t		s,
-		   const string&	n,
-		   type		t,
-		   binding		b,
-		   bool		d,
-		   bool		c,
-		   const version&	ve,
-		   visibility		vi,
-		   bool		is_linux_string_cst)
+elf_symbol::create(const environment* e,
+		   size_t	      i,
+		   size_t	      s,
+		   const string&      n,
+		   type		      t,
+		   binding	      b,
+		   bool		      d,
+		   bool		      c,
+		   const version&     ve,
+		   visibility	      vi,
+		   bool		      is_linux_string_cst,
+		   bool		      is_in_ksymtab,
+		   uint64_t	      crc,
+		   bool		      is_suppressed)
 {
-  elf_symbol_sptr sym(new elf_symbol(e, i, s, n, t, b, d, c, ve,
-				     vi, is_linux_string_cst));
+  elf_symbol_sptr sym(new elf_symbol(e, i, s, n, t, b, d, c, ve, vi,
+				     is_linux_string_cst,
+				     is_in_ksymtab, crc,is_suppressed));
   sym->priv_->main_symbol_ = sym;
   return sym;
 }
@@ -1477,7 +1509,9 @@ textually_equals(const elf_symbol&l,
 		 && l.is_public() == r.is_public()
 		 && l.is_defined() == r.is_defined()
 		 && l.is_common_symbol() == r.is_common_symbol()
-		 && l.get_version() == r.get_version());
+		 && l.get_version() == r.get_version()
+		 && (l.get_crc() == 0 || r.get_crc() == 0
+		     || l.get_crc() == r.get_crc()));
 
   if (equals && l.is_variable())
     // These are variable symbols.  Let's compare their symbol size.
@@ -1676,6 +1710,30 @@ bool
 elf_symbol::is_variable() const
 {return get_type() == OBJECT_TYPE || get_type() == TLS_TYPE;}
 
+bool
+elf_symbol::is_in_ksymtab() const
+{return priv_->is_in_ksymtab_;}
+
+void
+elf_symbol::set_is_in_ksymtab(bool is_in_ksymtab)
+{priv_->is_in_ksymtab_ = is_in_ksymtab;}
+
+uint64_t
+elf_symbol::get_crc() const
+{return priv_->crc_;}
+
+void
+elf_symbol::set_crc(uint64_t crc)
+{priv_->crc_ = crc;}
+
+bool
+elf_symbol::is_suppressed() const
+{return priv_->is_suppressed_;}
+
+void
+elf_symbol::set_is_suppressed(bool is_suppressed)
+{priv_->is_suppressed_ = is_suppressed;}
+
 /// @name Elf symbol aliases
 ///
 /// An alias A for an elf symbol S is a symbol that is defined at the
@@ -1704,14 +1762,14 @@ elf_symbol::is_variable() const
 ///@return the main symbol.
 const elf_symbol_sptr
 elf_symbol::get_main_symbol() const
-{return elf_symbol_sptr(priv_->main_symbol_);}
+{return priv_->main_symbol_.lock();}
 
 /// Get the main symbol of an alias chain.
 ///
 ///@return the main symbol.
 elf_symbol_sptr
 elf_symbol::get_main_symbol()
-{return elf_symbol_sptr(priv_->main_symbol_);}
+{return priv_->main_symbol_.lock();}
 
 /// Tests whether this symbol is the main symbol.
 ///
@@ -1786,6 +1844,50 @@ elf_symbol::add_alias(const elf_symbol_sptr& alias)
 
   alias->priv_->next_alias_ = get_main_symbol();
   alias->priv_->main_symbol_ = get_main_symbol();
+}
+
+/// Update the main symbol for a group of aliased symbols
+///
+/// If after the construction of the symbols (in order of discovery), the
+/// actual main symbol can be identified (e.g. as the symbol that actually is
+/// defined in the code), this method offers a way of updating the main symbol
+/// through one of the aliased symbols.
+///
+/// For that, locate the new main symbol by name and update all references to
+/// the main symbol among the group of aliased symbols.
+///
+/// @param name the name of the main symbol
+///
+/// @return the new main elf_symbol
+elf_symbol_sptr
+elf_symbol::update_main_symbol(const std::string& name)
+{
+
+  if (!has_aliases() || (is_main_symbol() && get_name() == name))
+    return get_main_symbol();
+
+  // find the new main symbol
+  elf_symbol_sptr new_main;
+  for (elf_symbol_sptr a = get_next_alias(); a.get() != this;
+       a = a->get_next_alias())
+    if (a->get_name() == name)
+      {
+	new_main = a;
+	break;
+      }
+
+  if (!new_main)
+    return get_main_symbol();
+
+  // ensure the main symbol references itself as main symbol
+  new_main->priv_->main_symbol_ = new_main;
+
+  // now update all remaining aliases
+  for (elf_symbol_sptr a = new_main->get_next_alias();
+       a.get() != new_main.get(); a = a->get_next_alias())
+    a->priv_->main_symbol_ = new_main;
+
+  return new_main;
 }
 
 /// Return true if the symbol is a common one.
@@ -3534,6 +3636,15 @@ decl_base::decl_base(const decl_base& d)
 const interned_string&
 decl_base::peek_qualified_name() const
 {return priv_->qualified_name_;}
+
+/// Clear the qualified name of this decl.
+///
+/// This is useful to ensure that the cache for the qualified name of
+/// the decl is refreshed right after type canonicalization, for
+/// instance.
+void
+decl_base::clear_qualified_name()
+{priv_->qualified_name_.clear();}
 
 /// Setter for the qualified name.
 ///
@@ -13105,6 +13216,17 @@ qualified_type_def::build_name(bool fully_qualified, bool internal) const
 				    fully_qualified, internal);
 }
 
+/// This function is automatically invoked whenever an instance of
+/// this type is canonicalized.
+///
+/// It's an overload of the virtual type_base::on_canonical_type_set.
+///
+/// We put here what is thus meant to be executed only at the point of
+/// type canonicalization.
+void
+qualified_type_def::on_canonical_type_set()
+{clear_qualified_name();}
+
 /// Constructor of the qualified_type_def
 ///
 /// @param type the underlying type
@@ -13502,6 +13624,17 @@ struct pointer_type_def::priv
   {}
 }; //end struct pointer_type_def
 
+/// This function is automatically invoked whenever an instance of
+/// this type is canonicalized.
+///
+/// It's an overload of the virtual type_base::on_canonical_type_set.
+///
+/// We put here what is thus meant to be executed only at the point of
+/// type canonicalization.
+void
+pointer_type_def::on_canonical_type_set()
+{clear_qualified_name();}
+
 pointer_type_def::pointer_type_def(const type_base_sptr&	pointed_to,
 				   size_t			size_in_bits,
 				   size_t			align_in_bits,
@@ -13782,6 +13915,17 @@ operator!=(const pointer_type_def_sptr& l, const pointer_type_def_sptr& r)
 // </pointer_type_def definitions>
 
 // <reference_type_def definitions>
+
+/// This function is automatically invoked whenever an instance of
+/// this type is canonicalized.
+///
+/// It's an overload of the virtual type_base::on_canonical_type_set.
+///
+/// We put here what is thus meant to be executed only at the point of
+/// type canonicalization.
+void
+reference_type_def::on_canonical_type_set()
+{clear_qualified_name();}
 
 reference_type_def::reference_type_def(const type_base_sptr	pointed_to,
 				       bool			lvalue,
@@ -16231,6 +16375,20 @@ struct function_type::priv
     return (c.find(fn_type_name) != c.end());
   }
 };// end struc function_type::priv
+
+/// This function is automatically invoked whenever an instance of
+/// this type is canonicalized.
+///
+/// It's an overload of the virtual type_base::on_canonical_type_set.
+///
+/// We put here what is thus meant to be executed only at the point of
+/// type canonicalization.
+void
+function_type::on_canonical_type_set()
+{
+  priv_->cached_name_.clear();
+  priv_->internal_cached_name_.clear();
+}
 
 /// The most straightforward constructor for the function_type class.
 ///
