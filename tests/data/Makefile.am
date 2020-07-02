@@ -161,6 +161,9 @@ test-abidiff-exit/test-fun-param-v0.o \
 test-abidiff-exit/test-fun-param-v1.abi \
 test-abidiff-exit/test-fun-param-v1.c \
 test-abidiff-exit/test-fun-param-v1.o \
+test-abidiff-exit/test-missing-alias-report.txt \
+test-abidiff-exit/test-missing-alias.abi \
+test-abidiff-exit/test-missing-alias.suppr \
 \
 test-diff-dwarf/test0-v0.cc		\
 test-diff-dwarf/test0-v0.o			\

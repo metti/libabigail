@@ -361,7 +361,13 @@ symtab::load_(string_elf_symbols_map_sptr function_symbol_map,
 	     end = function_symbol_map->end();
 	 it != end; ++it)
       {
-	symbols_.insert(symbols_.end(), it->second.begin(), it->second.end());
+	for (elf_symbols::const_iterator sym_it = it->second.begin(),
+					 sym_end = it->second.end();
+	     sym_it != sym_end; ++sym_it)
+	  {
+	    if (!(*sym_it)->is_suppressed())
+	      symbols_.push_back(*sym_it);
+	  }
 	ABG_ASSERT(name_symbol_map_.insert(*it).second);
       }
 
@@ -371,7 +377,13 @@ symtab::load_(string_elf_symbols_map_sptr function_symbol_map,
 	     end = variables_symbol_map->end();
 	 it != end; ++it)
       {
-	symbols_.insert(symbols_.end(), it->second.begin(), it->second.end());
+	for (elf_symbols::const_iterator sym_it = it->second.begin(),
+					 sym_end = it->second.end();
+	     sym_it != sym_end; ++sym_it)
+	  {
+	    if (!(*sym_it)->is_suppressed())
+	      symbols_.push_back(*sym_it);
+	  }
 	ABG_ASSERT(name_symbol_map_.insert(*it).second);
       }
 

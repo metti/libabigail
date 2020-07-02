@@ -212,6 +212,15 @@ InOutSpec in_out_specs[] =
     "data/test-abidiff-exit/test-fun-param-report.txt",
     "output/test-abidiff-exit/test-fun-param-report.txt"
   },
+  {
+    "data/test-abidiff-exit/test-missing-alias.abi",
+    "data/test-abidiff-exit/test-missing-alias.abi",
+    "data/test-abidiff-exit/test-missing-alias.suppr",
+    "",
+    abigail::tools_utils::ABIDIFF_OK,
+    "data/test-abidiff-exit/test-missing-alias-report.txt",
+    "output/test-abidiff-exit/test-missing-alias-report.txt"
+  },
   {0, 0, 0 ,0,  abigail::tools_utils::ABIDIFF_OK, 0, 0}
 };
 
