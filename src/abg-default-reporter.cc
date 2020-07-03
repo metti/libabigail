@@ -98,9 +98,10 @@ default_reporter::report(const enum_diff& d, ostream& out,
 
   enum_type_decl_sptr first = d.first_enum(), second = d.second_enum();
 
-  report_name_size_and_alignment_changes(first, second, d.context(),
+  const diff_context_sptr& ctxt = d.context();
+  report_name_size_and_alignment_changes(first, second, ctxt,
 					 out, indent);
-  maybe_report_diff_for_member(first, second, d.context(), out, indent);
+  maybe_report_diff_for_member(first, second, ctxt, out, indent);
 
   //underlying type
   d.underlying_type_diff()->report(out, indent);
@@ -165,12 +166,12 @@ default_reporter::report(const enum_diff& d, ostream& out,
 	      << "' from value '"
 	      << i->first.get_value() << "' to '"
 	      << i->second.get_value() << "'";
-	  report_loc_info(second, *d.context(), out);
+	  report_loc_info(second, *ctxt, out);
 	  out << "\n";
 	}
     }
 
-  if (d.context()->show_leaf_changes_only())
+  if (ctxt->show_leaf_changes_only())
     maybe_report_interfaces_impacted_by_diff(&d, out, indent);
 
   d.reported_once(true);
@@ -844,8 +845,8 @@ default_reporter::report(const class_or_union_diff& d,
 
   const diff_context_sptr& ctxt = d.context();
 
-  // Report class decl-only -> definition change.
-  if (ctxt->get_allowed_category() & CLASS_DECL_ONLY_DEF_CHANGE_CATEGORY)
+  // Report class decl-only <-> definition change.
+  if (ctxt->get_allowed_category() & TYPE_DECL_ONLY_DEF_CHANGE_CATEGORY)
     if (filtering::has_class_decl_only_def_change(first, second))
       {
 	string was =

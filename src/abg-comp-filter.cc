@@ -961,8 +961,8 @@ has_class_decl_only_def_change(const class_or_union_sptr& first,
 /// other one is defined.
 ///
 /// @param diff the diff node to consider.
-////
-//// @return true if the class_or_union_diff carries a change in which
+///
+/// @return true if the class_or_union_diff carries a change in which
 /// the two classes are different by the fact that one is a decl-only
 /// and the other one is defined.
 bool
@@ -1518,7 +1518,7 @@ categorize_harmless_diff_node(diff *d, bool pre)
 	s = is_decl(d->second_subject());
 
       if (has_class_decl_only_def_change(d))
-	category |= CLASS_DECL_ONLY_DEF_CHANGE_CATEGORY;
+	category |= TYPE_DECL_ONLY_DEF_CHANGE_CATEGORY;
 
       if (access_changed(f, s))
 	category |= ACCESS_CHANGE_CATEGORY;
