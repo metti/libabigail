@@ -30,3 +30,4 @@ Drop-traversable_base-traverse-method.patch
 Fix-inheritance-of-scope_decl-insert_member_decl.patch
 Enable-Clang-s-Werror-overloaded-virtual.patch
 abg-ir.cc-Tidy-some-operator-definitions.patch
+abg-ir.cc-Refactor-operator-methods-with-helper.patch

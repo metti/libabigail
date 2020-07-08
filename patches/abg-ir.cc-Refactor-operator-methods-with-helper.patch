@@ -1,0 +1,251 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Giuliano Procida <gprocida@google.com>
+Date: Wed, 8 Jul 2020 09:06:10 +0100
+Subject: abg-ir.cc: Refactor operator== methods with helper
+
+Many of the operator== definitions in this source file follow the same
+pattern:
+
+- the address of the argument is dynamic_cast to type of 'this'
+- naked canonical type pointers are compared, if both present
+- the types are compared structurally with 'equals'
+
+In a couple of cases extra work is done to fetch the canonical type
+of the definition of a declaration.
+
+This commit refactors all the common logic into a couple of templated
+helper functions.
+
+There are no behavioural changes.
+
+	* src/abg-ir.cc (equality_helper): Add an overloaded function
+	to perform the common actions needed for operator==. The first
+	overload takes two extra canonical type pointer arguments
+	while the second obtains these from the types being compared.
+	(type_decl::operator==): Call equality_helper to perform
+	canonical type pointer and 'equals' comparisons.
+	(scope_type_decl::operator==): Likewise.
+	(qualified_type_def::operator==): Likewise.
+	(pointer_type_def::operator==): Likewise.
+	(reference_type_def::operator==): Likewise.
+	(array_type_def::subrange_type::operator==): Likewise.
+	(array_type_def::operator==): Likewise.
+	(enum_type_decl::operator==): Likewise.
+	(typedef_decl::operator==): Likewise.
+	(function_type::operator==): Likewise.
+	(class_or_union::operator==): Likewise.
+	(class_decl::operator==): Likewise.
+	(union_decl::operator==): Likewise.
+
+Signed-off-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-ir.cc | 104 ++++++++++++++------------------------------------
+ 1 file changed, 29 insertions(+), 75 deletions(-)
+
+diff --git a/src/abg-ir.cc b/src/abg-ir.cc
+index 10d038b78720..56ac8b6bb128 100644
+--- a/src/abg-ir.cc
++++ b/src/abg-ir.cc
+@@ -652,6 +652,22 @@ struct type_name_comp
+   {return operator()(type_base_sptr(l), type_base_sptr(r));}
+ }; // end struct type_name_comp
+ 
++template<typename T>
++bool equality_helper(const T* lptr, const T* rptr,
++		     const type_base* lcanon,
++		     const type_base* rcanon)
++{
++  return lcanon && rcanon ? lcanon == rcanon : equals(*lptr, *rptr, 0);
++}
++
++template<typename T>
++bool equality_helper(const T* lptr, const T* rptr)
++{
++  return equality_helper(lptr, rptr,
++			 lptr->get_naked_canonical_type(),
++			 rptr->get_naked_canonical_type());
++}
++
+ /// Getter of all types types sorted by their pretty representation.
+ ///
+ /// @return a sorted vector of all types sorted by their pretty
+@@ -13004,11 +13020,7 @@ type_decl::operator==(const decl_base& o) const
+   const type_decl* other = dynamic_cast<const type_decl*>(&o);
+   if (!other)
+     return false;
+-
+-  if (get_naked_canonical_type() && other->get_naked_canonical_type())
+-    return get_naked_canonical_type() == other->get_naked_canonical_type();
+-
+-  return equals(*this, *other, 0);
++  return equality_helper(this, other);
+ }
+ 
+ /// Return true if both types equals.
+@@ -13185,11 +13197,7 @@ scope_type_decl::operator==(const decl_base& o) const
+   const scope_type_decl* other = dynamic_cast<const scope_type_decl*>(&o);
+   if (!other)
+     return false;
+-
+-  if (get_naked_canonical_type() && other->get_naked_canonical_type())
+-    return get_naked_canonical_type() == other->get_naked_canonical_type();
+-
+-  return equals(*this, *other, 0);
++  return equality_helper(this, other);
+ }
+ 
+ /// Equality operator between two scope_type_decl.
+@@ -13553,11 +13561,7 @@ qualified_type_def::operator==(const decl_base& o) const
+     dynamic_cast<const qualified_type_def*>(&o);
+   if (!other)
+     return false;
+-
+-  if (get_naked_canonical_type() && other->get_naked_canonical_type())
+-    return get_naked_canonical_type() == other->get_naked_canonical_type();
+-
+-  return equals(*this, *other, 0);
++  return equality_helper(this, other);
+ }
+ 
+ /// Equality operator for qualified types.
+@@ -13924,14 +13928,7 @@ pointer_type_def::operator==(const decl_base& o) const
+   const pointer_type_def* other = is_pointer_type(&o);
+   if (!other)
+     return false;
+-
+-  type_base* canonical_type = get_naked_canonical_type();
+-  type_base* other_canonical_type = other->get_naked_canonical_type();
+-
+-  if (canonical_type && other_canonical_type)
+-    return canonical_type == other_canonical_type;
+-
+-  return equals(*this, *other, 0);
++  return equality_helper(this, other);
+ }
+ 
+ /// Return true iff both instances of pointer_type_def are equal.
+@@ -14235,14 +14232,7 @@ reference_type_def::operator==(const decl_base& o) const
+     dynamic_cast<const reference_type_def*>(&o);
+   if (!other)
+     return false;
+-
+-  type_base* canonical_type = get_naked_canonical_type();
+-  type_base* other_canonical_type = other->get_naked_canonical_type();
+-
+-  if (canonical_type && other_canonical_type)
+-    return canonical_type == other_canonical_type;
+-
+-  return equals(*this, *other, 0);
++  return equality_helper(this, other);
+ }
+ 
+ /// Equality operator of the @ref reference_type_def type.
+@@ -14784,11 +14774,7 @@ array_type_def::subrange_type::operator==(const decl_base& o) const
+     dynamic_cast<const subrange_type*>(&o);
+   if (!other)
+     return false;
+-
+-  if (get_naked_canonical_type() && other->get_naked_canonical_type())
+-    return get_naked_canonical_type() == other->get_naked_canonical_type();
+-
+-  return equals(*this, *other, 0);
++  return equality_helper(this, other);
+ }
+ 
+ /// Equality operator.
+@@ -15106,11 +15092,7 @@ array_type_def::operator==(const decl_base& o) const
+     dynamic_cast<const array_type_def*>(&o);
+   if (!other)
+     return false;
+-
+-  if (get_naked_canonical_type() && other->get_naked_canonical_type())
+-    return get_naked_canonical_type() == other->get_naked_canonical_type();
+-
+-  return equals(*this, *other, 0);
++  return equality_helper(this, other);
+ }
+ 
+ bool
+@@ -15585,11 +15567,7 @@ enum_type_decl::operator==(const decl_base& o) const
+   const enum_type_decl* op = dynamic_cast<const enum_type_decl*>(&o);
+   if (!op)
+     return false;
+-
+-  if (get_naked_canonical_type() && op->get_naked_canonical_type())
+-    return get_naked_canonical_type() == op->get_naked_canonical_type();
+-
+-  return equals(*this, *op, 0);
++  return equality_helper(this, op);
+ }
+ 
+ /// Equality operator.
+@@ -15939,11 +15917,7 @@ typedef_decl::operator==(const decl_base& o) const
+   const typedef_decl* other = dynamic_cast<const typedef_decl*>(&o);
+   if (!other)
+     return false;
+-
+-  if (get_naked_canonical_type() && other->get_naked_canonical_type())
+-    return get_naked_canonical_type() == other->get_naked_canonical_type();
+-
+-  return equals(*this, *other, 0);
++  return equality_helper(this, other);
+ }
+ 
+ /// Equality operator
+@@ -17034,14 +17008,7 @@ function_type::operator==(const type_base& other) const
+   const function_type* o = dynamic_cast<const function_type*>(&other);
+   if (!o)
+     return false;
+-
+-  type_base* canonical_type = get_naked_canonical_type();
+-  type_base* other_canonical_type = other.get_naked_canonical_type();
+-
+-  if (canonical_type && other_canonical_type)
+-    return canonical_type == other_canonical_type;
+-
+-  return equals(*this, *o, 0);
++  return equality_helper(this, o);
+ }
+ 
+ /// Return a copy of the pretty representation of the current @ref
+@@ -19320,10 +19287,7 @@ class_or_union::operator==(const decl_base& other) const
+       is_class_or_union_type
+       (op->get_naked_definition_of_declaration())->get_naked_canonical_type();
+ 
+-  if (canonical_type && other_canonical_type)
+-    return canonical_type == other_canonical_type;
+-
+-  return equals(*this, *op, 0);
++  return equality_helper(this, op, canonical_type, other_canonical_type);
+ }
+ 
+ /// Equality operator.
+@@ -21152,10 +21116,7 @@ class_decl::operator==(const decl_base& other) const
+       is_class_type
+       (op->get_naked_definition_of_declaration())->get_naked_canonical_type();
+ 
+-  if (canonical_type && other_canonical_type)
+-    return canonical_type == other_canonical_type;
+-
+-  return equals(*this, *op, 0);
++  return equality_helper(this, op, canonical_type, other_canonical_type);
+ }
+ 
+ /// Equality operator for class_decl.
+@@ -21936,14 +21897,7 @@ union_decl::operator==(const decl_base& other) const
+   const union_decl* op = dynamic_cast<const union_decl*>(&other);
+   if (!op)
+     return false;
+-
+-  type_base *canonical_type = get_naked_canonical_type(),
+-    *other_canonical_type = op->get_naked_canonical_type();
+-
+-  if (canonical_type && other_canonical_type)
+-    return canonical_type == other_canonical_type;
+-
+-  return equals(*this, *op, 0);
++  return equality_helper(this, op);
+ }
+ 
+ /// Equality operator for union_decl.
