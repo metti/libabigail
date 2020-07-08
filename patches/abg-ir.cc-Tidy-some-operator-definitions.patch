@@ -1,0 +1,109 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Giuliano Procida <gprocida@google.com>
+Date: Wed, 8 Jul 2020 08:51:29 +0100
+Subject: abg-ir.cc: Tidy some operator== definitions
+
+Many of the operator== definitions in this source file follow the same
+pattern:
+
+- the address of the argument is dynamic_cast to type of 'this'
+- naked canonical type pointers are compared, if both present
+- the types are compared structurally with 'equals'
+
+In a couple of cases extra work is done to fetch the canonical type
+of the definition of a declaration.
+
+This commit adjusts a few cases so they more closely follow the common
+form. This is to make the next refactoring trivial.
+
+There are no behavioural changes.
+
+	* src/abg-irc.cc (scope_type_decl::operator==): Compare naked
+	canonical type pointers instead of the shared pointers.
+	(qualified_type_def::operator==): Remove excess blank line.
+	(function_type::operator==): Do dynamic_cast and check of
+	argument before comparing naked canonical type pointers.
+	(class_or_union::operator==): Eliminate temporary reference.
+	(class_decl::operator==): Likewise.
+	(union_decl::operator==): Likewise.
+
+Signed-off-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-ir.cc | 22 +++++++++-------------
+ 1 file changed, 9 insertions(+), 13 deletions(-)
+
+diff --git a/src/abg-ir.cc b/src/abg-ir.cc
+index ee138946a885..10d038b78720 100644
+--- a/src/abg-ir.cc
++++ b/src/abg-ir.cc
+@@ -13186,8 +13186,8 @@ scope_type_decl::operator==(const decl_base& o) const
+   if (!other)
+     return false;
+ 
+-  if (get_canonical_type() && other->get_canonical_type())
+-    return get_canonical_type().get() == other->get_canonical_type().get();
++  if (get_naked_canonical_type() && other->get_naked_canonical_type())
++    return get_naked_canonical_type() == other->get_naked_canonical_type();
+ 
+   return equals(*this, *other, 0);
+ }
+@@ -13557,7 +13557,6 @@ qualified_type_def::operator==(const decl_base& o) const
+   if (get_naked_canonical_type() && other->get_naked_canonical_type())
+     return get_naked_canonical_type() == other->get_naked_canonical_type();
+ 
+-
+   return equals(*this, *other, 0);
+ }
+ 
+@@ -17032,16 +17031,16 @@ function_type::get_cached_name(bool internal) const
+ bool
+ function_type::operator==(const type_base& other) const
+ {
++  const function_type* o = dynamic_cast<const function_type*>(&other);
++  if (!o)
++    return false;
++
+   type_base* canonical_type = get_naked_canonical_type();
+   type_base* other_canonical_type = other.get_naked_canonical_type();
+ 
+   if (canonical_type && other_canonical_type)
+     return canonical_type == other_canonical_type;
+ 
+-  const function_type* o = dynamic_cast<const function_type*>(&other);
+-  if (!o)
+-    return false;
+-
+   return equals(*this, *o, 0);
+ }
+ 
+@@ -19324,8 +19323,7 @@ class_or_union::operator==(const decl_base& other) const
+   if (canonical_type && other_canonical_type)
+     return canonical_type == other_canonical_type;
+ 
+-  const class_or_union& o = *op;
+-  return equals(*this, o, 0);
++  return equals(*this, *op, 0);
+ }
+ 
+ /// Equality operator.
+@@ -21157,8 +21155,7 @@ class_decl::operator==(const decl_base& other) const
+   if (canonical_type && other_canonical_type)
+     return canonical_type == other_canonical_type;
+ 
+-  const class_decl& o = *op;
+-  return equals(*this, o, 0);
++  return equals(*this, *op, 0);
+ }
+ 
+ /// Equality operator for class_decl.
+@@ -21946,8 +21943,7 @@ union_decl::operator==(const decl_base& other) const
+   if (canonical_type && other_canonical_type)
+     return canonical_type == other_canonical_type;
+ 
+-  const union_decl &o = *op;
+-  return equals(*this, o, 0);
++  return equals(*this, *op, 0);
+ }
+ 
+ /// Equality operator for union_decl.

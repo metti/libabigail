@@ -13186,8 +13186,8 @@ scope_type_decl::operator==(const decl_base& o) const
   if (!other)
     return false;
 
-  if (get_canonical_type() && other->get_canonical_type())
-    return get_canonical_type().get() == other->get_canonical_type().get();
+  if (get_naked_canonical_type() && other->get_naked_canonical_type())
+    return get_naked_canonical_type() == other->get_naked_canonical_type();
 
   return equals(*this, *other, 0);
 }
@@ -13556,7 +13556,6 @@ qualified_type_def::operator==(const decl_base& o) const
 
   if (get_naked_canonical_type() && other->get_naked_canonical_type())
     return get_naked_canonical_type() == other->get_naked_canonical_type();
-
 
   return equals(*this, *other, 0);
 }
@@ -17032,15 +17031,15 @@ function_type::get_cached_name(bool internal) const
 bool
 function_type::operator==(const type_base& other) const
 {
+  const function_type* o = dynamic_cast<const function_type*>(&other);
+  if (!o)
+    return false;
+
   type_base* canonical_type = get_naked_canonical_type();
   type_base* other_canonical_type = other.get_naked_canonical_type();
 
   if (canonical_type && other_canonical_type)
     return canonical_type == other_canonical_type;
-
-  const function_type* o = dynamic_cast<const function_type*>(&other);
-  if (!o)
-    return false;
 
   return equals(*this, *o, 0);
 }
@@ -19324,8 +19323,7 @@ class_or_union::operator==(const decl_base& other) const
   if (canonical_type && other_canonical_type)
     return canonical_type == other_canonical_type;
 
-  const class_or_union& o = *op;
-  return equals(*this, o, 0);
+  return equals(*this, *op, 0);
 }
 
 /// Equality operator.
@@ -21157,8 +21155,7 @@ class_decl::operator==(const decl_base& other) const
   if (canonical_type && other_canonical_type)
     return canonical_type == other_canonical_type;
 
-  const class_decl& o = *op;
-  return equals(*this, o, 0);
+  return equals(*this, *op, 0);
 }
 
 /// Equality operator for class_decl.
@@ -21946,8 +21943,7 @@ union_decl::operator==(const decl_base& other) const
   if (canonical_type && other_canonical_type)
     return canonical_type == other_canonical_type;
 
-  const union_decl &o = *op;
-  return equals(*this, o, 0);
+  return equals(*this, *op, 0);
 }
 
 /// Equality operator for union_decl.

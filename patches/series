@@ -29,3 +29,4 @@ abidiff-Fix-leaf-mode-has_net_changes-logic.patch
 Drop-traversable_base-traverse-method.patch
 Fix-inheritance-of-scope_decl-insert_member_decl.patch
 Enable-Clang-s-Werror-overloaded-virtual.patch
+abg-ir.cc-Tidy-some-operator-definitions.patch
