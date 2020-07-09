@@ -1,0 +1,131 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Giuliano Procida <gprocida@google.com>
+Date: Thu, 9 Jul 2020 17:23:57 +0100
+Subject: Drop traversable_base::traverse method.
+
+The traverse method is defined in the traversable_base class but is
+never used as the synonymous methods in the derived classes have
+different argument types and so hide it.
+
+The function can be removed and consequently the source file
+abg-traverse.cc too.
+
+This removes a trigger of Clang's -Werror-overloaded-virtual which is
+enabled with -Wmost which is enabled by -Wall.
+
+	* include/abg-traverse.h (class traversable_base): Add
+	class-level comment about expected usage, drop declaration of
+	traverse method.
+	* src/Makefile.am: Remove mention of src/abg-traverse.cc.
+	* src/abg-traverse.cc: Remove file as it only contains the
+	unused traversable_base::traverse method.
+
+Signed-off-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ include/abg-traverse.h | 21 ++++++---------------
+ src/Makefile.am        |  1 -
+ src/abg-traverse.cc    | 43 ------------------------------------------
+ 3 files changed, 6 insertions(+), 59 deletions(-)
+ delete mode 100644 src/abg-traverse.cc
+
+diff --git a/include/abg-traverse.h b/include/abg-traverse.h
+index a7170dad1ca6..2cb84804e136 100644
+--- a/include/abg-traverse.h
++++ b/include/abg-traverse.h
+@@ -44,6 +44,12 @@ struct node_visitor_base
+ 
+ /// The interface for types which are feeling social and want to be
+ /// visited during the traversal of a hierarchy of nodes.
++///
++/// It is expected that classes derived from traversable_base define a
++/// traverse method specialised to the node *visitor* type. Such
++/// methods should visit nodes recursively, calling
++/// ir_node_visitor::visit for each node. The method should return
++/// true until all nodes have been visited.
+ class traversable_base
+ {
+   bool visiting_;
+@@ -78,21 +84,6 @@ public:
+   {}
+ 
+   virtual ~traversable_base() {}
+-
+-  /// This virtual method is overloaded and implemented by any single
+-  /// type which instance is going to be visited during the traversal
+-  /// of translation unit nodes.
+-  ///
+-  /// The method visits a given node and, for scopes, visits their
+-  /// member nodes.  Visiting a node means calling the
+-  /// ir_node_visitor::visit method with the node passed as an
+-  /// argument.
+-  ///
+-  /// @param v the visitor used during the traverse.
+-  ///
+-  /// @return true if traversed until the end of the type tree, false
+-  /// otherwise.
+-  virtual bool traverse(node_visitor_base& v);
+ };
+ 
+ }// end namespace ir.
+diff --git a/src/Makefile.am b/src/Makefile.am
+index dff17d9c02c1..32f5f3831297 100644
+--- a/src/Makefile.am
++++ b/src/Makefile.am
+@@ -13,7 +13,6 @@ endif
+ 
+ libabigail_la_SOURCES =			\
+ abg-internal.h				\
+-abg-traverse.cc				\
+ abg-ir-priv.h				\
+ abg-ir.cc				\
+ abg-corpus-priv.h			\
+diff --git a/src/abg-traverse.cc b/src/abg-traverse.cc
+deleted file mode 100644
+index 3fb87ea23240..000000000000
+--- a/src/abg-traverse.cc
++++ /dev/null
+@@ -1,43 +0,0 @@
+-// -*- Mode: C++ -*-
+-//
+-// Copyright (C) 2013-2020 Red Hat, Inc.
+-//
+-// This file is part of the GNU Application Binary Interface Generic
+-// Analysis and Instrumentation Library (libabigail).  This library is
+-// free software; you can redistribute it and/or modify it under the
+-// terms of the GNU Lesser General Public License as published by the
+-// Free Software Foundation; either version 3, or (at your option) any
+-// later version.
+-
+-// This library is distributed in the hope that it will be useful, but
+-// WITHOUT ANY WARRANTY; without even the implied warranty of
+-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-// General Lesser Public License for more details.
+-
+-// You should have received a copy of the GNU Lesser General Public
+-// License along with this program; see the file COPYING-LGPLV3.  If
+-// not, see <http://www.gnu.org/licenses/>.
+-
+-/// @file
+-
+-#include "abg-internal.h"
+-// <headers defining libabigail's API go under here>
+-ABG_BEGIN_EXPORT_DECLARATIONS
+-
+-#include "abg-traverse.h"
+-
+-ABG_END_EXPORT_DECLARATIONS
+-// </headers defining libabigail's API>
+-
+-namespace abigail
+-{
+-
+-namespace ir
+-{
+-
+-bool
+-traversable_base::traverse(node_visitor_base&)
+-{return true;}
+-
+-}// end namaspace ir
+-}// end namespace abigail

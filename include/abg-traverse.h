@@ -44,6 +44,12 @@ struct node_visitor_base
 
 /// The interface for types which are feeling social and want to be
 /// visited during the traversal of a hierarchy of nodes.
+///
+/// It is expected that classes derived from traversable_base define a
+/// traverse method specialised to the node *visitor* type. Such
+/// methods should visit nodes recursively, calling
+/// ir_node_visitor::visit for each node. The method should return
+/// true until all nodes have been visited.
 class traversable_base
 {
   bool visiting_;
@@ -78,21 +84,6 @@ public:
   {}
 
   virtual ~traversable_base() {}
-
-  /// This virtual method is overloaded and implemented by any single
-  /// type which instance is going to be visited during the traversal
-  /// of translation unit nodes.
-  ///
-  /// The method visits a given node and, for scopes, visits their
-  /// member nodes.  Visiting a node means calling the
-  /// ir_node_visitor::visit method with the node passed as an
-  /// argument.
-  ///
-  /// @param v the visitor used during the traverse.
-  ///
-  /// @return true if traversed until the end of the type tree, false
-  /// otherwise.
-  virtual bool traverse(node_visitor_base& v);
 };
 
 }// end namespace ir.

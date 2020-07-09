@@ -26,3 +26,4 @@ dwarf-reader-writer-consider-aliases-when-dealing-with-suppressions.patch
 symtab-Add-support-for-MODVERSIONS-CRC-checksums.patch
 reader-symtab-Improve-handling-for-suppressed-aliases.patch
 abidiff-Fix-leaf-mode-has_net_changes-logic.patch
+Drop-traversable_base-traverse-method.patch
