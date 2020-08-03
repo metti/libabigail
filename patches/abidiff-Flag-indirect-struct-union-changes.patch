@@ -14,14 +14,14 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  src/abg-comparison.cc                         | 16 ++++++
  src/abg-leaf-reporter.cc                      | 55 ++++++++++++++++++-
  tests/data/Makefile.am                        |  1 +
- .../test-leaf-peeling-report-indirect.txt     | 41 ++++++++++++++
+ .../test-leaf-peeling-report-indirect.txt     | 42 ++++++++++++++
  tests/test-abidiff-exit.cc                    |  9 +++
  tools/abidiff.cc                              |  9 ++-
- 8 files changed, 136 insertions(+), 3 deletions(-)
+ 8 files changed, 137 insertions(+), 3 deletions(-)
  create mode 100644 tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt
 
 diff --git a/include/abg-comparison.h b/include/abg-comparison.h
-index 51a78d29d228..87ef2510dd1e 100644
+index c4eb59250bae..33c993da9923 100644
 --- a/include/abg-comparison.h
 +++ b/include/abg-comparison.h
 @@ -840,6 +840,12 @@ public:
@@ -38,7 +38,7 @@ index 51a78d29d228..87ef2510dd1e 100644
    show_symbols_unreferenced_by_debug_info() const;
  
 diff --git a/src/abg-comparison-priv.h b/src/abg-comparison-priv.h
-index 420e7014421c..864f5a1cf6d2 100644
+index b82b5d070c83..817df7061e3f 100644
 --- a/src/abg-comparison-priv.h
 +++ b/src/abg-comparison-priv.h
 @@ -215,6 +215,7 @@ struct diff_context::priv
@@ -58,10 +58,10 @@ index 420e7014421c..864f5a1cf6d2 100644
        show_added_syms_unreferenced_by_di_(true),
        show_unreachable_types_(false),
 diff --git a/src/abg-comparison.cc b/src/abg-comparison.cc
-index 5797c9dd7f3f..f4979c1334b5 100644
+index 7f91753a421d..f04c54bcca28 100644
 --- a/src/abg-comparison.cc
 +++ b/src/abg-comparison.cc
-@@ -1762,6 +1762,22 @@ void
+@@ -1747,6 +1747,22 @@ void
  diff_context::show_redundant_changes(bool f)
  {priv_->show_redundant_changes_ = f;}
  
@@ -85,12 +85,12 @@ index 5797c9dd7f3f..f4979c1334b5 100644
  /// any debug info are to be compared and reported about.
  ///
 diff --git a/src/abg-leaf-reporter.cc b/src/abg-leaf-reporter.cc
-index f9d905abaeaf..59c81240b780 100644
+index 0875c968de7e..b6e21206406d 100644
 --- a/src/abg-leaf-reporter.cc
 +++ b/src/abg-leaf-reporter.cc
-@@ -45,6 +45,50 @@ bool
- leaf_reporter::diff_to_be_reported(const diff *d) const
- {return d && d->to_be_reported() && d->has_local_changes();}
+@@ -81,6 +81,50 @@ leaf_reporter::diff_has_net_changes(const corpus_diff *d) const
+ 	  || stats.net_num_added_var_syms());
+ }
  
 +/// See if a diff is important.
 +///
@@ -139,7 +139,7 @@ index f9d905abaeaf..59c81240b780 100644
  /// Report the changes carried by the diffs contained in an instance
  /// of @ref string_diff_ptr_map.
  ///
-@@ -83,9 +127,16 @@ report_diffs(const reporter_base& r,
+@@ -119,9 +163,16 @@ report_diffs(const reporter_base& r,
  	  report_loc_info((*i)->first_subject(),
  			  *(*i)->context(), out);
  
@@ -159,7 +159,7 @@ index f9d905abaeaf..59c81240b780 100644
  	}
      }
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index 6592ba322cbc..3cdcacd86759 100644
+index e59331e53e4a..3d8ef12b575d 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
 @@ -135,6 +135,7 @@ test-abidiff-exit/test-leaf-peeling-v0.o \
@@ -172,53 +172,54 @@ index 6592ba322cbc..3cdcacd86759 100644
  test-abidiff-exit/test-leaf-cxx-members-v1.cc \
 diff --git a/tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt b/tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt
 new file mode 100644
-index 000000000000..6a3e479978a5
+index 000000000000..ddc33f66cbc1
 --- /dev/null
 +++ b/tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt
-@@ -0,0 +1,41 @@
+@@ -0,0 +1,42 @@
 +Leaf changes summary: 6 artifacts changed
 +Changed leaf types summary: 6 leaf types changed
 +Removed/Changed/Added functions summary: 0 Removed, 0 Changed, 0 Added function
 +Removed/Changed/Added variables summary: 0 Removed, 0 Changed, 0 Added variable
 +
-+'struct foo at test-leaf-peeling-v0.cc:2:1' changed:
++'struct foo at test-leaf-peeling-v0.cc:1:1' changed:
 +  type size changed from 32 to 64 (in bits)
 +  there are data member changes:
 +    type 'int' of 'foo::z' changed:
 +      type name changed from 'int' to 'long int'
 +      type size changed from 32 to 64 (in bits)
++    and size changed from 32 to 64 (in bits) (by +32 bits)
 +
-+'struct ops1 at test-leaf-peeling-v0.cc:6:1' changed:
++'struct ops1 at test-leaf-peeling-v0.cc:5:1' changed:
 +  type size hasn't changed
 +  there are data member changes:
 +    type 'int*' of 'ops1::x' changed:
 +      pointer type changed from: 'int*' to: 'int**'
 +
-+'struct ops2 at test-leaf-peeling-v0.cc:10:1' changed (indirectly):
++'struct ops2 at test-leaf-peeling-v0.cc:9:1' changed (indirectly):
 +  type size changed from 320 to 640 (in bits)
 +  there are data member changes:
 +    'foo ops2::y[10]' size changed from 320 to 640 (in bits) (by +320 bits)
 +
-+'struct ops3 at test-leaf-peeling-v0.cc:14:1' changed:
++'struct ops3 at test-leaf-peeling-v0.cc:13:1' changed:
 +  type size hasn't changed
 +  there are data member changes:
 +    type 'void (int&)*' of 'ops3::spong' changed:
 +      pointer type changed from: 'void (int&)*' to: 'void (int&&)*'
 +
-+'struct ops4 at test-leaf-peeling-v0.cc:18:1' changed:
++'struct ops4 at test-leaf-peeling-v0.cc:17:1' changed:
 +  type size hasn't changed
 +  there are data member changes:
 +    type 'int*' of 'ops4::x' changed:
 +      entity changed from 'int*' to 'int&'
 +      type size hasn't changed
 +
-+'struct ops5 at test-leaf-peeling-v0.cc:22:1' changed:
++'struct ops5 at test-leaf-peeling-v0.cc:21:1' changed:
 +  type size hasn't changed
 +  there are data member changes:
 +    type 'int*' of 'ops5::x' changed:
 +      pointer type changed from: 'int*' to: 'int***'
 diff --git a/tests/test-abidiff-exit.cc b/tests/test-abidiff-exit.cc
-index 4d9c19437e60..2a5ac24995c0 100644
+index 936d1d630a8d..5921282e6cf2 100644
 --- a/tests/test-abidiff-exit.cc
 +++ b/tests/test-abidiff-exit.cc
 @@ -166,6 +166,15 @@ InOutSpec in_out_specs[] =

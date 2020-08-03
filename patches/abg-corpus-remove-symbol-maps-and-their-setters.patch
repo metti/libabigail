@@ -424,10 +424,10 @@ index 0f5d51820891..1f72904d137f 100644
  /// Look in the function symbols map for a symbol with a given name.
  ///
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 73069e844eba..2b978c239243 100644
+index f1fe05804f35..58c665087ca2 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -14133,54 +14133,6 @@ read_debug_info_into_corpus(read_context& ctxt)
+@@ -14445,54 +14445,6 @@ read_debug_info_into_corpus(read_context& ctxt)
  
    // Set symbols information to the corpus.
    ctxt.current_corpus()->set_symtab(ctxt.symtab());
@@ -483,10 +483,10 @@ index 73069e844eba..2b978c239243 100644
    // Get out now if no debug info is found.
    if (!ctxt.dwarf())
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index 313639fddff0..fbdcce590bc3 100644
+index 9833ea163d74..d7771e02a66b 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
-@@ -1974,17 +1974,6 @@ read_corpus_from_input(read_context& ctxt)
+@@ -1913,17 +1913,6 @@ read_corpus_from_input(read_context& ctxt)
        // are nil, due to potential suppression specifications.  That's
        // fine.
        corp.set_symtab(symtab_reader::symtab::load(fn_sym_db, var_sym_db));
@@ -505,7 +505,7 @@ index 313639fddff0..fbdcce590bc3 100644
  
    ctxt.get_environment()->canonicalization_is_done(false);
 diff --git a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
-index d5af7183095f..24c25c06d61c 100644
+index 4bfcd041c9c4..de9ad546e6d0 100644
 --- a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 +++ b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 @@ -37,8 +37,6 @@
@@ -515,8 +515,8 @@ index d5af7183095f..24c25c06d61c 100644
 -  <elf-variable-symbols>
 -  </elf-variable-symbols>
    <abi-instr version='1.0' address-size='64' path='/ws/android/kernel/aosp/common-mainline/common/drivers/mmc/host/sdhci.c' comp-dir-path='/ws/android/kernel/aosp/common-mainline/out/android-mainline/common' language='LANG_C89'>
- 
- 
+     <type-decl name='__ARRAY_SIZE_TYPE__' size-in-bits='64' id='type-id-1'/>
+     <array-type-def dimensions='1' type-id='type-id-2' size-in-bits='64' id='type-id-3'>
 diff --git a/tests/test-symtab.cc b/tests/test-symtab.cc
 index 905d8249a6e4..c144b1d080f6 100644
 --- a/tests/test-symtab.cc

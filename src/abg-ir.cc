@@ -652,20 +652,23 @@ struct type_name_comp
   {return operator()(type_base_sptr(l), type_base_sptr(r));}
 }; // end struct type_name_comp
 
+/// Compare two types by comparing their canonical types if present.
+///
+/// If the canonical types are not present (because the types have not
+/// yet been canonicalized, for instance) then the types are compared
+/// structurally.
+///
+/// @param l the first type to take into account in the comparison.
+///
+/// @param r the second type to take into account in the comparison.
 template<typename T>
-bool equality_helper(const T* lptr, const T* rptr,
-		     const type_base* lcanon,
-		     const type_base* rcanon)
+bool
+try_canonical_compare(const T *l, const T *r)
 {
-  return lcanon && rcanon ? lcanon == rcanon : equals(*lptr, *rptr, 0);
-}
-
-template<typename T>
-bool equality_helper(const T* lptr, const T* rptr)
-{
-  return equality_helper(lptr, rptr,
-			 lptr->get_naked_canonical_type(),
-			 rptr->get_naked_canonical_type());
+  if (const type_base *lc = l->get_naked_canonical_type())
+    if (const type_base *rc = r->get_naked_canonical_type())
+      return lc == rc;
+  return equals(*l, *r, 0);
 }
 
 /// Getter of all types types sorted by their pretty representation.
@@ -5907,23 +5910,19 @@ peel_qualified_or_typedef_type(const type_base* type)
 }
 
 /// Return the leaf underlying or pointed-to type node of a @ref
-/// typedef_decl, @ref pointer_type_def, @ref reference_type_def or
-/// @ref qualified_type_def node.
+/// typedef_decl, @ref pointer_type_def or @ref reference_type_def
+/// node.
 ///
 /// @param type the type to peel.
 ///
-/// @param peel_qualified_type if true, also peel qualified types.
-///
 /// @return the leaf underlying or pointed-to type node of @p type.
 type_base_sptr
-peel_typedef_pointer_or_reference_type(const type_base_sptr type,
-				       bool peel_qual_type)
+peel_typedef_pointer_or_reference_type(const type_base_sptr type)
 {
-  type_base_sptr typ  = type;
+  type_base_sptr typ = type;
   while (is_typedef(typ)
 	 || is_pointer_type(typ)
-	 || is_reference_type(typ)
-	 || (peel_qual_type && is_qualified_type(typ)))
+	 || is_reference_type(typ))
     {
       if (typedef_decl_sptr t = is_typedef(typ))
 	typ = peel_typedef_type(t);
@@ -5933,35 +5932,24 @@ peel_typedef_pointer_or_reference_type(const type_base_sptr type,
 
       if (reference_type_def_sptr t = is_reference_type(typ))
 	typ = peel_reference_type(t);
-
-      if (array_type_def_sptr t = is_array_type(typ))
-	typ = peel_array_type(t);
-
-      if (peel_qual_type)
-	if (qualified_type_def_sptr t = is_qualified_type(typ))
-	  typ = peel_qualified_type(t);
     }
 
   return typ;
 }
 
 /// Return the leaf underlying or pointed-to type node of a @ref
-/// typedef_decl, @ref pointer_type_def, @ref reference_type_def or
-/// @ref qualified_type_def type node.
+/// typedef_decl, @ref pointer_type_def or @ref reference_type_def
+/// node.
 ///
 /// @param type the type to peel.
 ///
-/// @param peel_qualified_type if true, also peel qualified types.
-///
 /// @return the leaf underlying or pointed-to type node of @p type.
 type_base*
-peel_typedef_pointer_or_reference_type(const type_base* type,
-				       bool peel_qual_type)
+peel_typedef_pointer_or_reference_type(const type_base* type)
 {
   while (is_typedef(type)
 	 || is_pointer_type(type)
-	 || is_reference_type(type)
-	 || (peel_qual_type && is_qualified_type(type)))
+	 || is_reference_type(type))
     {
       if (const typedef_decl* t = is_typedef(type))
 	type = peel_typedef_type(t);
@@ -5971,13 +5959,6 @@ peel_typedef_pointer_or_reference_type(const type_base* type,
 
       if (const reference_type_def* t = is_reference_type(type))
 	type = peel_reference_type(t);
-
-      if (const array_type_def* t = is_array_type(type))
-	type = peel_array_type(t);
-
-      if (peel_qual_type)
-	if (const qualified_type_def* t = is_qualified_type(type))
-	  type = peel_qualified_type(t);
     }
 
   return const_cast<type_base*>(type);
@@ -12417,7 +12398,6 @@ decl_base::set_definition_of_declaration(const decl_base_sptr& d)
 {
   ABG_ASSERT(get_is_declaration_only());
   priv_->definition_of_declaration_ = d;
-  priv_->definition_of_declaration_ = d;
   if (type_base *t = is_type(this))
     if (type_base_sptr canonical_type = is_type(d)->get_canonical_type())
       t->priv_->canonical_type = canonical_type;
@@ -13020,7 +13000,7 @@ type_decl::operator==(const decl_base& o) const
   const type_decl* other = dynamic_cast<const type_decl*>(&o);
   if (!other)
     return false;
-  return equality_helper(this, other);
+  return try_canonical_compare(this, other);
 }
 
 /// Return true if both types equals.
@@ -13197,7 +13177,7 @@ scope_type_decl::operator==(const decl_base& o) const
   const scope_type_decl* other = dynamic_cast<const scope_type_decl*>(&o);
   if (!other)
     return false;
-  return equality_helper(this, other);
+  return try_canonical_compare(this, other);
 }
 
 /// Equality operator between two scope_type_decl.
@@ -13561,7 +13541,7 @@ qualified_type_def::operator==(const decl_base& o) const
     dynamic_cast<const qualified_type_def*>(&o);
   if (!other)
     return false;
-  return equality_helper(this, other);
+  return try_canonical_compare(this, other);
 }
 
 /// Equality operator for qualified types.
@@ -13928,7 +13908,7 @@ pointer_type_def::operator==(const decl_base& o) const
   const pointer_type_def* other = is_pointer_type(&o);
   if (!other)
     return false;
-  return equality_helper(this, other);
+  return try_canonical_compare(this, other);
 }
 
 /// Return true iff both instances of pointer_type_def are equal.
@@ -14232,7 +14212,7 @@ reference_type_def::operator==(const decl_base& o) const
     dynamic_cast<const reference_type_def*>(&o);
   if (!other)
     return false;
-  return equality_helper(this, other);
+  return try_canonical_compare(this, other);
 }
 
 /// Equality operator of the @ref reference_type_def type.
@@ -14774,7 +14754,7 @@ array_type_def::subrange_type::operator==(const decl_base& o) const
     dynamic_cast<const subrange_type*>(&o);
   if (!other)
     return false;
-  return equality_helper(this, other);
+  return try_canonical_compare(this, other);
 }
 
 /// Equality operator.
@@ -15092,7 +15072,7 @@ array_type_def::operator==(const decl_base& o) const
     dynamic_cast<const array_type_def*>(&o);
   if (!other)
     return false;
-  return equality_helper(this, other);
+  return try_canonical_compare(this, other);
 }
 
 bool
@@ -15567,7 +15547,7 @@ enum_type_decl::operator==(const decl_base& o) const
   const enum_type_decl* op = dynamic_cast<const enum_type_decl*>(&o);
   if (!op)
     return false;
-  return equality_helper(this, op);
+  return try_canonical_compare(this, op);
 }
 
 /// Equality operator.
@@ -15917,7 +15897,7 @@ typedef_decl::operator==(const decl_base& o) const
   const typedef_decl* other = dynamic_cast<const typedef_decl*>(&o);
   if (!other)
     return false;
-  return equality_helper(this, other);
+  return try_canonical_compare(this, other);
 }
 
 /// Equality operator
@@ -17008,7 +16988,7 @@ function_type::operator==(const type_base& other) const
   const function_type* o = dynamic_cast<const function_type*>(&other);
   if (!o)
     return false;
-  return equality_helper(this, o);
+  return try_canonical_compare(this, o);
 }
 
 /// Return a copy of the pretty representation of the current @ref
@@ -19268,26 +19248,22 @@ class_or_union::operator==(const decl_base& other) const
   if (!op)
     return false;
 
-  type_base *canonical_type = get_naked_canonical_type(),
-    *other_canonical_type = op->get_naked_canonical_type();
-
-  // If this is a declaration only class with no canonical class, use
-  // the canonical type of the definition, if any.
-  if (!canonical_type
-      && get_is_declaration_only()
-      && get_naked_definition_of_declaration())
-    canonical_type = is_class_or_union_type
-      (get_naked_definition_of_declaration())->get_naked_canonical_type();
+  // If this is a decl-only type (and thus with no canonical type),
+  // use the canonical type of the definition, if any.
+  const class_or_union *l = 0;
+  if (get_is_declaration_only())
+    l = dynamic_cast<const class_or_union*>(get_naked_definition_of_declaration());
+  if (l == 0)
+    l = this;
 
   // Likewise for the other class.
-  if (!other_canonical_type
-      && op->get_is_declaration_only()
-      && op->get_naked_definition_of_declaration())
-    other_canonical_type =
-      is_class_or_union_type
-      (op->get_naked_definition_of_declaration())->get_naked_canonical_type();
+  const class_or_union *r = 0;
+  if (op->get_is_declaration_only())
+    r = dynamic_cast<const class_or_union*>(op->get_naked_definition_of_declaration());
+  if (r == 0)
+    r = op;
 
-  return equality_helper(this, op, canonical_type, other_canonical_type);
+  return try_canonical_compare(l, r);
 }
 
 /// Equality operator.
@@ -19442,7 +19418,7 @@ equals(const class_or_union& l, const class_or_union& r, change_kind* k)
     {
       if (k)
 	*k |= LOCAL_TYPE_CHANGE_KIND;
-      RETURN(false);
+      return false;
     }
 
   if (types_defined_same_linux_kernel_corpus_public(l, r))
@@ -21096,27 +21072,26 @@ class_decl::operator==(const decl_base& other) const
   if (!op)
     return false;
 
-  type_base *canonical_type = get_naked_canonical_type(),
-    *other_canonical_type = op->get_naked_canonical_type();
+  // If this is a decl-only type (and thus with no canonical type),
+  // use the canonical type of the definition, if any.
+  const class_decl *l = 0;
+  if (get_is_declaration_only())
+    l = dynamic_cast<const class_decl*>(get_naked_definition_of_declaration());
+  if (l == 0)
+    l = this;
 
-  // If this is a declaration only class with no canonical class, use
-  // the canonical type of the definition, if any.
-  if (!canonical_type
-      && get_is_declaration_only()
-      && get_naked_definition_of_declaration())
-    canonical_type =
-      is_class_type
-      (get_naked_definition_of_declaration())->get_naked_canonical_type();
+  ABG_ASSERT(l);
 
-  // Likewise for the other class.
-  if (!other_canonical_type
-      && op->get_is_declaration_only()
-      && op->get_naked_definition_of_declaration())
-    other_canonical_type =
-      is_class_type
-      (op->get_naked_definition_of_declaration())->get_naked_canonical_type();
+  // Likewise for the other type.
+  const class_decl *r = 0;
+  if (op->get_is_declaration_only())
+    r = dynamic_cast<const class_decl*>(op->get_naked_definition_of_declaration());
+  if (r == 0)
+    r = op;
 
-  return equality_helper(this, op, canonical_type, other_canonical_type);
+  ABG_ASSERT(r);
+
+  return try_canonical_compare(l, r);
 }
 
 /// Equality operator for class_decl.
@@ -21897,7 +21872,7 @@ union_decl::operator==(const decl_base& other) const
   const union_decl* op = dynamic_cast<const union_decl*>(&other);
   if (!op)
     return false;
-  return equality_helper(this, op);
+  return try_canonical_compare(this, op);
 }
 
 /// Equality operator for union_decl.

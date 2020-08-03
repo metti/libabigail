@@ -21,10 +21,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 10 insertions(+), 21 deletions(-)
 
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index 188c23d2e5cd..313639fddff0 100644
+index 418c037263aa..9833ea163d74 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
-@@ -1150,8 +1150,7 @@ static elf_symbol_sptr
+@@ -1089,8 +1089,7 @@ static elf_symbol_sptr
  build_elf_symbol(read_context&, const xmlNodePtr, bool);
  
  static elf_symbol_sptr
@@ -34,7 +34,7 @@ index 188c23d2e5cd..313639fddff0 100644
  
  static string_elf_symbols_map_sptr
  build_elf_symbol_db(read_context&, const xmlNodePtr, bool);
-@@ -2884,8 +2883,7 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
+@@ -2823,8 +2822,7 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
  ///
  /// @return a shared pointer the resutling elf_symbol.
  static elf_symbol_sptr
@@ -44,7 +44,7 @@ index 188c23d2e5cd..313639fddff0 100644
  {
    elf_symbol_sptr nil;
  
-@@ -2904,20 +2902,13 @@ build_elf_symbol_from_reference(read_context& ctxt, const xmlNodePtr node,
+@@ -2843,20 +2841,13 @@ build_elf_symbol_from_reference(read_context& ctxt, const xmlNodePtr node,
        if (name.empty())
  	return nil;
  
@@ -71,7 +71,7 @@ index 188c23d2e5cd..313639fddff0 100644
      }
  
    return nil;
-@@ -3168,8 +3159,7 @@ build_function_decl(read_context&	ctxt,
+@@ -3107,8 +3098,7 @@ build_function_decl(read_context&	ctxt,
  
    ctxt.push_decl_to_current_scope(fn_decl, add_to_current_scope);
  
@@ -81,7 +81,7 @@ index 188c23d2e5cd..313639fddff0 100644
    if (sym)
      fn_decl->set_symbol(sym);
  
-@@ -3400,8 +3390,7 @@ build_var_decl(read_context&	ctxt,
+@@ -3339,8 +3329,7 @@ build_var_decl(read_context&	ctxt,
  				  locus, mangled_name,
  				  vis, bind));
  

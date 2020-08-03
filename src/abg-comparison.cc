@@ -788,21 +788,6 @@ const qualified_type_diff*
 is_qualified_type_diff(const diff* diff)
 {return dynamic_cast<const qualified_type_diff*>(diff);}
 
-/// Test if a diff node is either a reference diff node or a pointer
-/// diff node.  Note that this function also works on diffs of
-/// typedefs of reference or pointer.
-///
-/// @param diff the diff node to test.
-///
-/// @return true iff @p diff is either reference diff node or a
-/// pointer diff node.
-bool
-is_reference_or_pointer_diff(const diff* diff)
-{
-  diff = peel_typedef_diff(diff);
-  return is_reference_diff(diff) || is_pointer_diff(diff);
-}
-
 /// Test if a diff node is a reference or pointer diff node to a
 /// change that is neither basic type change nor distinct type change.
 ///
@@ -10079,6 +10064,9 @@ corpus_diff::priv::apply_filters_and_compute_diff_stats(diff_stats& stat)
 /// Emit the summary of the functions & variables that got
 /// removed/changed/added.
 ///
+/// TODO: This should be handled by the reporters, just like what is
+/// done for reporter_base::diff_to_be_reported.
+///
 /// @param out the output stream to emit the stats to.
 ///
 /// @param indent the indentation string to use in the summary.
@@ -10117,7 +10105,6 @@ corpus_diff::priv::emit_diff_stats(const diff_stats&	s,
 	out << " (" << num_filtered << " filtered out)";
       out << "\n";
 
-
       out << indent << "Changed leaf types summary: "
 	  << s.net_num_leaf_type_changes();
       if (s.num_leaf_type_changes_filtered_out())
@@ -10155,7 +10142,6 @@ corpus_diff::priv::emit_diff_stats(const diff_stats&	s,
 
       // variables changes summary
       out << indent << "Removed/Changed/Added variables summary: ";
-
       out << s.net_num_vars_removed() << " Removed";
       if (s.num_removed_vars_filtered_out())
 	out << " (" << s.num_removed_vars_filtered_out()
@@ -10212,7 +10198,6 @@ corpus_diff::priv::emit_diff_stats(const diff_stats&	s,
 	+ s.num_vars_changed() + s.num_vars_added();
 
       out << indent << "Variables changes summary: ";
-
       out << s.net_num_vars_removed() << " Removed";
       if (s.num_removed_vars_filtered_out())
 	out << " (" << s.num_removed_vars_filtered_out()
@@ -10239,7 +10224,7 @@ corpus_diff::priv::emit_diff_stats(const diff_stats&	s,
   // functions/variables.
   if (ctxt->show_unreachable_types())
     {
-      size_t total_nb_variable_changes =
+      size_t total_nb_unreachable_type_changes =
 	s.num_removed_unreachable_types()
 	+ s.num_changed_unreachable_types()
 	+ s.num_added_unreachable_types();
@@ -10265,7 +10250,7 @@ corpus_diff::priv::emit_diff_stats(const diff_stats&	s,
       if (s.num_added_unreachable_types_filtered_out())
 	out << " (" << s.num_added_unreachable_types_filtered_out()
 	    << " filtered out)";
-      if (total_nb_variable_changes <= 1)
+      if (total_nb_unreachable_type_changes <= 1)
 	out << " type";
       else
 	out << " types";
@@ -10864,32 +10849,7 @@ corpus_diff::has_net_subtype_changes() const
 /// carries subtype changes that are deemed incompatible ABI changes.
 bool
 corpus_diff::has_net_changes() const
-{
-    const diff_stats& stats = const_cast<corpus_diff*>(this)->
-      apply_filters_and_suppressions_before_reporting();
-
-    // Logic here should match emit_diff_stats.
-    // TODO: Possibly suppress things that won't be shown there.
-    bool leaf = context()->show_leaf_changes_only();
-    return (architecture_changed()
-	    || soname_changed()
-	    || stats.net_num_func_removed()
-	    || (leaf && stats.net_num_leaf_type_changes())
-	    || (leaf ? stats.net_num_leaf_func_changes()
-		     : stats.net_num_func_changed())
-	    || stats.net_num_func_added()
-	    || stats.net_num_vars_removed()
-	    || (leaf ? stats.net_num_leaf_var_changes()
-		     : stats.net_num_vars_changed())
-	    || stats.net_num_vars_added()
-	    || stats.net_num_removed_unreachable_types()
-	    || stats.net_num_changed_unreachable_types()
-	    || stats.net_num_added_unreachable_types()
-	    || stats.net_num_removed_func_syms()
-	    || stats.net_num_added_func_syms()
-	    || stats.net_num_removed_var_syms()
-	    || stats.net_num_added_var_syms());
-}
+{return  context()->get_reporter()->diff_has_net_changes(this);}
 
 /// Apply the different filters that are registered to be applied to
 /// the diff tree; that includes the categorization filters.  Also,

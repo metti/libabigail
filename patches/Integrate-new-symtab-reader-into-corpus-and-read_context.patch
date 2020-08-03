@@ -61,10 +61,10 @@ index 410a9c2459e6..b94926996cde 100644
    set_fun_symbol_map(string_elf_symbols_map_sptr);
  
 diff --git a/include/abg-fwd.h b/include/abg-fwd.h
-index f6e0c5b286a1..f6e3969a6f36 100644
+index 4b09929cfc06..321d0a9fbacb 100644
 --- a/include/abg-fwd.h
 +++ b/include/abg-fwd.h
-@@ -1331,6 +1331,14 @@ typedef vector<suppression_sptr> suppressions_type;
+@@ -1362,6 +1362,14 @@ typedef vector<suppression_sptr> suppressions_type;
  
  } // end namespace suppr
  
@@ -127,7 +127,7 @@ index 9e90b99473d3..94702047dd82 100644
  ///
  /// @param map a shared pointer to the new function symbols map.
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 213638102230..d7b73adb4874 100644
+index 1184cbfe35e6..6e3a6509b366 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
 @@ -50,6 +50,7 @@
@@ -146,7 +146,7 @@ index 213638102230..d7b73adb4874 100644
  #include "abg-tools-utils.h"
  
  ABG_END_EXPORT_DECLARATIONS
-@@ -2277,6 +2279,9 @@ public:
+@@ -2285,6 +2287,9 @@ public:
    bool				drop_undefined_syms_;
    read_context();
  
@@ -156,7 +156,7 @@ index 213638102230..d7b73adb4874 100644
  public:
  
    /// Constructor of read_context.
-@@ -2426,6 +2431,8 @@ public:
+@@ -2434,6 +2439,8 @@ public:
      dt_soname_.clear();
      elf_architecture_.clear();
  
@@ -165,7 +165,7 @@ index 213638102230..d7b73adb4874 100644
      clear_per_translation_unit_data();
  
      memset(&offline_callbacks_, 0, sizeof(offline_callbacks_));
-@@ -5577,6 +5584,22 @@ public:
+@@ -5782,6 +5789,22 @@ public:
      return symbol;
    }
  
@@ -188,7 +188,7 @@ index 213638102230..d7b73adb4874 100644
    /// Getter for a pointer to the map that associates the address of
    /// an entry point of a function with the symbol of that function.
    ///
-@@ -15482,6 +15505,7 @@ read_debug_info_into_corpus(read_context& ctxt)
+@@ -15794,6 +15817,7 @@ read_debug_info_into_corpus(read_context& ctxt)
      group->add_corpus(ctxt.current_corpus());
  
    // Set symbols information to the corpus.
@@ -196,7 +196,7 @@ index 213638102230..d7b73adb4874 100644
    if (!get_ignore_symbol_table(ctxt))
      {
        if (ctxt.load_in_linux_kernel_mode()
-@@ -16738,6 +16762,9 @@ read_corpus_from_elf(read_context& ctxt, status& status)
+@@ -17077,6 +17101,9 @@ read_corpus_from_elf(read_context& ctxt, status& status)
  	status |= STATUS_NO_SYMBOLS_FOUND;
      }
  
@@ -207,7 +207,7 @@ index 213638102230..d7b73adb4874 100644
        status & STATUS_NO_SYMBOLS_FOUND
        // ... or if debug info was found but not the required alternate
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index eb74659f1d46..188c23d2e5cd 100644
+index e72a5de9ac0e..418c037263aa 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
 @@ -47,6 +47,7 @@ ABG_BEGIN_EXPORT_DECLARATIONS
@@ -218,7 +218,7 @@ index eb74659f1d46..188c23d2e5cd 100644
  
  #ifdef WITH_ZIP_ARCHIVE
  #include "abg-libzip-utils.h"
-@@ -1973,6 +1974,8 @@ read_corpus_from_input(read_context& ctxt)
+@@ -1912,6 +1913,8 @@ read_corpus_from_input(read_context& ctxt)
        // Note that it's possible that both fn_sym_db and var_sym_db
        // are nil, due to potential suppression specifications.  That's
        // fine.

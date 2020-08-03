@@ -18,10 +18,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 8 insertions(+), 24 deletions(-)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index d7b73adb4874..87cf34b2e5b7 100644
+index 6e3a6509b366..13e8677d12d1 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -5515,11 +5515,11 @@ public:
+@@ -5720,11 +5720,11 @@ public:
    elf_symbol_sptr
    function_symbol_is_exported(GElf_Addr symbol_address) const
    {
@@ -35,7 +35,7 @@ index d7b73adb4874..87cf34b2e5b7 100644
        return elf_symbol_sptr();
  
      address_set_sptr set;
-@@ -5528,16 +5528,8 @@ public:
+@@ -5733,16 +5733,8 @@ public:
  
      if (looking_at_linux_kernel_binary)
        {
@@ -54,7 +54,7 @@ index d7b73adb4874..87cf34b2e5b7 100644
  	return elf_symbol_sptr();
        }
  
-@@ -5555,11 +5547,11 @@ public:
+@@ -5760,11 +5752,11 @@ public:
    elf_symbol_sptr
    variable_symbol_is_exported(GElf_Addr symbol_address) const
    {
@@ -68,7 +68,7 @@ index d7b73adb4874..87cf34b2e5b7 100644
        return elf_symbol_sptr();
  
      address_set_sptr set;
-@@ -5568,16 +5560,8 @@ public:
+@@ -5773,16 +5765,8 @@ public:
  
      if (looking_at_linux_kernel_binary)
        {

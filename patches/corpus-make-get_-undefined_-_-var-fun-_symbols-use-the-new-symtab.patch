@@ -371,10 +371,10 @@ index 94702047dd82..6d4bedfd57b7 100644
  ///
  /// @param n the name of the symbol to look for.
 diff --git a/src/abg-writer.cc b/src/abg-writer.cc
-index ce0bae2d5cfd..c5be11b26072 100644
+index 4c751c26020e..377afacad732 100644
 --- a/src/abg-writer.cc
 +++ b/src/abg-writer.cc
-@@ -1693,26 +1693,42 @@ write_elf_symbol_visibility(elf_symbol::visibility v, ostream& o)
+@@ -1692,26 +1692,42 @@ write_elf_symbol_visibility(elf_symbol::visibility v, ostream& o)
  ///
  /// @return true upon successful completion.
  static bool
@@ -429,7 +429,7 @@ index ce0bae2d5cfd..c5be11b26072 100644
  
  /// Write an XML attribute for the reference to a symbol for the
 diff --git a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
-index 755ea6dc433e..d5af7183095f 100644
+index cbe8d20eb04e..4bfcd041c9c4 100644
 --- a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 +++ b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 @@ -2,8 +2,6 @@
@@ -448,4 +448,4 @@ index 755ea6dc433e..d5af7183095f 100644
 -    <elf-symbol name='__this_module' size='896' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
    </elf-variable-symbols>
    <abi-instr version='1.0' address-size='64' path='/ws/android/kernel/aosp/common-mainline/common/drivers/mmc/host/sdhci.c' comp-dir-path='/ws/android/kernel/aosp/common-mainline/out/android-mainline/common' language='LANG_C89'>
- 
+     <type-decl name='__ARRAY_SIZE_TYPE__' size-in-bits='64' id='type-id-1'/>

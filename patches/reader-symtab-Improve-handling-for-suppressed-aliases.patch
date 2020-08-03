@@ -37,10 +37,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  create mode 100644 tests/data/test-abidiff-exit/test-missing-alias.suppr
 
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index 3f636d00f9b8..d71e2d43503a 100644
+index 31aa567af038..4d3db686b944 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
-@@ -2850,7 +2850,8 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
+@@ -2789,7 +2789,8 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
  
    elf_symbol::version version(version_string, is_default_version);
  
@@ -50,7 +50,7 @@ index 3f636d00f9b8..d71e2d43503a 100644
      return elf_symbol_sptr();
  
    const environment* env = ctxt.get_environment();
-@@ -2860,6 +2861,8 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
+@@ -2799,6 +2800,8 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
  					 version, visibility,
  					 /*is_linux_string_cst=*/false);
  
@@ -59,7 +59,7 @@ index 3f636d00f9b8..d71e2d43503a 100644
    if (crc != 0)
      e->set_crc(crc);
  
-@@ -2950,7 +2953,7 @@ build_elf_symbol_db(read_context& ctxt,
+@@ -2889,7 +2892,7 @@ build_elf_symbol_db(read_context& ctxt,
    elf_symbol_sptr sym;
    for (xmlNodePtr n = node->children; n; n = n->next)
      {
@@ -103,13 +103,13 @@ index c50c0f643386..424817106e70 100644
        }
  
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index d8d9918ace8d..bec160b2d4ee 100644
+index 16c411b63bfb..99dc96c66b7f 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
-@@ -162,6 +162,9 @@ test-abidiff-exit/test-fun-param-v0.o \
- test-abidiff-exit/test-fun-param-v1.abi \
- test-abidiff-exit/test-fun-param-v1.c \
- test-abidiff-exit/test-fun-param-v1.o \
+@@ -178,6 +178,9 @@ test-abidiff-exit/test-net-change-report0.txt \
+ test-abidiff-exit/test-net-change-report1.txt \
+ test-abidiff-exit/test-net-change-report2.txt \
+ test-abidiff-exit/test-net-change-report3.txt \
 +test-abidiff-exit/test-missing-alias-report.txt \
 +test-abidiff-exit/test-missing-alias.abi \
 +test-abidiff-exit/test-missing-alias.suppr \
@@ -148,12 +148,12 @@ index 000000000000..bcebae43a350
 +  drop = true
 +
 diff --git a/tests/test-abidiff-exit.cc b/tests/test-abidiff-exit.cc
-index 2a5ac24995c0..24646bd2ab26 100644
+index 5921282e6cf2..2e6c4d3b9a6e 100644
 --- a/tests/test-abidiff-exit.cc
 +++ b/tests/test-abidiff-exit.cc
-@@ -221,6 +221,15 @@ InOutSpec in_out_specs[] =
-     "data/test-abidiff-exit/test-fun-param-report.txt",
-     "output/test-abidiff-exit/test-fun-param-report.txt"
+@@ -286,6 +286,15 @@ InOutSpec in_out_specs[] =
+     "data/test-abidiff-exit/test-net-change-report3.txt",
+     "output/test-abidiff-exit/test-net-change-report3.txt"
    },
 +  {
 +    "data/test-abidiff-exit/test-missing-alias.abi",

@@ -62,10 +62,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  create mode 100644 tests/data/test-read-dwarf/test3-alias-4.suppr
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 3313270d563c..e6e31a34fe7e 100644
+index f94fe6208784..b5d23d348b59 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -13003,8 +13003,16 @@ function_is_suppressed(const read_context& ctxt,
+@@ -13280,8 +13280,16 @@ function_is_suppressed(const read_context& ctxt,
        if (!ctxt.get_function_address(function_die, fn_addr))
  	return true;
  
@@ -83,7 +83,7 @@ index 3313270d563c..e6e31a34fe7e 100644
      }
  
    return suppr::function_is_suppressed(ctxt, qualified_name,
-@@ -13108,8 +13116,16 @@ variable_is_suppressed(const read_context& ctxt,
+@@ -13385,8 +13393,16 @@ variable_is_suppressed(const read_context& ctxt,
        if (!ctxt.get_variable_address(variable_die, var_addr))
  	return true;
  
@@ -102,10 +102,10 @@ index 3313270d563c..e6e31a34fe7e 100644
  
    return suppr::variable_is_suppressed(ctxt, qualified_name,
 diff --git a/src/abg-writer.cc b/src/abg-writer.cc
-index c5be11b26072..723db1a51256 100644
+index 377afacad732..bcbf9ce8ee06 100644
 --- a/src/abg-writer.cc
 +++ b/src/abg-writer.cc
-@@ -1742,7 +1742,10 @@ write_elf_symbol_aliases(const elf_symbol& sym, ostream& out)
+@@ -1741,7 +1741,10 @@ write_elf_symbol_aliases(const elf_symbol& sym, ostream& out)
  static bool
  write_elf_symbol_reference(const elf_symbol& sym, ostream& o)
  {
@@ -118,10 +118,10 @@ index c5be11b26072..723db1a51256 100644
  }
  
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index 3109dc95e74d..1224b4081ddb 100644
+index e94943bc6b2f..725a8aa92599 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
-@@ -412,6 +412,14 @@ test-read-dwarf/test3.c		\
+@@ -428,6 +428,14 @@ test-read-dwarf/test3.c		\
  test-read-dwarf/test3.so		\
  test-read-dwarf/test3.so.abi		\
  test-read-dwarf/test3.so.hash.abi	\
@@ -251,7 +251,7 @@ index 000000000000..25a2c437f51e
 +  symbol_name_not_regexp = ^_init$
 +  drop = true
 diff --git a/tests/test-read-dwarf.cc b/tests/test-read-dwarf.cc
-index 8502f8279241..dc11fbca2738 100644
+index 3f93d6dbe5f6..bfd66eecd010 100644
 --- a/tests/test-read-dwarf.cc
 +++ b/tests/test-read-dwarf.cc
 @@ -124,6 +124,38 @@ InOutSpec in_out_specs[] =

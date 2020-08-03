@@ -169,6 +169,15 @@ test-abidiff-exit/test-decl-enum-v1.o \
 test-abidiff-exit/test-decl-enum-report.txt \
 test-abidiff-exit/test-decl-enum-report-2.txt \
 test-abidiff-exit/test-decl-enum-report-3.txt \
+test-abidiff-exit/test-net-change.abignore \
+test-abidiff-exit/test-net-change-v0.c \
+test-abidiff-exit/test-net-change-v0.o \
+test-abidiff-exit/test-net-change-v1.c \
+test-abidiff-exit/test-net-change-v1.o \
+test-abidiff-exit/test-net-change-report0.txt \
+test-abidiff-exit/test-net-change-report1.txt \
+test-abidiff-exit/test-net-change-report2.txt \
+test-abidiff-exit/test-net-change-report3.txt \
 test-abidiff-exit/test-missing-alias-report.txt \
 test-abidiff-exit/test-missing-alias.abi \
 test-abidiff-exit/test-missing-alias.suppr \
@@ -502,6 +511,14 @@ test-read-dwarf/PR25042-libgdbm-clang-dwarf5.so.6.0.0.abi \
 test-read-dwarf/test25-bogus-binary.elf \
 test-read-dwarf/test26-bogus-binary.elf \
 test-read-dwarf/test27-bogus-binary.elf \
+test-read-dwarf/PR26261/Makefile \
+test-read-dwarf/PR26261/PR26261-exe.abi \
+test-read-dwarf/PR26261/PR26261-obja.c \
+test-read-dwarf/PR26261/PR26261-objb.c \
+test-read-dwarf/PR26261/PR26261-exe \
+test-read-dwarf/PR26261/PR26261-main.c \
+test-read-dwarf/PR26261/PR26261-obja.h \
+test-read-dwarf/PR26261/PR26261-objb.h \
 \
 test-annotate/test0.abi			\
 test-annotate/test1.abi			\

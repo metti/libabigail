@@ -73,10 +73,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 22 insertions(+), 1172 deletions(-)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 87cf34b2e5b7..2d39596f2712 100644
+index 13e8677d12d1..1078ee7cd7dd 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -2165,26 +2165,6 @@ public:
+@@ -2172,26 +2172,6 @@ public:
    // ppc64 elf v1 binaries.  This section contains the procedure
    // descriptors on that platform.
    mutable Elf_Scn*		opd_section_;
@@ -103,7 +103,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    Dwarf_Die*			cur_tu_die_;
    mutable dwarf_expr_eval_context	dwarf_expr_eval_context_;
    // A set of maps (one per kind of die source) that associates a decl
-@@ -2267,10 +2247,6 @@ public:
+@@ -2275,10 +2255,6 @@ public:
    string_elf_symbols_map_sptr	var_syms_;
    string_elf_symbols_map_sptr	undefined_fun_syms_;
    string_elf_symbols_map_sptr	undefined_var_syms_;
@@ -114,7 +114,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    vector<string>		dt_needed_;
    string			dt_soname_;
    string			elf_architecture_;
-@@ -2369,15 +2345,6 @@ public:
+@@ -2377,15 +2353,6 @@ public:
      elf_path_ = elf_path;
      symtab_section_ = 0;
      opd_section_ = 0;
@@ -130,7 +130,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
      cur_tu_die_ =  0;
      exported_decls_builder_ = 0;
  
-@@ -2423,10 +2390,6 @@ public:
+@@ -2431,10 +2398,6 @@ public:
      var_syms_.reset();
      undefined_fun_syms_.reset();
      undefined_var_syms_.reset();
@@ -141,7 +141,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
      dt_needed_.clear();
      dt_soname_.clear();
      elf_architecture_.clear();
-@@ -5070,97 +5033,6 @@ public:
+@@ -5275,97 +5238,6 @@ public:
      return opd_section_;
    }
  
@@ -239,7 +239,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// Lookup an elf symbol, referred to by its index, from the .symtab
    /// section.
    ///
-@@ -5256,7 +5128,7 @@ public:
+@@ -5461,7 +5333,7 @@ public:
      elf_symbol::visibility vis =
        stv_to_elf_symbol_visibility(GELF_ST_VISIBILITY(native_sym.st_other));
  
@@ -248,7 +248,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
      size_t strings_ndx = strings_section
        ? elf_ndxscn(strings_section)
        : 0;
-@@ -5418,92 +5290,6 @@ public:
+@@ -5623,92 +5495,6 @@ public:
      return result;
    }
  
@@ -341,7 +341,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// Test if a given function symbol has been exported.
    ///
    /// @param symbol_address the address of the symbol we are looking
-@@ -5603,20 +5389,6 @@ public:
+@@ -5808,20 +5594,6 @@ public:
      return fun_addr_sym_map_;
    }
  
@@ -362,7 +362,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// Getter for the map that associates the address of an entry point
    /// of a function with the symbol of that function.
    ///
-@@ -5630,19 +5402,6 @@ public:
+@@ -5835,19 +5607,6 @@ public:
    fun_entry_addr_sym_map()
    {return *fun_entry_addr_sym_map_sptr();}
  
@@ -382,7 +382,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// Getter for the map of function symbols (name -> sym).
    ///
    /// @return a shared pointer to the map of function symbols.
-@@ -5707,130 +5466,6 @@ public:
+@@ -5912,130 +5671,6 @@ public:
      return undefined_var_syms_;
    }
  
@@ -513,7 +513,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// Getter for the ELF dt_needed tag.
    const vector<string>&
    dt_needed() const
-@@ -5846,28 +5481,6 @@ public:
+@@ -6051,28 +5686,6 @@ public:
    elf_architecture() const
    {return elf_architecture_;}
  
@@ -542,7 +542,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// Load the maps address -> function symbol, address -> variable
    /// symbol and the maps of function and variable undefined symbols.
    ///
-@@ -6092,364 +5705,6 @@ public:
+@@ -6297,364 +5910,6 @@ public:
      return true;
    }
  
@@ -907,7 +907,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// Test if a given ELF symbol was suppressed by a suppression
    /// specification.
    ///
-@@ -6465,328 +5720,6 @@ public:
+@@ -6670,328 +5925,6 @@ public:
  					       symbol->get_type()));
    }
  
@@ -1236,7 +1236,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// Load the maps of function symbol address -> function symbol,
    /// global variable symbol address -> variable symbol and also the
    /// maps of function and variable undefined symbols.
-@@ -6829,11 +5762,7 @@ public:
+@@ -7034,11 +5967,7 @@ public:
  						 load_var_map,
  						 load_undefined_fun_map,
  						 load_undefined_var_map))
@@ -1248,7 +1248,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
  	return false;
        }
      return true;
-@@ -6913,36 +5842,6 @@ public:
+@@ -7118,36 +6047,6 @@ public:
      load_elf_architecture();
    }
  
@@ -1285,7 +1285,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
    /// This is a sub-routine of maybe_adjust_fn_sym_address and
    /// maybe_adjust_var_sym_address.
    ///
-@@ -15375,34 +14274,6 @@ build_function_decl(read_context&	ctxt,
+@@ -15687,34 +14586,6 @@ build_function_decl(read_context&	ctxt,
    return result;
  }
  
@@ -1320,7 +1320,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
  /// Add a symbol to a symbol map.
  ///
  /// @param sym the symbol to add.
-@@ -15426,34 +14297,6 @@ add_symbol_to_map(const elf_symbol_sptr& sym,
+@@ -15738,34 +14609,6 @@ add_symbol_to_map(const elf_symbol_sptr& sym,
      it->second.push_back(sym);
  }
  
@@ -1355,7 +1355,7 @@ index 87cf34b2e5b7..2d39596f2712 100644
  /// Read all @ref abigail::translation_unit possible from the debug info
  /// accessible through a DWARF Front End Library handle, and stuff
  /// them into a libabigail ABI Corpus.
-@@ -15497,22 +14340,29 @@ read_debug_info_into_corpus(read_context& ctxt)
+@@ -15809,22 +14652,29 @@ read_debug_info_into_corpus(read_context& ctxt)
  	{
  	  string_elf_symbols_map_sptr exported_fn_symbols_map
  	    (new string_elf_symbols_map_type);
