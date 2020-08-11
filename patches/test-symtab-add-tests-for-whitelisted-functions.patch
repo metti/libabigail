@@ -31,10 +31,10 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  create mode 100644 tests/data/test-symtab/basic/one_function_one_variable_variable.whitelist
 
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index 3d8ef12b575d..e321a224f55a 100644
+index 1f2a2605bf9d..09f5b4949a1a 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
-@@ -1793,6 +1793,10 @@ test-symtab/basic/no_debug_info.c \
+@@ -1801,6 +1801,10 @@ test-symtab/basic/no_debug_info.c \
  test-symtab/basic/no_debug_info.so \
  test-symtab/basic/one_function_one_variable.c \
  test-symtab/basic/one_function_one_variable.so \

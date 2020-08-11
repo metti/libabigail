@@ -93,7 +93,7 @@ index f17a3bf9f200..54b4bb7b3dbe 100644
    get_main_symbol() const;
  
 diff --git a/src/abg-ir.cc b/src/abg-ir.cc
-index a66d55e923f4..7b603a0d8647 100644
+index 358a7a26a9d3..690892002923 100644
 --- a/src/abg-ir.cc
 +++ b/src/abg-ir.cc
 @@ -1319,6 +1319,7 @@ struct elf_symbol::priv

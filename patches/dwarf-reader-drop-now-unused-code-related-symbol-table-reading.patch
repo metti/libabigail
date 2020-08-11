@@ -74,7 +74,7 @@ index d0329aed9ccf..3f062e04502d 100644
  set_environment(read_context& ctxt,
  		ir::environment*);
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 58c665087ca2..5a98866955e5 100644
+index f0421d31e41b..184211057c0e 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
 @@ -295,10 +295,6 @@ static bool
@@ -728,7 +728,7 @@ index 58c665087ca2..5a98866955e5 100644
    /// Load the DT_NEEDED and DT_SONAME elf TAGS.
    ///
    void
-@@ -6699,46 +6118,6 @@ void
+@@ -6704,46 +6123,6 @@ void
  set_do_log(read_context& ctxt, bool f)
  {ctxt.do_log(f);}
  
@@ -775,7 +775,7 @@ index 58c665087ca2..5a98866955e5 100644
  /// Test if a given DIE is anonymous
  ///
  /// @param die the DIE to consider.
-@@ -13760,33 +13139,6 @@ build_or_get_var_decl_if_not_suppressed(read_context&	ctxt,
+@@ -13778,33 +13157,6 @@ build_or_get_var_decl_if_not_suppressed(read_context&	ctxt,
    return var;
  }
  
@@ -809,7 +809,7 @@ index 58c665087ca2..5a98866955e5 100644
  /// Build a @ref var_decl out of a DW_TAG_variable DIE.
  ///
  /// @param ctxt the read context to use.
-@@ -13858,23 +13210,9 @@ build_var_decl(read_context&	ctxt,
+@@ -13876,23 +13228,9 @@ build_var_decl(read_context&	ctxt,
    if (!result->get_symbol())
      {
        elf_symbol_sptr var_sym;
@@ -836,7 +836,7 @@ index 58c665087ca2..5a98866955e5 100644
  
        if (var_sym)
  	{
-@@ -13935,15 +13273,9 @@ function_is_suppressed(const read_context& ctxt,
+@@ -13956,15 +13294,9 @@ function_is_suppressed(const read_context& ctxt,
        Dwarf_Addr fn_addr;
        if (!ctxt.get_function_address(function_die, fn_addr))
  	return true;
@@ -855,7 +855,7 @@ index 58c665087ca2..5a98866955e5 100644
      }
  
    return suppr::function_is_suppressed(ctxt, qualified_name,
-@@ -14046,15 +13378,9 @@ variable_is_suppressed(const read_context& ctxt,
+@@ -14071,15 +13403,9 @@ variable_is_suppressed(const read_context& ctxt,
        Dwarf_Addr var_addr = 0;
        if (!ctxt.get_variable_address(variable_die, var_addr))
  	return true;
@@ -874,7 +874,7 @@ index 58c665087ca2..5a98866955e5 100644
      }
  
    return suppr::variable_is_suppressed(ctxt, qualified_name,
-@@ -14340,23 +13666,9 @@ build_function_decl(read_context&	ctxt,
+@@ -14365,23 +13691,9 @@ build_function_decl(read_context&	ctxt,
    if (!result->get_symbol())
      {
        elf_symbol_sptr fn_sym;
@@ -901,7 +901,7 @@ index 58c665087ca2..5a98866955e5 100644
  
        if (fn_sym)
  	{
-@@ -14386,29 +13698,6 @@ build_function_decl(read_context&	ctxt,
+@@ -14411,29 +13723,6 @@ build_function_decl(read_context&	ctxt,
    return result;
  }
  
@@ -931,7 +931,7 @@ index 58c665087ca2..5a98866955e5 100644
  /// Read all @ref abigail::translation_unit possible from the debug info
  /// accessible through a DWARF Front End Library handle, and stuff
  /// them into a libabigail ABI Corpus.
-@@ -15680,13 +14969,6 @@ read_corpus_from_elf(read_context& ctxt, status& status)
+@@ -15728,13 +15017,6 @@ read_corpus_from_elf(read_context& ctxt, status& status)
  
    ctxt.load_elf_properties();  // DT_SONAME, DT_NEEDED, architecture
  
@@ -946,10 +946,10 @@ index 58c665087ca2..5a98866955e5 100644
      status |= STATUS_NO_SYMBOLS_FOUND;
  
 diff --git a/src/abg-tools-utils.cc b/src/abg-tools-utils.cc
-index dfbec879de8d..9116a97a62e9 100644
+index 38e2f1755bc4..b3cee850bf38 100644
 --- a/src/abg-tools-utils.cc
 +++ b/src/abg-tools-utils.cc
-@@ -2563,12 +2563,6 @@ build_corpus_group_from_kernel_dist_under(const string&	root,
+@@ -2547,12 +2547,6 @@ build_corpus_group_from_kernel_dist_under(const string&	root,
  		      << t
  		      << "\n";
  
@@ -962,7 +962,7 @@ index dfbec879de8d..9116a97a62e9 100644
  	  group.reset(new corpus_group(env.get(), root));
  
  	  set_read_context_corpus_group(*ctxt, group);
-@@ -2608,13 +2602,6 @@ build_corpus_group_from_kernel_dist_under(const string&	root,
+@@ -2592,13 +2586,6 @@ build_corpus_group_from_kernel_dist_under(const string&	root,
  				 /*read_all_types=*/false,
  				 /*linux_kernel_mode=*/true);
  
@@ -977,10 +977,10 @@ index dfbec879de8d..9116a97a62e9 100644
  					       kabi_wl_paths, supprs);
  
 diff --git a/tools/abidw.cc b/tools/abidw.cc
-index 2cd848df9fb8..58072e7072c4 100644
+index 27a9e4849b54..fe2f3e22c753 100644
 --- a/tools/abidw.cc
 +++ b/tools/abidw.cc
-@@ -828,8 +828,6 @@ main(int argc, char* argv[])
+@@ -829,8 +829,6 @@ main(int argc, char* argv[])
        set_show_stats(ctxt, opts.show_stats);
        set_suppressions(ctxt, opts);
        abigail::dwarf_reader::set_do_log(ctxt, opts.do_log);

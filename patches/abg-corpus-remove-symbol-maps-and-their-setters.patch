@@ -424,10 +424,10 @@ index 0f5d51820891..1f72904d137f 100644
  /// Look in the function symbols map for a symbol with a given name.
  ///
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index f1fe05804f35..58c665087ca2 100644
+index 6e4250d9ed40..f0421d31e41b 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -14445,54 +14445,6 @@ read_debug_info_into_corpus(read_context& ctxt)
+@@ -14470,54 +14470,6 @@ read_debug_info_into_corpus(read_context& ctxt)
  
    // Set symbols information to the corpus.
    ctxt.current_corpus()->set_symtab(ctxt.symtab());

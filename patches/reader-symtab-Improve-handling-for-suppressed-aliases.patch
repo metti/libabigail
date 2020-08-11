@@ -103,7 +103,7 @@ index c50c0f643386..424817106e70 100644
        }
  
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index 16c411b63bfb..99dc96c66b7f 100644
+index f523fe41f768..d420418bb017 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
 @@ -178,6 +178,9 @@ test-abidiff-exit/test-net-change-report0.txt \

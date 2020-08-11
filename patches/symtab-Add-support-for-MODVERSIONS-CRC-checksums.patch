@@ -132,7 +132,7 @@ index c3c35c37a2cc..41b6f8ba3adf 100644
    is_suppressed() const;
  
 diff --git a/src/abg-ir.cc b/src/abg-ir.cc
-index aa3134181af6..fb40b44fe7a4 100644
+index bc6bc9546443..ca46ae2c0e8b 100644
 --- a/src/abg-ir.cc
 +++ b/src/abg-ir.cc
 @@ -24,13 +24,14 @@
@@ -269,7 +269,7 @@ index d7771e02a66b..31aa567af038 100644
  }
  
 diff --git a/src/abg-reporter-priv.cc b/src/abg-reporter-priv.cc
-index ef9256082475..2e148fbb5b85 100644
+index 784911432452..b9f7c0f95c1c 100644
 --- a/src/abg-reporter-priv.cc
 +++ b/src/abg-reporter-priv.cc
 @@ -57,8 +57,7 @@ emit_num_value(uint64_t value, const diff_context& ctxt, ostream& out)
@@ -390,7 +390,7 @@ index bcbf9ce8ee06..1ffaca8cec6e 100644
  
    return true;
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index 725a8aa92599..16c411b63bfb 100644
+index 809dd262a26e..f523fe41f768 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
 @@ -35,6 +35,7 @@ test-read-write/test28-without-std-fns-ref.xml \
@@ -431,7 +431,7 @@ index 725a8aa92599..16c411b63bfb 100644
  \
  test-abidiff-exit/test1-voffset-change-report0.txt \
  test-abidiff-exit/test1-voffset-change-report1.txt \
-@@ -1876,4 +1879,7 @@ test-symtab/kernel-5.6/single_function_gpl.ko \
+@@ -1884,4 +1887,7 @@ test-symtab/kernel-5.6/single_function_gpl.ko \
  test-symtab/kernel-5.6/single_variable.c \
  test-symtab/kernel-5.6/single_variable.ko \
  test-symtab/kernel-5.6/single_variable_gpl.c \

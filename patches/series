@@ -1,6 +1,3 @@
-#
-# mm-next patches on top of origin/master (817a2755bce0)
-#
 abidiff-Flag-indirect-struct-union-changes.patch
 abg-cxx-compat-add-simplified-version-of-std-optional.patch
 abg-cxx-compat-more-functional-support-std-bind-and-friends.patch
