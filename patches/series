@@ -21,3 +21,4 @@ dwarf-reader-writer-consider-aliases-when-dealing-with-suppressions.patch
 symtab-Add-support-for-MODVERSIONS-CRC-checksums.patch
 reader-symtab-Improve-handling-for-suppressed-aliases.patch
 abg-writer.cc-Track-types-by-plain-address.patch
+KMI-Whitelists-allow-alternative-section-suffix-symbol_list.patch

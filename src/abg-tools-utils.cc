@@ -1910,8 +1910,8 @@ gen_suppr_spec_from_headers(const string& headers_root_dir)
 ///
 /// A kernel ABI whitelist file is an INI file that usually has only
 /// one section.  The name of the section is a string that ends up
-/// with the sub-string "whitelist".  For instance
-/// RHEL7_x86_64_whitelist.
+/// with the sub-string "symbol_list" or "whitelist".  For instance
+/// RHEL7_x86_64_symbol_list.
 ///
 /// Then the content of the section is a set of function or variable
 /// names, one name per line.  Each function or variable name is the
@@ -1957,7 +1957,8 @@ gen_suppr_spec_from_kernel_abi_whitelists
 	   ++section_iter)
 	{
 	  std::string section_name = (*section_iter)->get_name();
-	  if (!string_ends_with(section_name, "whitelist"))
+	  if (!string_ends_with(section_name, "symbol_list")
+	      && !string_ends_with(section_name, "whitelist"))
 	    continue;
 	  for (ini::config::properties_type::const_iterator
 		   prop_iter = (*section_iter)->get_properties().begin(),

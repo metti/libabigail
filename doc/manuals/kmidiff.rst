@@ -70,23 +70,22 @@ functions and variables) between the Kernel and its modules.  In
 practice, though, users want to compare a subset of the those
 interfaces.
 
-Users can then define a "white list" of the interfaces to compare.
-Such a white list is a just a file in the "INI" format that looks
-like: ::
+Users can then define a "symbol list" of the interfaces to compare.
+Such a list is a just a file in the "INI" format that looks like: ::
 
-    [kernel_version_x86_64_whitelist]
+    [kernel_version_x86_64_symbol_list]
       function1_name
       function2_name
       global_variable1_name
       ....
 
 
-Note that the name of the section (the name that is between the two
-brackets) of that INI file just has to end with the string
-"whitelist".  So you can define the name you want, for instance
-``[kernel_46_x86_64_whitelist]``.
+Note that the name of the section (the name that is between the two brackets)
+of that INI file just has to end with the string "symbol_list" or "whitelist".
+So you can define the name you want, for instance
+``[kernel_46_x86_64_symbol_list]``.
 
-Then each line of that whitelist file is the name of an exported
+Then each line of that symbol list file is the name of an exported
 function or variable.  Only those interfaces along with the types
 reachable from their signatures are going to be compared by
 ``kmidiff`` recursively.

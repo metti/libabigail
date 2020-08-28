@@ -1805,6 +1805,10 @@ test-kmi-whitelist/whitelist-with-single-entry \
 test-kmi-whitelist/whitelist-with-another-single-entry \
 test-kmi-whitelist/whitelist-with-duplicate-entry \
 test-kmi-whitelist/whitelist-with-two-sections \
+test-kmi-whitelist/symbol-list-with-single-entry \
+test-kmi-whitelist/symbol-list-with-another-single-entry \
+test-kmi-whitelist/symbol-list-with-duplicate-entry \
+test-kmi-whitelist/symbol-list-with-two-sections \
 \
 test-symtab/basic/Makefile \
 test-symtab/basic/aliases.c \
