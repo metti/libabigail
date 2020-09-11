@@ -20060,20 +20060,7 @@ class_decl::get_pretty_representation(bool internal,
   // if an anonymous class is named by a typedef, then consider that
   // it has a name, which is the typedef name.
   if (get_is_anonymous())
-    {
-      if (internal)
-	{
-	  if (typedef_decl_sptr d = get_naming_typedef())
-	    {
-	      string qualified_name =
-		decl_base::priv_->qualified_parent_name_ + "::" + d->get_name();
-	      return cl + qualified_name;
-	    }
-	}
-      else
-	return get_class_or_union_flat_representation(this, "",
-						      /*one_line=*/true);
-    }
+    return get_class_or_union_flat_representation(this, "",/*one_line=*/true);
 
   string result = cl;
   if (qualified_name)
@@ -21845,7 +21832,7 @@ union_decl::get_pretty_representation(bool internal,
 				      bool qualified_name) const
 {
   string repr;
-  if (get_is_anonymous() && !internal)
+  if (get_is_anonymous())
     repr = get_class_or_union_flat_representation(this, "",
 						  /*one_line=*/true);
   else
@@ -23197,6 +23184,45 @@ hash_type(const type_base *t)
 size_t
 hash_type_or_decl(const type_or_decl_base_sptr& tod)
 {return hash_type_or_decl(tod.get());}
+
+/// Hash a type by either returning the pointer value of its canonical
+/// type or by returning a constant if the type doesn't have a
+/// canonical type.
+///
+/// @param t the type to consider.
+///
+/// @return the hash value.
+size_t
+hash_as_canonical_type_or_constant(const type_base *t)
+{
+  type_base *canonical_type = 0;
+
+  if (t)
+    canonical_type = t->get_naked_canonical_type();
+
+  if (!canonical_type)
+    {
+      // If the type doesn't have a canonical type, maybe it's because
+      // it's a declaration-only type?  If that's the case, let's try
+      // to get the canonical type of the definition of this
+      // declaration.
+      decl_base *decl = is_decl(t);
+      if (decl
+	  && decl->get_is_declaration_only()
+	  && decl->get_naked_definition_of_declaration())
+	{
+	  type_base *definition =
+	    is_type(decl->get_naked_definition_of_declaration());
+	  ABG_ASSERT(definition);
+	  canonical_type = definition->get_naked_canonical_type();
+	}
+    }
+
+  if (canonical_type)
+    return reinterpret_cast<size_t>(canonical_type);
+
+  return 0xDEADBABE;
+}
 
 /// Test if the pretty representation of a given @ref function_decl is
 /// lexicographically less then the pretty representation of another
