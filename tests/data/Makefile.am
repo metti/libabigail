@@ -178,6 +178,16 @@ test-abidiff-exit/test-net-change-report0.txt \
 test-abidiff-exit/test-net-change-report1.txt \
 test-abidiff-exit/test-net-change-report2.txt \
 test-abidiff-exit/test-net-change-report3.txt \
+test-abidiff-exit/test-headers-dirs/headers-a/header-a-v0.h \
+test-abidiff-exit/test-headers-dirs/headers-a/header-a-v1.h \
+test-abidiff-exit/test-headers-dirs/headers-b/header-b-v0.h \
+test-abidiff-exit/test-headers-dirs/headers-b/header-b-v1.h \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-report-1.txt  \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-report-2.txt \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.c \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.o \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.c \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.o \
 test-abidiff-exit/test-missing-alias-report.txt \
 test-abidiff-exit/test-missing-alias.abi \
 test-abidiff-exit/test-missing-alias.suppr \
@@ -519,6 +529,12 @@ test-read-dwarf/PR26261/PR26261-exe \
 test-read-dwarf/PR26261/PR26261-main.c \
 test-read-dwarf/PR26261/PR26261-obja.h \
 test-read-dwarf/PR26261/PR26261-objb.h \
+test-read-dwarf/test-PR26568-1.c     \
+test-read-dwarf/test-PR26568-2.c     \
+test-read-dwarf/test-PR26568-2.o     \
+test-read-dwarf/test-PR26568-1.o     \
+test-read-dwarf/test-PR26568-1.o.abi \
+test-read-dwarf/test-PR26568-2.o.abi \
 \
 test-annotate/test0.abi			\
 test-annotate/test1.abi			\
@@ -528,20 +544,20 @@ test-annotate/test4.so.abi		\
 test-annotate/test5.o.abi		\
 test-annotate/test6.so.abi		\
 test-annotate/test7.so.abi		\
-test-annotate/test8-qualified-this-pointer.so.abi		\
+test-annotate/test8-qualified-this-pointer.so.abi \
 test-annotate/test13-pr18894.so.abi \
 test-annotate/test14-pr18893.so.abi \
 test-annotate/test15-pr18892.so.abi \
 test-annotate/test17-pr19027.so.abi \
-test-annotate/test18-pr19037-libvtkRenderingLIC-6.1.so.abi \
+test-annotate/test18-pr19037-libvtkRenderingLIC-6.1.so.abi   \
 test-annotate/test19-pr19023-libtcmalloc_and_profiler.so.abi \
-test-annotate/test20-pr19025-libvtkParallelCore-6.1.so.abi \
+test-annotate/test20-pr19025-libvtkParallelCore-6.1.so.abi   \
 test-annotate/test21-pr19092.so.abi \
 test-annotate/libtest23.so.abi \
-test-annotate/libtest24-drop-fns-2.so.abi \
-test-annotate/libtest24-drop-fns.so.abi \
-test-annotate/test-anonymous-members-0.cc \
-test-annotate/test-anonymous-members-0.o \
+test-annotate/libtest24-drop-fns-2.so.abi    \
+test-annotate/libtest24-drop-fns.so.abi      \
+test-annotate/test-anonymous-members-0.cc    \
+test-annotate/test-anonymous-members-0.o     \
 test-annotate/test-anonymous-members-0.o.abi \
 \
 test-types-stability/pr19434-elf0 \

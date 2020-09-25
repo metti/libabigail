@@ -160,6 +160,8 @@ index 5921282e6cf2..2e6c4d3b9a6e 100644
 +    "data/test-abidiff-exit/test-missing-alias.abi",
 +    "data/test-abidiff-exit/test-missing-alias.suppr",
 +    "",
++    "",
++    "",
 +    abigail::tools_utils::ABIDIFF_OK,
 +    "data/test-abidiff-exit/test-missing-alias-report.txt",
 +    "output/test-abidiff-exit/test-missing-alias-report.txt"
