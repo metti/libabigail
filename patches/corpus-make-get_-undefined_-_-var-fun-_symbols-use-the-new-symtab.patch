@@ -98,7 +98,7 @@ index 5c1e915ad2f3..ad96f260aa89 100644
    get_public_types_pretty_representations();
  
 diff --git a/src/abg-corpus.cc b/src/abg-corpus.cc
-index 94702047dd82..6d4bedfd57b7 100644
+index 3d74b8163f22..3d52250d72e9 100644
 --- a/src/abg-corpus.cc
 +++ b/src/abg-corpus.cc
 @@ -453,6 +453,88 @@ const type_maps&
@@ -429,7 +429,7 @@ index 4c751c26020e..377afacad732 100644
  
  /// Write an XML attribute for the reference to a symbol for the
 diff --git a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
-index cbe8d20eb04e..4bfcd041c9c4 100644
+index c6f407197519..62b6efb555e0 100644
 --- a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 +++ b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 @@ -2,8 +2,6 @@

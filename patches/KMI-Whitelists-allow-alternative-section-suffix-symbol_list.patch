@@ -86,10 +86,10 @@ index 011dbafd41fa..557965f294d4 100644
  reachable from their signatures are going to be compared by
  ``kmidiff`` recursively.
 diff --git a/src/abg-tools-utils.cc b/src/abg-tools-utils.cc
-index b3cee850bf38..192aa5981ff9 100644
+index 6f4ec6fa4d41..428dcc6b190c 100644
 --- a/src/abg-tools-utils.cc
 +++ b/src/abg-tools-utils.cc
-@@ -1910,8 +1910,8 @@ gen_suppr_spec_from_headers(const string& headers_root_dir)
+@@ -1954,8 +1954,8 @@ gen_suppr_spec_from_headers(const string& headers_root_dir)
  ///
  /// A kernel ABI whitelist file is an INI file that usually has only
  /// one section.  The name of the section is a string that ends up
@@ -100,7 +100,7 @@ index b3cee850bf38..192aa5981ff9 100644
  ///
  /// Then the content of the section is a set of function or variable
  /// names, one name per line.  Each function or variable name is the
-@@ -1957,7 +1957,8 @@ gen_suppr_spec_from_kernel_abi_whitelists
+@@ -2001,7 +2001,8 @@ gen_suppr_spec_from_kernel_abi_whitelists
  	   ++section_iter)
  	{
  	  std::string section_name = (*section_iter)->get_name();
@@ -111,10 +111,10 @@ index b3cee850bf38..192aa5981ff9 100644
  	  for (ini::config::properties_type::const_iterator
  		   prop_iter = (*section_iter)->get_properties().begin(),
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index d420418bb017..049adadfda0b 100644
+index 92eed744c561..79e142174979 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
-@@ -1805,6 +1805,10 @@ test-kmi-whitelist/whitelist-with-single-entry \
+@@ -1826,6 +1826,10 @@ test-kmi-whitelist/whitelist-with-single-entry \
  test-kmi-whitelist/whitelist-with-another-single-entry \
  test-kmi-whitelist/whitelist-with-duplicate-entry \
  test-kmi-whitelist/whitelist-with-two-sections \

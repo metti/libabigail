@@ -83,7 +83,7 @@ index ad96f260aa89..f2e895bf1e7d 100644
    get_public_types_pretty_representations();
  
 diff --git a/src/abg-corpus.cc b/src/abg-corpus.cc
-index 6d4bedfd57b7..0f5d51820891 100644
+index 3d52250d72e9..84d6683dbf9d 100644
 --- a/src/abg-corpus.cc
 +++ b/src/abg-corpus.cc
 @@ -317,132 +317,6 @@ struct comp_elf_symbols_functor

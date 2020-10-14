@@ -22,6 +22,5 @@ symtab-Add-support-for-MODVERSIONS-CRC-checksums.patch
 reader-symtab-Improve-handling-for-suppressed-aliases.patch
 abg-writer.cc-Track-types-by-plain-address.patch
 KMI-Whitelists-allow-alternative-section-suffix-symbol_list.patch
-abg-corpus.cc-report-architecture-discrepancies.patch
 dwarf-reader-sort-the-types-for-canonicalization.patch
 abg-writer.cc-fix-write_elf_symbol_reference-loop.patch

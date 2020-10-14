@@ -73,7 +73,7 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 22 insertions(+), 1172 deletions(-)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 58eb9e92a6d2..94ecb815af50 100644
+index b3b7ad88688e..1c317c23275c 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
 @@ -2172,26 +2172,6 @@ public:
@@ -1285,7 +1285,7 @@ index 58eb9e92a6d2..94ecb815af50 100644
    /// This is a sub-routine of maybe_adjust_fn_sym_address and
    /// maybe_adjust_var_sym_address.
    ///
-@@ -15712,34 +14611,6 @@ build_function_decl(read_context&	ctxt,
+@@ -15722,34 +14621,6 @@ build_function_decl(read_context&	ctxt,
    return result;
  }
  
@@ -1320,7 +1320,7 @@ index 58eb9e92a6d2..94ecb815af50 100644
  /// Add a symbol to a symbol map.
  ///
  /// @param sym the symbol to add.
-@@ -15763,34 +14634,6 @@ add_symbol_to_map(const elf_symbol_sptr& sym,
+@@ -15773,34 +14644,6 @@ add_symbol_to_map(const elf_symbol_sptr& sym,
      it->second.push_back(sym);
  }
  
@@ -1355,7 +1355,7 @@ index 58eb9e92a6d2..94ecb815af50 100644
  /// Read all @ref abigail::translation_unit possible from the debug info
  /// accessible through a DWARF Front End Library handle, and stuff
  /// them into a libabigail ABI Corpus.
-@@ -15834,22 +14677,29 @@ read_debug_info_into_corpus(read_context& ctxt)
+@@ -15844,22 +14687,29 @@ read_debug_info_into_corpus(read_context& ctxt)
  	{
  	  string_elf_symbols_map_sptr exported_fn_symbols_map
  	    (new string_elf_symbols_map_type);

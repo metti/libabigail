@@ -100,15 +100,20 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  src/abg-ir.cc                                 |  46 +-
  src/abg-symtab-reader.cc                      |  21 +
  tests/data/Makefile.am                        |   2 +
+ .../test5-fn-changed-report-0.txt             |   4 -
+ .../test5-fn-changed-report-1.txt             |   4 -
  .../data/test-annotate/test15-pr18892.so.abi  | 918 ++++++++---------
  ...19-pr19023-libtcmalloc_and_profiler.so.abi |  60 +-
  tests/data/test-annotate/test2.so.abi         |  12 +-
  tests/data/test-annotate/test3.so.abi         |   6 +-
  tests/data/test-diff-dwarf/test12-report.txt  |   7 +
+ .../test36-ppc64-aliases-report-0.txt         |   4 +-
  .../test42-PR21296-clanggcc-report0.txt       |   4 +-
+ .../test31-pr18535-libstdc++-report-0.txt     |   4 +-
+ .../test31-pr18535-libstdc++-report-1.txt     |   4 +-
  ...bb-4.3-3.20141204.fc23.x86_64-report-0.txt |   6 +-
  ...bb-4.3-3.20141204.fc23.x86_64-report-1.txt |   6 +-
- .../test23-alias-filter-4.suppr               |   4 +-
+ .../test23-alias-filter-4.suppr               |   2 +-
  .../test23-alias-filter-report-0.txt          |   4 +-
  .../test23-alias-filter-report-2.txt          |   4 +-
  .../PR22015-libboost_iostreams.so.abi         |  48 +-
@@ -127,12 +132,12 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  tests/data/test-symtab/basic/aliases.c        |  13 +
  tests/data/test-symtab/basic/aliases.so       | Bin 0 -> 17176 bytes
  tests/test-symtab.cc                          |  47 +
- 33 files changed, 2512 insertions(+), 2358 deletions(-)
+ 38 files changed, 2517 insertions(+), 2371 deletions(-)
  create mode 100644 tests/data/test-symtab/basic/aliases.c
  create mode 100755 tests/data/test-symtab/basic/aliases.so
 
 diff --git a/include/abg-ir.h b/include/abg-ir.h
-index 14358f47dd5b..c3c35c37a2cc 100644
+index 4ad0572ebd3d..559bf78bf7b6 100644
 --- a/include/abg-ir.h
 +++ b/include/abg-ir.h
 @@ -968,6 +968,9 @@ public:
@@ -170,10 +175,10 @@ index 06001b26ebeb..9065b6ad4209 100644
    /// Default constructor. Private to enforce creation by factory methods.
    symtab();
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 184211057c0e..f305798a06f6 100644
+index 88b0c8ceaa05..ef708466ed45 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -13230,7 +13230,13 @@ build_var_decl(read_context&	ctxt,
+@@ -13240,7 +13240,13 @@ build_var_decl(read_context&	ctxt,
        elf_symbol_sptr var_sym;
        Dwarf_Addr      var_addr;
        if (ctxt.get_variable_address(die, var_addr))
@@ -188,7 +193,7 @@ index 184211057c0e..f305798a06f6 100644
  
        if (var_sym)
  	{
-@@ -13693,7 +13699,13 @@ build_function_decl(read_context&	ctxt,
+@@ -13703,7 +13709,13 @@ build_function_decl(read_context&	ctxt,
        elf_symbol_sptr fn_sym;
        Dwarf_Addr      fn_addr;
        if (ctxt.get_function_address(die, fn_addr))
@@ -204,10 +209,10 @@ index 184211057c0e..f305798a06f6 100644
        if (fn_sym)
  	{
 diff --git a/src/abg-ir.cc b/src/abg-ir.cc
-index eb5d12e18035..bc6bc9546443 100644
+index 74f985bcc6b7..d896d0bb7278 100644
 --- a/src/abg-ir.cc
 +++ b/src/abg-ir.cc
-@@ -1763,14 +1763,14 @@ elf_symbol::set_is_suppressed(bool is_suppressed)
+@@ -1767,14 +1767,14 @@ elf_symbol::set_is_suppressed(bool is_suppressed)
  ///@return the main symbol.
  const elf_symbol_sptr
  elf_symbol::get_main_symbol() const
@@ -224,7 +229,7 @@ index eb5d12e18035..bc6bc9546443 100644
  
  /// Tests whether this symbol is the main symbol.
  ///
-@@ -1847,6 +1847,48 @@ elf_symbol::add_alias(const elf_symbol_sptr& alias)
+@@ -1851,6 +1851,48 @@ elf_symbol::add_alias(const elf_symbol_sptr& alias)
    alias->priv_->main_symbol_ = get_main_symbol();
  }
  
@@ -306,10 +311,10 @@ index aefc8d6dcd86..f84ed79dae17 100644
  symtab::update_function_entry_address_symbol_map(
      Elf*		   elf_handle,
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index 09f5b4949a1a..7c10dd31517c 100644
+index aa279147855c..b8a553fc73d4 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
-@@ -1793,6 +1793,8 @@ test-kmi-whitelist/whitelist-with-duplicate-entry \
+@@ -1814,6 +1814,8 @@ test-kmi-whitelist/whitelist-with-duplicate-entry \
  test-kmi-whitelist/whitelist-with-two-sections \
  \
  test-symtab/basic/Makefile \
@@ -318,6 +323,30 @@ index 09f5b4949a1a..7c10dd31517c 100644
  test-symtab/basic/empty.c \
  test-symtab/basic/empty.so \
  test-symtab/basic/link_against_me.c \
+diff --git a/tests/data/test-abicompat/test5-fn-changed-report-0.txt b/tests/data/test-abicompat/test5-fn-changed-report-0.txt
+index ccde357d75ce..04676908c7c2 100644
+--- a/tests/data/test-abicompat/test5-fn-changed-report-0.txt
++++ b/tests/data/test-abicompat/test5-fn-changed-report-0.txt
+@@ -15,7 +15,3 @@ have sub-types that are different from what application 'test5-fn-changed-app' e
+         1 data member deletion:
+           'unsigned char S1::m1', at offset 32 (in bits)
+ 
+-  method S0::S0():
+-    implicit parameter 0 of type 'S0*' has sub-type changes:
+-      pointed to type 'struct S0' changed, as reported earlier
+-
+diff --git a/tests/data/test-abicompat/test5-fn-changed-report-1.txt b/tests/data/test-abicompat/test5-fn-changed-report-1.txt
+index dbdcbe5e7607..b39f650de332 100644
+--- a/tests/data/test-abicompat/test5-fn-changed-report-1.txt
++++ b/tests/data/test-abicompat/test5-fn-changed-report-1.txt
+@@ -15,7 +15,3 @@ have sub-types that are different from what application 'test5-fn-changed-app' e
+         1 data member deletion:
+           'unsigned char S1::m1', at offset 32 (in bits) at test5-fn-changed-libapp-v0.h:11:1
+ 
+-  method S0::S0():
+-    implicit parameter 0 of type 'S0*' has sub-type changes:
+-      pointed to type 'struct S0' changed at test5-fn-changed-libapp-v0.h:1:1, as reported earlier
+-
 diff --git a/tests/data/test-annotate/test15-pr18892.so.abi b/tests/data/test-annotate/test15-pr18892.so.abi
 index 60ccfae78455..1af9906fa404 100644
 --- a/tests/data/test-annotate/test15-pr18892.so.abi
@@ -3473,8 +3502,29 @@ index e69de29bb2d1..62dd8337d694 100644
 +
 +  [A] 'function int _foo3(int, int)'
 +
+diff --git a/tests/data/test-diff-dwarf/test36-ppc64-aliases-report-0.txt b/tests/data/test-diff-dwarf/test36-ppc64-aliases-report-0.txt
+index 4f4a765f9381..a79c11bed2dc 100644
+--- a/tests/data/test-diff-dwarf/test36-ppc64-aliases-report-0.txt
++++ b/tests/data/test-diff-dwarf/test36-ppc64-aliases-report-0.txt
+@@ -3,14 +3,14 @@ Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
+ 
+ 4 functions with some indirect sub-type change:
+ 
+-  [C] 'method S::S()' has some indirect sub-type changes:
++  [C] 'method S::S(int)' has some indirect sub-type changes:
+     implicit parameter 0 of type 'S*' has sub-type changes:
+       in pointed to type 'struct S':
+         type size changed from 32 to 64 (in bits)
+         1 data member insertion:
+           'int S::m1', at offset 32 (in bits)
+ 
+-  [C] 'method S::S(int)' has some indirect sub-type changes:
++  [C] 'method S::S()' has some indirect sub-type changes:
+     implicit parameter 0 of type 'S*' has sub-type changes:
+       pointed to type 'struct S' changed, as reported earlier
+ 
 diff --git a/tests/data/test-diff-dwarf/test42-PR21296-clanggcc-report0.txt b/tests/data/test-diff-dwarf/test42-PR21296-clanggcc-report0.txt
-index 087cfd4edb89..47250ac7d02a 100644
+index bc3072299347..25e19a28f35a 100644
 --- a/tests/data/test-diff-dwarf/test42-PR21296-clanggcc-report0.txt
 +++ b/tests/data/test-diff-dwarf/test42-PR21296-clanggcc-report0.txt
 @@ -9,9 +9,7 @@ Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
@@ -3488,11 +3538,41 @@ index 087cfd4edb89..47250ac7d02a 100644
      parameter 1 of type 'int' was removed
  
    [C] 'function std::tuple<STR&&> my_forward_as_tuple<STR>(STR&&)' has some indirect sub-type changes:
+diff --git a/tests/data/test-diff-filter/test31-pr18535-libstdc++-report-0.txt b/tests/data/test-diff-filter/test31-pr18535-libstdc++-report-0.txt
+index 7e09ed0d8778..e0e9e3d30b7f 100644
+--- a/tests/data/test-diff-filter/test31-pr18535-libstdc++-report-0.txt
++++ b/tests/data/test-diff-filter/test31-pr18535-libstdc++-report-0.txt
+@@ -96,8 +96,8 @@ Variable symbols changes summary: 0 Removed, 6 Added variable symbols not refere
+                   no member function changes (10 filtered);
+ 
+   [C] 'method std::codecvt_byname<wchar_t, char, __mbstate_t>* std::codecvt_byname<wchar_t, char, __mbstate_t>::codecvt_byname(const char*, std::size_t)' has some indirect sub-type changes:
+-    Please note that the symbol of this function is _ZNSt14codecvt_bynameIwc11__mbstate_tEC1EPKcj@@GLIBCXX_3.4
+-     and it aliases symbol: _ZNSt14codecvt_bynameIwc11__mbstate_tEC2EPKcj@@GLIBCXX_3.4
++    Please note that the symbol of this function is _ZNSt14codecvt_bynameIwc11__mbstate_tEC2EPKcj@@GLIBCXX_3.4
++     and it aliases symbol: _ZNSt14codecvt_bynameIwc11__mbstate_tEC1EPKcj@@GLIBCXX_3.4
+     implicit parameter 0 of type 'std::codecvt_byname<wchar_t, char, __mbstate_t>*' has sub-type changes:
+       in pointed to type 'class std::codecvt_byname<wchar_t, char, __mbstate_t>':
+         type size hasn't changed
+diff --git a/tests/data/test-diff-filter/test31-pr18535-libstdc++-report-1.txt b/tests/data/test-diff-filter/test31-pr18535-libstdc++-report-1.txt
+index f5bc3001baae..4b0149dd9a1a 100644
+--- a/tests/data/test-diff-filter/test31-pr18535-libstdc++-report-1.txt
++++ b/tests/data/test-diff-filter/test31-pr18535-libstdc++-report-1.txt
+@@ -96,8 +96,8 @@ Variable symbols changes summary: 0 Removed, 6 Added variable symbols not refere
+                   no member function changes (10 filtered);
+ 
+   [C] 'method std::codecvt_byname<wchar_t, char, __mbstate_t>* std::codecvt_byname<wchar_t, char, __mbstate_t>::codecvt_byname(const char*, std::size_t)' at codecvt.h:462:1 has some indirect sub-type changes:
+-    Please note that the symbol of this function is _ZNSt14codecvt_bynameIwc11__mbstate_tEC1EPKcj@@GLIBCXX_3.4
+-     and it aliases symbol: _ZNSt14codecvt_bynameIwc11__mbstate_tEC2EPKcj@@GLIBCXX_3.4
++    Please note that the symbol of this function is _ZNSt14codecvt_bynameIwc11__mbstate_tEC2EPKcj@@GLIBCXX_3.4
++     and it aliases symbol: _ZNSt14codecvt_bynameIwc11__mbstate_tEC1EPKcj@@GLIBCXX_3.4
+     implicit parameter 0 of type 'std::codecvt_byname<wchar_t, char, __mbstate_t>*' has sub-type changes:
+       in pointed to type 'class std::codecvt_byname<wchar_t, char, __mbstate_t>' at codecvt.h:458:1:
+         type size hasn't changed
 diff --git a/tests/data/test-diff-pkg/tbb-4.1-9.20130314.fc22.x86_64--tbb-4.3-3.20141204.fc23.x86_64-report-0.txt b/tests/data/test-diff-pkg/tbb-4.1-9.20130314.fc22.x86_64--tbb-4.3-3.20141204.fc23.x86_64-report-0.txt
-index ba49f8adaeb6..4fc20c36bce3 100644
+index 1594161c3bcf..ffbcea329001 100644
 --- a/tests/data/test-diff-pkg/tbb-4.1-9.20130314.fc22.x86_64--tbb-4.3-3.20141204.fc23.x86_64-report-0.txt
 +++ b/tests/data/test-diff-pkg/tbb-4.1-9.20130314.fc22.x86_64--tbb-4.3-3.20141204.fc23.x86_64-report-0.txt
-@@ -266,20 +266,18 @@
+@@ -304,20 +304,18 @@
  ================ end of changes of 'libtbbmalloc.so.2'===============
  
  ================ changes of 'libtbbmalloc_proxy.so.2'===============
@@ -3516,10 +3596,10 @@ index ba49f8adaeb6..4fc20c36bce3 100644
  ================ end of changes of 'libtbbmalloc_proxy.so.2'===============
  
 diff --git a/tests/data/test-diff-pkg/tbb-4.1-9.20130314.fc22.x86_64--tbb-4.3-3.20141204.fc23.x86_64-report-1.txt b/tests/data/test-diff-pkg/tbb-4.1-9.20130314.fc22.x86_64--tbb-4.3-3.20141204.fc23.x86_64-report-1.txt
-index bef715b6feca..b201cb46d6b1 100644
+index dda2fb764344..a33b61503335 100644
 --- a/tests/data/test-diff-pkg/tbb-4.1-9.20130314.fc22.x86_64--tbb-4.3-3.20141204.fc23.x86_64-report-1.txt
 +++ b/tests/data/test-diff-pkg/tbb-4.1-9.20130314.fc22.x86_64--tbb-4.3-3.20141204.fc23.x86_64-report-1.txt
-@@ -140,20 +140,18 @@
+@@ -154,20 +154,18 @@
  ================ end of changes of 'libtbbmalloc.so.2'===============
  
  ================ changes of 'libtbbmalloc_proxy.so.2'===============
@@ -3543,16 +3623,14 @@ index bef715b6feca..b201cb46d6b1 100644
  ================ end of changes of 'libtbbmalloc_proxy.so.2'===============
  
 diff --git a/tests/data/test-diff-suppr/test23-alias-filter-4.suppr b/tests/data/test-diff-suppr/test23-alias-filter-4.suppr
-index 2a7e5893eb43..16edb095bbbf 100644
+index b7429d14505f..16edb095bbbf 100644
 --- a/tests/data/test-diff-suppr/test23-alias-filter-4.suppr
 +++ b/tests/data/test-diff-suppr/test23-alias-filter-4.suppr
 @@ -1,3 +1,3 @@
   [suppress_function]
 -   symbol_name_regexp = function1
--   allow_other_aliases = no
-\ No newline at end of file
 +   symbol_name_regexp = __private_function
-+   allow_other_aliases = no
+    allow_other_aliases = no
 diff --git a/tests/data/test-diff-suppr/test23-alias-filter-report-0.txt b/tests/data/test-diff-suppr/test23-alias-filter-report-0.txt
 index 0788d48931f7..8b06f3151b63 100644
 --- a/tests/data/test-diff-suppr/test23-alias-filter-report-0.txt
@@ -3738,7 +3816,7 @@ index c4b1e75499f2..a156b274b0bf 100644
                <return type-id='type-id-18'/>
              </function-decl>
 diff --git a/tests/data/test-read-dwarf/PR22122-libftdc.so.abi b/tests/data/test-read-dwarf/PR22122-libftdc.so.abi
-index 4901fc5c1a7d..a0c1b53fea55 100644
+index ba918b7e3ec8..305535b1dc86 100644
 --- a/tests/data/test-read-dwarf/PR22122-libftdc.so.abi
 +++ b/tests/data/test-read-dwarf/PR22122-libftdc.so.abi
 @@ -151,8 +151,8 @@
@@ -3752,13 +3830,13 @@ index 4901fc5c1a7d..a0c1b53fea55 100644
      <elf-symbol name='_ZN5mongo16FTDCDecompressor10uncompressENS_14ConstDataRangeE' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes'/>
      <elf-symbol name='_ZN5mongo16FTDCDecompressorD2Ev' type='func-type' binding='weak-binding' visibility='default-visibility' is-defined='yes'/>
      <elf-symbol name='_ZN5mongo17StringBuilderImplINS_21SharedBufferAllocatorEE14appendIntegralIiEERS2_T_i' type='func-type' binding='weak-binding' visibility='default-visibility' is-defined='yes'/>
-@@ -6939,7 +6939,7 @@
+@@ -6880,7 +6880,7 @@
            </function-decl>
          </member-function>
          <member-function access='public' destructor='yes'>
 -          <function-decl name='~FTDCFileManager' mangled-name='_ZN5mongo15FTDCFileManagerD2Ev' filepath='src/mongo/db/ftdc/file_manager.h' line='58' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo15FTDCFileManagerD1Ev'>
 +          <function-decl name='~FTDCFileManager' mangled-name='_ZN5mongo15FTDCFileManagerD2Ev' filepath='src/mongo/db/ftdc/file_manager.h' line='58' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo15FTDCFileManagerD2Ev'>
-             <parameter type-id='type-id-113' is-artificial='yes'/>
+             <parameter type-id='type-id-55' is-artificial='yes'/>
              <return type-id='type-id-22'/>
            </function-decl>
 diff --git a/tests/data/test-read-dwarf/test10-pr18818-gcc.so.abi b/tests/data/test-read-dwarf/test10-pr18818-gcc.so.abi
@@ -4328,7 +4406,7 @@ index cb4d90710707..1da50a0a8a82 100644
              <parameter type-id='type-id-15' is-artificial='yes'/>
              <return type-id='type-id-26'/>
 diff --git a/tests/data/test-read-dwarf/test11-pr18828.so.abi b/tests/data/test-read-dwarf/test11-pr18828.so.abi
-index bc70b4817a2e..663f9ccc10c5 100644
+index 32934d89f024..a66a31e03f9f 100644
 --- a/tests/data/test-read-dwarf/test11-pr18828.so.abi
 +++ b/tests/data/test-read-dwarf/test11-pr18828.so.abi
 @@ -40,24 +40,24 @@
@@ -4928,7 +5006,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~_List_base' mangled-name='_ZNSt10_List_baseIN5mongo17optionenvironment13OptionSectionESaIS2_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_list.h' line='386' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt10_List_baseIN5mongo17optionenvironment13OptionSectionESaIS2_EED1Ev'>
 +          <function-decl name='~_List_base' mangled-name='_ZNSt10_List_baseIN5mongo17optionenvironment13OptionSectionESaIS2_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_list.h' line='386' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt10_List_baseIN5mongo17optionenvironment13OptionSectionESaIS2_EED2Ev'>
              <parameter type-id='type-id-1700' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -4954,7 +5032,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~_List_base' mangled-name='_ZNSt10_List_baseIN5mongo17optionenvironment17OptionDescriptionESaIS2_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_list.h' line='386' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt10_List_baseIN5mongo17optionenvironment17OptionDescriptionESaIS2_EED1Ev'>
 +          <function-decl name='~_List_base' mangled-name='_ZNSt10_List_baseIN5mongo17optionenvironment17OptionDescriptionESaIS2_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_list.h' line='386' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt10_List_baseIN5mongo17optionenvironment17OptionDescriptionESaIS2_EED2Ev'>
              <parameter type-id='type-id-1694' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -4971,7 +5049,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~allocator' mangled-name='_ZNSaISt10_List_nodeIN5mongo17optionenvironment17OptionDescriptionEEED2Ev' filepath='/usr/include/c++/4.9/bits/allocator.h' line='121' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSaISt10_List_nodeIN5mongo17optionenvironment17OptionDescriptionEEED1Ev'>
 +          <function-decl name='~allocator' mangled-name='_ZNSaISt10_List_nodeIN5mongo17optionenvironment17OptionDescriptionEEED2Ev' filepath='/usr/include/c++/4.9/bits/allocator.h' line='121' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSaISt10_List_nodeIN5mongo17optionenvironment17OptionDescriptionEEED2Ev'>
              <parameter type-id='type-id-1933' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -4995,7 +5073,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~vector' mangled-name='_ZNSt6vectorISsSaISsEED2Ev' filepath='/usr/include/c++/4.9/bits/stl_vector.h' line='423' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt6vectorISsSaISsEED1Ev'>
 +          <function-decl name='~vector' mangled-name='_ZNSt6vectorISsSaISsEED2Ev' filepath='/usr/include/c++/4.9/bits/stl_vector.h' line='423' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt6vectorISsSaISsEED2Ev'>
              <parameter type-id='type-id-2161' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5035,7 +5113,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~_Vector_base' mangled-name='_ZNSt12_Vector_baseISsSaISsEED2Ev' filepath='/usr/include/c++/4.9/bits/stl_vector.h' line='159' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt12_Vector_baseISsSaISsEED1Ev'>
 +          <function-decl name='~_Vector_base' mangled-name='_ZNSt12_Vector_baseISsSaISsEED2Ev' filepath='/usr/include/c++/4.9/bits/stl_vector.h' line='159' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt12_Vector_baseISsSaISsEED2Ev'>
              <parameter type-id='type-id-1827' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5052,7 +5130,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~allocator' mangled-name='_ZNSaISsED2Ev' filepath='/usr/include/c++/4.9/bits/allocator.h' line='121' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSaISsED1Ev'>
 +          <function-decl name='~allocator' mangled-name='_ZNSaISsED2Ev' filepath='/usr/include/c++/4.9/bits/allocator.h' line='121' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSaISsED2Ev'>
              <parameter type-id='type-id-1943' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -8617,7 +8617,7 @@
            </function-decl>
@@ -5115,7 +5193,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~_Rb_tree' mangled-name='_ZNSt8_Rb_treeISsSt4pairIKSsSsESt10_Select1stIS2_ESt4lessISsESaIS2_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_tree.h' line='714' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt8_Rb_treeISsSt4pairIKSsSsESt10_Select1stIS2_ESt4lessISsESaIS2_EED1Ev'>
 +          <function-decl name='~_Rb_tree' mangled-name='_ZNSt8_Rb_treeISsSt4pairIKSsSsESt10_Select1stIS2_ESt4lessISsESaIS2_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_tree.h' line='714' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt8_Rb_treeISsSt4pairIKSsSsESt10_Select1stIS2_ESt4lessISsESaIS2_EED2Ev'>
              <parameter type-id='type-id-1738' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5132,7 +5210,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~allocator' mangled-name='_ZNSaISt13_Rb_tree_nodeISt4pairIKSsSsEEED2Ev' filepath='/usr/include/c++/4.9/bits/allocator.h' line='121' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSaISt13_Rb_tree_nodeISt4pairIKSsSsEEED1Ev'>
 +          <function-decl name='~allocator' mangled-name='_ZNSaISt13_Rb_tree_nodeISt4pairIKSsSsEEED2Ev' filepath='/usr/include/c++/4.9/bits/allocator.h' line='121' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSaISt13_Rb_tree_nodeISt4pairIKSsSsEEED2Ev'>
              <parameter type-id='type-id-1939' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5158,7 +5236,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~vector' mangled-name='_ZNSt6vectorISt10shared_ptrIN5mongo17optionenvironment10ConstraintEESaIS4_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_vector.h' line='423' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt6vectorISt10shared_ptrIN5mongo17optionenvironment10ConstraintEESaIS4_EED1Ev'>
 +          <function-decl name='~vector' mangled-name='_ZNSt6vectorISt10shared_ptrIN5mongo17optionenvironment10ConstraintEESaIS4_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_vector.h' line='423' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt6vectorISt10shared_ptrIN5mongo17optionenvironment10ConstraintEESaIS4_EED2Ev'>
              <parameter type-id='type-id-2165' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -11328,7 +11328,7 @@
            </function-decl>
@@ -5167,7 +5245,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~_Vector_base' mangled-name='_ZNSt12_Vector_baseISt10shared_ptrIN5mongo17optionenvironment10ConstraintEESaIS4_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_vector.h' line='159' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt12_Vector_baseISt10shared_ptrIN5mongo17optionenvironment10ConstraintEESaIS4_EED1Ev'>
 +          <function-decl name='~_Vector_base' mangled-name='_ZNSt12_Vector_baseISt10shared_ptrIN5mongo17optionenvironment10ConstraintEESaIS4_EED2Ev' filepath='/usr/include/c++/4.9/bits/stl_vector.h' line='159' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt12_Vector_baseISt10shared_ptrIN5mongo17optionenvironment10ConstraintEESaIS4_EED2Ev'>
              <parameter type-id='type-id-1834' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -11374,7 +11374,7 @@
            </function-decl>
@@ -5176,7 +5254,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~allocator' mangled-name='_ZNSaISt10shared_ptrIN5mongo17optionenvironment10ConstraintEEED2Ev' filepath='/usr/include/c++/4.9/bits/allocator.h' line='121' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSaISt10shared_ptrIN5mongo17optionenvironment10ConstraintEEED1Ev'>
 +          <function-decl name='~allocator' mangled-name='_ZNSaISt10shared_ptrIN5mongo17optionenvironment10ConstraintEEED2Ev' filepath='/usr/include/c++/4.9/bits/allocator.h' line='121' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSaISt10shared_ptrIN5mongo17optionenvironment10ConstraintEEED2Ev'>
              <parameter type-id='type-id-1952' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -11539,7 +11539,7 @@
            </function-decl>
@@ -5185,7 +5263,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~__shared_ptr' mangled-name='_ZNSt12__shared_ptrIN5mongo17optionenvironment10ConstraintELN9__gnu_cxx12_Lock_policyE2EED2Ev' filepath='/usr/include/c++/4.9/bits/shared_ptr_base.h' line='914' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt12__shared_ptrIN5mongo17optionenvironment10ConstraintELN9__gnu_cxx12_Lock_policyE2EED1Ev'>
 +          <function-decl name='~__shared_ptr' mangled-name='_ZNSt12__shared_ptrIN5mongo17optionenvironment10ConstraintELN9__gnu_cxx12_Lock_policyE2EED2Ev' filepath='/usr/include/c++/4.9/bits/shared_ptr_base.h' line='914' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt12__shared_ptrIN5mongo17optionenvironment10ConstraintELN9__gnu_cxx12_Lock_policyE2EED2Ev'>
              <parameter type-id='type-id-1915' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -16071,7 +16071,7 @@
            </function-decl>
@@ -5194,7 +5272,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~__shared_count' mangled-name='_ZNSt14__shared_countILN9__gnu_cxx12_Lock_policyE2EED2Ev' filepath='/usr/include/c++/4.9/bits/shared_ptr_base.h' line='663' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt14__shared_countILN9__gnu_cxx12_Lock_policyE2EED1Ev'>
 +          <function-decl name='~__shared_count' mangled-name='_ZNSt14__shared_countILN9__gnu_cxx12_Lock_policyE2EED2Ev' filepath='/usr/include/c++/4.9/bits/shared_ptr_base.h' line='663' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt14__shared_countILN9__gnu_cxx12_Lock_policyE2EED2Ev'>
              <parameter type-id='type-id-1912' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -19525,7 +19525,7 @@
            </function-decl>
@@ -5203,7 +5281,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~unique_ptr' mangled-name='_ZNSt10unique_ptrIN5mongo14BSONObjBuilderESt14default_deleteIS1_EED2Ev' filepath='/usr/include/c++/4.9/bits/unique_ptr.h' line='232' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt10unique_ptrIN5mongo14BSONObjBuilderESt14default_deleteIS1_EED1Ev'>
 +          <function-decl name='~unique_ptr' mangled-name='_ZNSt10unique_ptrIN5mongo14BSONObjBuilderESt14default_deleteIS1_EED2Ev' filepath='/usr/include/c++/4.9/bits/unique_ptr.h' line='232' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt10unique_ptrIN5mongo14BSONObjBuilderESt14default_deleteIS1_EED2Ev'>
              <parameter type-id='type-id-2121' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -19591,7 +19591,7 @@
            <typedef-decl name='_Inherited' type-id='type-id-861' filepath='/usr/include/c++/4.9/tuple' line='237' column='1' id='type-id-846'/>
@@ -5314,7 +5392,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~_Function_base' mangled-name='_ZNSt14_Function_baseD2Ev' filepath='/usr/include/c++/4.9/functional' line='1995' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt14_Function_baseD1Ev'>
 +          <function-decl name='~_Function_base' mangled-name='_ZNSt14_Function_baseD2Ev' filepath='/usr/include/c++/4.9/functional' line='1995' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZNSt14_Function_baseD2Ev'>
              <parameter type-id='type-id-1663' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -22535,7 +22535,7 @@
            </function-decl>
@@ -5350,7 +5428,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~new_allocator' mangled-name='_ZN9__gnu_cxx13new_allocatorISt10_List_nodeIN5mongo17optionenvironment13OptionSectionEEED2Ev' filepath='/usr/include/c++/4.9/ext/new_allocator.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN9__gnu_cxx13new_allocatorISt10_List_nodeIN5mongo17optionenvironment13OptionSectionEEED1Ev'>
 +          <function-decl name='~new_allocator' mangled-name='_ZN9__gnu_cxx13new_allocatorISt10_List_nodeIN5mongo17optionenvironment13OptionSectionEEED2Ev' filepath='/usr/include/c++/4.9/ext/new_allocator.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN9__gnu_cxx13new_allocatorISt10_List_nodeIN5mongo17optionenvironment13OptionSectionEEED2Ev'>
              <parameter type-id='type-id-161' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5367,7 +5445,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~new_allocator' mangled-name='_ZN9__gnu_cxx13new_allocatorISt10_List_nodeIN5mongo17optionenvironment17OptionDescriptionEEED2Ev' filepath='/usr/include/c++/4.9/ext/new_allocator.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN9__gnu_cxx13new_allocatorISt10_List_nodeIN5mongo17optionenvironment17OptionDescriptionEEED1Ev'>
 +          <function-decl name='~new_allocator' mangled-name='_ZN9__gnu_cxx13new_allocatorISt10_List_nodeIN5mongo17optionenvironment17OptionDescriptionEEED2Ev' filepath='/usr/include/c++/4.9/ext/new_allocator.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN9__gnu_cxx13new_allocatorISt10_List_nodeIN5mongo17optionenvironment17OptionDescriptionEEED2Ev'>
              <parameter type-id='type-id-159' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5393,7 +5471,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~new_allocator' mangled-name='_ZN9__gnu_cxx13new_allocatorISsED2Ev' filepath='/usr/include/c++/4.9/ext/new_allocator.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN9__gnu_cxx13new_allocatorISsED1Ev'>
 +          <function-decl name='~new_allocator' mangled-name='_ZN9__gnu_cxx13new_allocatorISsED2Ev' filepath='/usr/include/c++/4.9/ext/new_allocator.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN9__gnu_cxx13new_allocatorISsED2Ev'>
              <parameter type-id='type-id-173' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5418,7 +5496,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~new_allocator' mangled-name='_ZN9__gnu_cxx13new_allocatorISt13_Rb_tree_nodeISt4pairIKSsSsEEED2Ev' filepath='/usr/include/c++/4.9/ext/new_allocator.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN9__gnu_cxx13new_allocatorISt13_Rb_tree_nodeISt4pairIKSsSsEEED1Ev'>
 +          <function-decl name='~new_allocator' mangled-name='_ZN9__gnu_cxx13new_allocatorISt13_Rb_tree_nodeISt4pairIKSsSsEEED2Ev' filepath='/usr/include/c++/4.9/ext/new_allocator.h' line='86' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN9__gnu_cxx13new_allocatorISt13_Rb_tree_nodeISt4pairIKSsSsEEED2Ev'>
              <parameter type-id='type-id-169' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5451,7 +5529,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~Status' mangled-name='_ZN5mongo6StatusD2Ev' filepath='src/mongo/base/status.h' line='80' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo6StatusD1Ev'>
 +          <function-decl name='~Status' mangled-name='_ZN5mongo6StatusD2Ev' filepath='src/mongo/base/status.h' line='80' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo6StatusD2Ev'>
              <parameter type-id='type-id-1573' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5495,7 +5573,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~_BufBuilder' mangled-name='_ZN5mongo11_BufBuilderINS_16TrivialAllocatorEED2Ev' filepath='src/mongo/bson/util/builder.h' line='138' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo11_BufBuilderINS_16TrivialAllocatorEED1Ev'>
 +          <function-decl name='~_BufBuilder' mangled-name='_ZN5mongo11_BufBuilderINS_16TrivialAllocatorEED2Ev' filepath='src/mongo/bson/util/builder.h' line='138' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo11_BufBuilderINS_16TrivialAllocatorEED2Ev'>
              <parameter type-id='type-id-1585' is-artificial='yes'/>
-             <parameter type-id='type-id-29'/>
+             <parameter type-id='type-id-26'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5503,7 +5581,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='_BufBuilder' mangled-name='_ZN5mongo11_BufBuilderINS_16TrivialAllocatorEEC2Ei' filepath='src/mongo/bson/util/builder.h' line='127' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo11_BufBuilderINS_16TrivialAllocatorEEC1Ei'>
 +          <function-decl name='_BufBuilder' mangled-name='_ZN5mongo11_BufBuilderINS_16TrivialAllocatorEEC2Ei' filepath='src/mongo/bson/util/builder.h' line='127' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo11_BufBuilderINS_16TrivialAllocatorEEC2Ei'>
              <parameter type-id='type-id-1585' is-artificial='yes'/>
-             <parameter type-id='type-id-29'/>
+             <parameter type-id='type-id-26'/>
              <return type-id='type-id-56'/>
 @@ -32293,7 +32293,7 @@
            </function-decl>
@@ -5521,7 +5599,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='LittleEndian' mangled-name='_ZN5mongo12LittleEndianIiEC2Ei' filepath='src/mongo/base/data_type_endian.h' line='58' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo12LittleEndianIiEC1Ei'>
 +          <function-decl name='LittleEndian' mangled-name='_ZN5mongo12LittleEndianIiEC2Ei' filepath='src/mongo/base/data_type_endian.h' line='58' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo12LittleEndianIiEC2Ei'>
              <parameter type-id='type-id-1551' is-artificial='yes'/>
-             <parameter type-id='type-id-29'/>
+             <parameter type-id='type-id-26'/>
              <return type-id='type-id-56'/>
 @@ -33541,14 +33541,14 @@
            </function-decl>
@@ -5530,7 +5608,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='BSONObjBuilder' mangled-name='_ZN5mongo14BSONObjBuilderC2Ei' filepath='src/mongo/bson/bsonobjbuilder.h' line='64' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo14BSONObjBuilderC1Ei'>
 +          <function-decl name='BSONObjBuilder' mangled-name='_ZN5mongo14BSONObjBuilderC2Ei' filepath='src/mongo/bson/bsonobjbuilder.h' line='64' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo14BSONObjBuilderC2Ei'>
              <parameter type-id='type-id-1514' is-artificial='yes'/>
-             <parameter type-id='type-id-29'/>
+             <parameter type-id='type-id-26'/>
              <return type-id='type-id-56'/>
            </function-decl>
          </member-function>
@@ -5538,7 +5616,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~BSONObjBuilder' mangled-name='_ZN5mongo14BSONObjBuilderD2Ev' filepath='src/mongo/bson/bsonobjbuilder.h' line='115' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo14BSONObjBuilderD1Ev'>
 +          <function-decl name='~BSONObjBuilder' mangled-name='_ZN5mongo14BSONObjBuilderD2Ev' filepath='src/mongo/bson/bsonobjbuilder.h' line='115' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo14BSONObjBuilderD2Ev'>
              <parameter type-id='type-id-1514' is-artificial='yes'/>
-             <parameter type-id='type-id-29'/>
+             <parameter type-id='type-id-26'/>
              <return type-id='type-id-56'/>
 @@ -33948,7 +33948,7 @@
            </function-decl>
@@ -5548,7 +5626,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 +          <function-decl name='ExceptionInfo' mangled-name='_ZN5mongo13ExceptionInfoC2ERKSsi' filepath='src/mongo/util/assert_util.h' line='79' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo13ExceptionInfoC2ERKSsi'>
              <parameter type-id='type-id-1538' is-artificial='yes'/>
              <parameter type-id='type-id-1338'/>
-             <parameter type-id='type-id-29'/>
+             <parameter type-id='type-id-26'/>
 @@ -33988,7 +33988,7 @@
            </function-decl>
          </member-function>
@@ -5556,7 +5634,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~DBException' mangled-name='_ZN5mongo11DBExceptionD2Ev' filepath='src/mongo/util/assert_util.h' line='109' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo11DBExceptionD1Ev'>
 +          <function-decl name='~DBException' mangled-name='_ZN5mongo11DBExceptionD2Ev' filepath='src/mongo/util/assert_util.h' line='109' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo11DBExceptionD2Ev'>
              <parameter type-id='type-id-1531' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -34047,7 +34047,7 @@
            </function-decl>
@@ -5566,7 +5644,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 +          <function-decl name='AssertionException' mangled-name='_ZN5mongo18AssertionExceptionC2ERKSsi' filepath='src/mongo/util/assert_util.h' line='155' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo18AssertionExceptionC2ERKSsi'>
              <parameter type-id='type-id-1496' is-artificial='yes'/>
              <parameter type-id='type-id-1338'/>
-             <parameter type-id='type-id-29'/>
+             <parameter type-id='type-id-26'/>
 @@ -34069,7 +34069,7 @@
            </function-decl>
          </member-function>
@@ -5574,7 +5652,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~AssertionException' mangled-name='_ZN5mongo18AssertionExceptionD2Ev' filepath='src/mongo/util/assert_util.h' line='157' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo18AssertionExceptionD1Ev'>
 +          <function-decl name='~AssertionException' mangled-name='_ZN5mongo18AssertionExceptionD2Ev' filepath='src/mongo/util/assert_util.h' line='157' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo18AssertionExceptionD2Ev'>
              <parameter type-id='type-id-1496' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -34129,7 +34129,7 @@
            </function-decl>
@@ -5610,7 +5688,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~ExportedServerParameter' mangled-name='_ZN5mongo23ExportedServerParameterISt6vectorISsSaISsEEED2Ev' filepath='src/mongo/db/server_parameters.h' line='128' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo23ExportedServerParameterISt6vectorISsSaISsEEED1Ev'>
 +          <function-decl name='~ExportedServerParameter' mangled-name='_ZN5mongo23ExportedServerParameterISt6vectorISsSaISsEEED2Ev' filepath='src/mongo/db/server_parameters.h' line='128' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo23ExportedServerParameterISt6vectorISsSaISsEEED2Ev'>
              <parameter type-id='type-id-1543' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -34386,7 +34386,7 @@
            </function-decl>
@@ -5628,7 +5706,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~ExportedServerParameter' mangled-name='_ZN5mongo23ExportedServerParameterISsED2Ev' filepath='src/mongo/db/server_parameters.h' line='128' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo23ExportedServerParameterISsED1Ev'>
 +          <function-decl name='~ExportedServerParameter' mangled-name='_ZN5mongo23ExportedServerParameterISsED2Ev' filepath='src/mongo/db/server_parameters.h' line='128' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5mongo23ExportedServerParameterISsED2Ev'>
              <parameter type-id='type-id-1542' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 @@ -35206,13 +35206,13 @@
            </function-decl>
@@ -5644,7 +5722,7 @@ index bc70b4817a2e..663f9ccc10c5 100644
 -          <function-decl name='~intrusive_ptr' mangled-name='_ZN5boost13intrusive_ptrIN5mongo12SharedBuffer6HolderEED2Ev' filepath='src/third_party/boost-1.56.0/boost/smart_ptr/intrusive_ptr.hpp' line='95' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5boost13intrusive_ptrIN5mongo12SharedBuffer6HolderEED1Ev'>
 +          <function-decl name='~intrusive_ptr' mangled-name='_ZN5boost13intrusive_ptrIN5mongo12SharedBuffer6HolderEED2Ev' filepath='src/third_party/boost-1.56.0/boost/smart_ptr/intrusive_ptr.hpp' line='95' column='1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='_ZN5boost13intrusive_ptrIN5mongo12SharedBuffer6HolderEED2Ev'>
              <parameter type-id='type-id-197' is-artificial='yes'/>
-             <parameter type-id='type-id-29' is-artificial='yes'/>
+             <parameter type-id='type-id-26' is-artificial='yes'/>
              <return type-id='type-id-56'/>
 diff --git a/tests/data/test-read-dwarf/test12-pr18844.so.abi b/tests/data/test-read-dwarf/test12-pr18844.so.abi
 index 5b6d24b8415c..c0a31efbc13d 100644
@@ -7977,7 +8055,7 @@ index bb0c2ea8dbdc..be9a931ee5c8 100644
        <parameter type-id='type-id-173' name='v' filepath='../../.././libsanitizer/tsan/tsan_interface.cc' line='64' column='1'/>
        <return type-id='type-id-26'/>
 diff --git a/tests/data/test-read-dwarf/test16-pr18904.so.abi b/tests/data/test-read-dwarf/test16-pr18904.so.abi
-index 0075a6ec289f..3b7a4177cbbb 100644
+index 377d322475f9..31992791f7f7 100644
 --- a/tests/data/test-read-dwarf/test16-pr18904.so.abi
 +++ b/tests/data/test-read-dwarf/test16-pr18904.so.abi
 @@ -41,16 +41,16 @@
