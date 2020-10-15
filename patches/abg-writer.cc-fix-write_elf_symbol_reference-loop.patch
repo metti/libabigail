@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Giuliano Procida <gprocida@google.com>
+Date: Thu, 15 Oct 2020 10:23:51 +0100
+Subject: abg-writer.cc: fix write_elf_symbol_reference loop
+
+The function write_elf_symbol_reference iterates through aliases,
+looking for an unsuppressed alias to use. The existing code went wrong
+in the case when aliases are present. In the case of all symbols
+suppressed, it would also have selected the last alias, rather than
+the first, if the data structure invariants had matched the code's
+expectations.
+
+The main symbol is always distinguished. When aliases are absent, the
+sole symbol's next pointer is null, but when aliases are present, they
+form a circular list. This makes traversal of aliases a bit tricky.
+
+The code now picks the first symbol from the following:
+
+- the given symbol, if unsuppressed
+- the main symbol, if unsuppressed
+- the unsuppressed aliases in the remainder of the alias chain
+- the main symbol (suppressed)
+
+The given symbol, which need not be the same as the main symbol, will
+be tested twice, if suppressed, but addressing this would make the
+code even more elaborate and fragile.
+
+The last case may be unreachable if symbol suppression triggers when
+all aliases are suppressed.
+
+	* src/abg-writer.cc (write_elf_symbol_reference): Check main
+	symbol and aliases with more care.
+
+Fixes: f0fdfcbadc76 ("dwarf-reader/writer: consider aliases when dealing with suppressions")
+Signed-off-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-writer.cc | 26 ++++++++++++++++++++++----
+ 1 file changed, 22 insertions(+), 4 deletions(-)
+
+diff --git a/src/abg-writer.cc b/src/abg-writer.cc
+index 2834298d10b6..dcd03fcef6a2 100644
+--- a/src/abg-writer.cc
++++ b/src/abg-writer.cc
+@@ -1738,10 +1738,28 @@ write_elf_symbol_aliases(const elf_symbol& sym, ostream& out)
+ static bool
+ write_elf_symbol_reference(const elf_symbol& sym, ostream& o)
+ {
+-  auto actual_sym = &sym;
+-  while (actual_sym->is_suppressed() && actual_sym->has_aliases())
+-    actual_sym = actual_sym->get_next_alias().get();
+-  o << " elf-symbol-id='" << actual_sym->get_id_string() << "'";
++  const elf_symbol* main = sym.get_main_symbol().get();
++  const elf_symbol* alias = &sym;
++  bool found = !alias->is_suppressed();
++  // If the symbol itself is suppressed, check the alias chain.
++  if (!found)
++    {
++      alias = main;
++      found = !alias->is_suppressed();
++    }
++  // If main sym is suppressed, search the remainder of the chain.
++  while (!found)
++    {
++      alias = alias->get_next_alias().get();
++      // Two separate termination conditions at present.
++      if (!alias || alias == main)
++        break;
++      found = !alias->is_suppressed();
++    }
++  // If all aliases are suppressed, just stick with main sym.
++  if (!found)
++    alias = main;
++  o << " elf-symbol-id='" << alias->get_id_string() << "'";
+   return true;
+ }
+ 
