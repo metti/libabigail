@@ -24,3 +24,4 @@ abg-writer.cc-Track-types-by-plain-address.patch
 KMI-Whitelists-allow-alternative-section-suffix-symbol_list.patch
 dwarf-reader-sort-the-types-for-canonicalization.patch
 abg-writer.cc-fix-write_elf_symbol_reference-loop.patch
+comp-filter-Consider-CRC-changes-harmful.patch

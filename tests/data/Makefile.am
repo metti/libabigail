@@ -191,6 +191,9 @@ test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.o \
 test-abidiff-exit/test-missing-alias-report.txt \
 test-abidiff-exit/test-missing-alias.abi \
 test-abidiff-exit/test-missing-alias.suppr \
+test-abidiff-exit/test-crc-report.txt \
+test-abidiff-exit/test-crc-v0.abi \
+test-abidiff-exit/test-crc-v1.abi \
 \
 test-diff-dwarf/test0-v0.cc		\
 test-diff-dwarf/test0-v0.o			\

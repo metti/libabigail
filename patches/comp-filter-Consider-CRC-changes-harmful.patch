@@ -1,0 +1,220 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Thu, 15 Oct 2020 11:51:49 +0100
+Subject: comp-filter: Consider CRC changes harmful
+
+In case a function or variable symbol changes in a harmless way, we
+would previously also consider a CRC change harmless (or more precise:
+not harmful).
+
+Fix that by explicitly testing for CRC changes when analyzing whether
+diff nodes need to be considered harmful.
+
+	* src/abg-comp-filter.cc (crc_changed): New function.
+	  (categorize_harmful_diff_node): Also test for CRC changes.
+	* tests/data/Makefile.am: Add new test files.
+	* tests/data/test-abidiff-exit/test-crc-report.txt: New test file.
+	* tests/data/test-abidiff-exit/test-crc-v0.abi: Likewise.
+	* tests/data/test-abidiff-exit/test-crc-v1.abi: Likewise.
+	* tests/test-abidiff-exit.cc: Add new test case.
+
+Fixes: 6a56bcb744e8 ("symtab: Add support for MODVERSIONS (CRC checksums)")
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-comp-filter.cc                        | 39 ++++++++++++++++++-
+ tests/data/Makefile.am                        |  3 ++
+ .../test-abidiff-exit/test-crc-report.txt     | 15 +++++++
+ tests/data/test-abidiff-exit/test-crc-v0.abi  | 29 ++++++++++++++
+ tests/data/test-abidiff-exit/test-crc-v1.abi  | 30 ++++++++++++++
+ tests/test-abidiff-exit.cc                    | 11 ++++++
+ 6 files changed, 126 insertions(+), 1 deletion(-)
+ create mode 100644 tests/data/test-abidiff-exit/test-crc-report.txt
+ create mode 100644 tests/data/test-abidiff-exit/test-crc-v0.abi
+ create mode 100644 tests/data/test-abidiff-exit/test-crc-v1.abi
+
+diff --git a/src/abg-comp-filter.cc b/src/abg-comp-filter.cc
+index 35c927727690..81dc367819cd 100644
+--- a/src/abg-comp-filter.cc
++++ b/src/abg-comp-filter.cc
+@@ -233,6 +233,42 @@ access_changed(const decl_base_sptr& f, const decl_base_sptr& s)
+   return false;
+ }
+ 
++/// Test if there was a function or variable CRC change.
++///
++/// @param f the first function or variable to consider.
++///
++/// @param s the second function or variable to consider.
++///
++/// @return true if the test is positive, false otherwise.
++template <typename function_or_var_decl_sptr>
++static bool
++crc_changed(const function_or_var_decl_sptr& f,
++	    const function_or_var_decl_sptr& s)
++{
++  const auto symbol_f  = f->get_symbol(), symbol_s = s->get_symbol();
++  if (!symbol_f || !symbol_s)
++    return false;
++  const auto crc_f = symbol_f->get_crc(), crc_s = symbol_s->get_crc();
++  return (crc_f != 0 && crc_s != 0 && crc_f != crc_s);
++}
++
++/// Test if the current diff tree node carries a CRC change in either a
++/// function or a variable.
++///
++/// @param diff the diff tree node to consider.
++///
++/// @return true if the test is positive, false otherwise.
++static bool
++crc_changed(const diff* diff)
++{
++  if (const function_decl_diff* d =
++	dynamic_cast<const function_decl_diff*>(diff))
++    return crc_changed(d->first_function_decl(), d->second_function_decl());
++  if (const var_diff* d = dynamic_cast<const var_diff*>(diff))
++    return crc_changed(d->first_var(), d->second_var());
++  return false;
++}
++
+ /// Test if there was a function name change, but there there was no
+ /// change in name of the underlying symbol.  IOW, if the name of a
+ /// function changed, but the symbol of the new function is equal to
+@@ -1732,7 +1768,8 @@ categorize_harmful_diff_node(diff *d, bool pre)
+ 	      || non_static_data_member_type_size_changed(f, s)
+ 	      || non_static_data_member_added_or_removed(d)
+ 	      || base_classes_added_or_removed(d)
+-	      || has_harmful_enum_change(d)))
++	      || has_harmful_enum_change(d)
++	      || crc_changed(d)))
+ 	category |= SIZE_OR_OFFSET_CHANGE_CATEGORY;
+ 
+       if (has_virtual_mem_fn_change(d))
+diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
+index 79e142174979..544298df8504 100644
+--- a/tests/data/Makefile.am
++++ b/tests/data/Makefile.am
+@@ -191,6 +191,9 @@ test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.o \
+ test-abidiff-exit/test-missing-alias-report.txt \
+ test-abidiff-exit/test-missing-alias.abi \
+ test-abidiff-exit/test-missing-alias.suppr \
++test-abidiff-exit/test-crc-report.txt \
++test-abidiff-exit/test-crc-v0.abi \
++test-abidiff-exit/test-crc-v1.abi \
+ \
+ test-diff-dwarf/test0-v0.cc		\
+ test-diff-dwarf/test0-v0.o			\
+diff --git a/tests/data/test-abidiff-exit/test-crc-report.txt b/tests/data/test-abidiff-exit/test-crc-report.txt
+new file mode 100644
+index 000000000000..ddba41f40dad
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-crc-report.txt
+@@ -0,0 +1,15 @@
++Functions changes summary: 0 Removed, 1 Changed (1 filtered out), 0 Added functions
++Variables changes summary: 0 Removed, 1 Changed, 0 Added variable
++
++1 function with some indirect sub-type change:
++
++  [C] 'function void func1(E)' has some indirect sub-type changes:
++
++    CRC value (modversions) changed from 0x10000001 to 0x10000002
++
++1 Changed variable:
++
++  [C] 'int var1' was changed:
++
++    CRC value (modversions) changed from 0x30000001 to 0x30000002
++
+diff --git a/tests/data/test-abidiff-exit/test-crc-v0.abi b/tests/data/test-abidiff-exit/test-crc-v0.abi
+new file mode 100644
+index 000000000000..320899fc97ff
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-crc-v0.abi
+@@ -0,0 +1,29 @@
++<abi-corpus path='out1.o' architecture='elf-amd-x86_64'>
++  <elf-function-symbols>
++    <elf-symbol name='func1' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x10000001'/>
++    <elf-symbol name='func2' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x20000001'/>
++  </elf-function-symbols>
++  <elf-variable-symbols>
++    <elf-symbol name='var1' size='4' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x30000001'/>
++    <elf-symbol name='var2' size='4' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x40000001'/>
++  </elf-variable-symbols>
++  <abi-instr version='1.0' address-size='64' path='test1.c' language='LANG_C99'>
++    <type-decl name='int' size-in-bits='32' id='type-id-1'/>
++    <type-decl name='unnamed-enum-underlying-type' is-anonymous='yes' size-in-bits='32' alignment-in-bits='32' id='type-id-2'/>
++    <type-decl name='void' id='type-id-3'/>
++    <enum-decl name='E' id='type-id-4'>
++      <underlying-type type-id='type-id-2'/>
++      <enumerator name='VALUE_OLD' value='0'/>
++    </enum-decl>
++    <var-decl name='var1' type-id='type-id-1' mangled-name='var1' visibility='default' elf-symbol-id='var1'/>
++    <var-decl name='var2' type-id='type-id-1' mangled-name='var2' visibility='default' elf-symbol-id='var2'/>
++    <function-decl name='func2' mangled-name='func2' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='func2'>
++      <parameter type-id='type-id-4' name='e'/>
++      <return type-id='type-id-3'/>
++    </function-decl>
++    <function-decl name='func1' mangled-name='func1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='func1'>
++      <parameter type-id='type-id-4' name='e'/>
++      <return type-id='type-id-3'/>
++    </function-decl>
++  </abi-instr>
++</abi-corpus>
+diff --git a/tests/data/test-abidiff-exit/test-crc-v1.abi b/tests/data/test-abidiff-exit/test-crc-v1.abi
+new file mode 100644
+index 000000000000..0baa66e4766b
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-crc-v1.abi
+@@ -0,0 +1,30 @@
++<abi-corpus path='out2.o' architecture='elf-amd-x86_64'>
++  <elf-function-symbols>
++    <elf-symbol name='func1' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x10000002'/>
++    <elf-symbol name='func2' type='func-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x20000001'/>
++  </elf-function-symbols>
++  <elf-variable-symbols>
++    <elf-symbol name='var1' size='4' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x30000002'/>
++    <elf-symbol name='var2' size='4' type='object-type' binding='global-binding' visibility='default-visibility' is-defined='yes' crc='0x40000001'/>
++  </elf-variable-symbols>
++  <abi-instr version='1.0' address-size='64' path='test2.c' language='LANG_C99'>
++    <type-decl name='int' size-in-bits='32' id='type-id-1'/>
++    <type-decl name='unnamed-enum-underlying-type' is-anonymous='yes' size-in-bits='32' alignment-in-bits='32' id='type-id-2'/>
++    <type-decl name='void' id='type-id-3'/>
++    <enum-decl name='E' id='type-id-4'>
++      <underlying-type type-id='type-id-2'/>
++      <enumerator name='VALUE_OLD' value='0'/>
++      <enumerator name='VALUE_NEW' value='1'/>
++    </enum-decl>
++    <var-decl name='var1' type-id='type-id-1' mangled-name='var1' visibility='default' elf-symbol-id='var1'/>
++    <var-decl name='var2' type-id='type-id-1' mangled-name='var2' visibility='default' elf-symbol-id='var2'/>
++    <function-decl name='func2' mangled-name='func2' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='func2'>
++      <parameter type-id='type-id-4' name='e'/>
++      <return type-id='type-id-3'/>
++    </function-decl>
++    <function-decl name='func1' mangled-name='func1' visibility='default' binding='global' size-in-bits='64' elf-symbol-id='func1'>
++      <parameter type-id='type-id-4' name='e'/>
++      <return type-id='type-id-3'/>
++    </function-decl>
++  </abi-instr>
++</abi-corpus>
+diff --git a/tests/test-abidiff-exit.cc b/tests/test-abidiff-exit.cc
+index dd903d70d132..955b0c036664 100644
+--- a/tests/test-abidiff-exit.cc
++++ b/tests/test-abidiff-exit.cc
+@@ -374,6 +374,17 @@ InOutSpec in_out_specs[] =
+     "data/test-abidiff-exit/test-missing-alias-report.txt",
+     "output/test-abidiff-exit/test-missing-alias-report.txt"
+   },
++  {
++    "data/test-abidiff-exit/test-crc-v0.abi",
++    "data/test-abidiff-exit/test-crc-v1.abi",
++    "",
++    "",
++    "",
++    "",
++    abigail::tools_utils::ABIDIFF_ABI_CHANGE,
++    "data/test-abidiff-exit/test-crc-report.txt",
++    "output/test-abidiff-exit/test-crc-report.txt"
++  },
+   {0, 0, 0 ,0, 0, 0, abigail::tools_utils::ABIDIFF_OK, 0, 0}
+ };
+ 
