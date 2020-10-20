@@ -10358,6 +10358,11 @@ die_location_address(Dwarf_Die*	die,
   if (!die_location_expr(die, DW_AT_location, &expr, &expr_len))
     return false;
 
+  // Ignore invalid location expressions where reading them succeeded, but they
+  // are set to 0x0 in DWARF.
+  if (!expr)
+    return false;
+
   int64_t addr = 0;
   if (!eval_last_constant_dwarf_sub_expr(expr, expr_len, addr, is_tls_address))
     return false;
