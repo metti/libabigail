@@ -28,3 +28,4 @@ comp-filter-Consider-CRC-changes-harmful.patch
 Stabilise-sort-of-canonical-types.patch
 Improve-and-stabilise-sort-of-member-functions.patch
 Improve-enum-synthetic-type-names.patch
+dwarf-reader-Ignore-zero-length-location-expressions-from-DW_AT_location.patch
