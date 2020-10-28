@@ -27,3 +27,4 @@ abg-writer.cc-fix-write_elf_symbol_reference-loop.patch
 comp-filter-Consider-CRC-changes-harmful.patch
 Stabilise-sort-of-canonical-types.patch
 Improve-and-stabilise-sort-of-member-functions.patch
+Improve-enum-synthetic-type-names.patch
