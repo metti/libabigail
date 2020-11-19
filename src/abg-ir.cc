@@ -2810,6 +2810,58 @@ is_ptr_ref_or_qual_type(const type_base *t)
   return false;
 }
 
+/// A functor to sort decls somewhat topologically.  That is, types
+/// are sorted in a way that makes the ones that are defined "first"
+/// to come first.
+///
+/// The topological criteria is a lexicographic sort of the definition
+/// location of the type.  For types that have no location (or the
+/// same location), it's their qualified name that is used for the
+/// lexicographic sort.
+struct decl_topo_comp
+{
+
+  /// The "Less Than" comparison operator of this functor.
+  ///
+  /// @param f the first decl to be considered for the comparison.
+  ///
+  /// @param s the second decl to be considered for the comparison.
+  ///
+  /// @return true iff @p f is less than @p s.
+  bool
+  operator()(const decl_base *f,
+	     const decl_base *s)
+  {
+    if (!!f != !!s)
+      return f && !s;
+
+    if (!f)
+      return false;
+
+    location fl = f->get_location();
+    location sl = s->get_location();
+    if (fl.get_value() != sl.get_value())
+      return fl.get_value() < sl.get_value();
+
+    // We reach this point if location data is useless.
+    return (get_pretty_representation(f, true)
+	    < get_pretty_representation(s, true));
+  }
+
+  /// The "Less Than" comparison operator of this functor.
+  ///
+  /// @param f the first decl to be considered for the comparison.
+  ///
+  /// @param s the second decl to be considered for the comparison.
+  ///
+  /// @return true iff @p f is less than @p s.
+  bool
+  operator()(const decl_base_sptr &f,
+	     const decl_base_sptr &s)
+  {return operator()(f.get(), s.get());}
+
+}; // end struct decl_topo_comp
+
 /// A functor to sort types somewhat topologically.  That is, types
 /// are sorted in a way that makes the ones that are defined "first"
 /// to come first.
@@ -2907,18 +2959,8 @@ struct type_topo_comp
       }
 
     // From this point, fd and sd should be non-nil
-
-    location fl = fd->get_location();
-    location sl = sd->get_location();
-    if (fl.get_value() == sl.get_value())
-      {
-	if (fl)
-	  return fl.expand() < sl.expand();
-	return (get_pretty_representation(f, true)
-		< get_pretty_representation(s, true));
-      }
-
-    return fl.get_value() < sl.get_value();
+    decl_topo_comp decl_comp;
+    return decl_comp(fd, sd);
   }
 }; //end struct type_topo_comp
 
@@ -5913,6 +5955,35 @@ peel_qualified_or_typedef_type(const type_base* type)
   return const_cast<type_base*>(type);
 }
 
+/// Return the leaf underlying type of a qualified or typedef type.
+///
+/// If the underlying type is itself a qualified or typedef type, then
+/// recursively return the first underlying type of that qualified or
+/// typedef type to return the first underlying type that is not a
+/// qualified or typedef type.
+///
+/// If the underlying type is NOT a qualified nor a typedef type, then
+/// just return that underlying type.
+///
+/// @param type the qualified or typedef type to consider.
+///
+/// @return the leaf underlying type.
+type_base_sptr
+peel_qualified_or_typedef_type(const type_base_sptr &t)
+{
+  type_base_sptr type = t;
+  while (is_typedef(type) || is_qualified_type(type))
+    {
+      if (typedef_decl_sptr t = is_typedef(type))
+	type = peel_typedef_type(t);
+
+      if (qualified_type_def_sptr t = is_qualified_type(type))
+	type = peel_qualified_type(t);
+    }
+
+  return type;
+}
+
 /// Return the leaf underlying or pointed-to type node of a @ref
 /// typedef_decl, @ref pointer_type_def or @ref reference_type_def
 /// node.
@@ -6002,6 +6073,226 @@ peel_pointer_or_reference_type(const type_base *type,
   return const_cast<type_base*>(type);
 }
 
+/// Clone an array type.
+///
+/// Note that the element type of the new array is shared witht the
+/// old one.
+///
+/// @param array the array type to clone.
+///
+/// @return a newly built array type.  Note that it needs to be added
+/// to a scope (e.g, using add_decl_to_scope) for its lifetime to be
+/// bound to the one of that scope.  Otherwise, its lifetime is bound
+/// to the lifetime of its containing shared pointer.
+array_type_def_sptr
+clone_array(const array_type_def_sptr& array)
+{
+  vector<array_type_def::subrange_sptr> subranges;
+
+  for (vector<array_type_def::subrange_sptr>::const_iterator i =
+	 array->get_subranges().begin();
+       i != array->get_subranges().end();
+       ++i)
+    {
+      array_type_def::subrange_sptr subrange
+	(new array_type_def::subrange_type(array->get_environment(),
+					   (*i)->get_name(),
+					   (*i)->get_lower_bound(),
+					   (*i)->get_upper_bound(),
+					   (*i)->get_underlying_type(),
+					   (*i)->get_location(),
+					   (*i)->get_language()));
+      subrange->is_infinite((*i)->is_infinite());
+      subranges.push_back(subrange);
+    }
+
+  array_type_def_sptr result
+    (new array_type_def(array->get_element_type(),
+			subranges, array->get_location()));
+
+  return result;
+}
+
+/// Clone a typedef type.
+///
+/// Note that the underlying type of the newly constructed typedef is
+/// shared with the old one.
+///
+/// @param t the typedef to clone.
+///
+/// @return the newly constructed typedef.  Note that it needs to be
+/// added to a scope (e.g, using add_decl_to_scope) for its lifetime
+/// to be bound to the one of that scope.  Otherwise, its lifetime is
+/// bound to the lifetime of its containing shared pointer.
+typedef_decl_sptr
+clone_typedef(const typedef_decl_sptr& t)
+{
+  if (!t)
+    return t;
+
+  typedef_decl_sptr result
+    (new typedef_decl(t->get_name(), t->get_underlying_type(),
+		      t->get_location(), t->get_linkage_name(),
+		      t->get_visibility()));
+  return result;
+}
+
+/// Clone a qualifiend type.
+///
+/// Note that underlying type of the newly constructed qualified type
+/// is shared with the old one.
+///
+/// @param t the qualified type to clone.
+///
+/// @return the newly constructed qualified type.  Note that it needs
+/// to be added to a scope (e.g, using add_decl_to_scope) for its
+/// lifetime to be bound to the one of that scope.  Otherwise, its
+/// lifetime is bound to the lifetime of its containing shared
+/// pointer.
+qualified_type_def_sptr
+clone_qualified_type(const qualified_type_def_sptr& t)
+{
+  if (!t)
+    return t;
+
+  qualified_type_def_sptr result
+    (new qualified_type_def(t->get_underlying_type(),
+			    t->get_cv_quals(), t->get_location()));
+
+  return result;
+}
+
+/// Clone a typedef, an array or a qualified tree.
+///
+/// @param type the typedef, array or qualified tree to clone.  any
+/// order.
+///
+/// @return the cloned type, or NULL if @type was neither a typedef,
+/// array nor a qualified type.
+static type_base_sptr
+clone_typedef_array_qualified_type(type_base_sptr type)
+{
+  if (!type)
+    return type;
+
+  scope_decl* scope = is_decl(type) ? is_decl(type)->get_scope() : 0;
+  type_base_sptr result;
+
+  if (typedef_decl_sptr t = is_typedef(type))
+    result = clone_typedef(is_typedef(t));
+  else if (qualified_type_def_sptr t = is_qualified_type(type))
+    result = clone_qualified_type(t);
+  else if (array_type_def_sptr t = is_array_type(type))
+    result = clone_array(t);
+  else
+    return type_base_sptr();
+
+  if (scope)
+    add_decl_to_scope(is_decl(result), scope);
+
+  return result;
+}
+
+/// Clone a type tree made of an array or a typedef of array.
+///
+/// Note that this can be a tree which root node is a typedef an which
+/// sub-tree can be any arbitrary combination of typedef, qualified
+/// type and arrays.
+///
+/// @param t the array or typedef of qualified array to consider.
+///
+/// @return a clone of @p t.
+type_base_sptr
+clone_array_tree(const type_base_sptr t)
+{
+  ABG_ASSERT(is_typedef_of_array(t) || is_array_type(t));
+
+  scope_decl* scope = is_decl(t)->get_scope();
+  type_base_sptr result = clone_typedef_array_qualified_type(t);
+  ABG_ASSERT(is_typedef_of_array(result) || is_array_type(result));
+
+  type_base_sptr subtree;
+  if (typedef_decl_sptr type = is_typedef(result))
+    {
+      type_base_sptr s =
+	clone_typedef_array_qualified_type(type->get_underlying_type());
+      if (s)
+	{
+	  subtree = s;
+	  type->set_underlying_type(subtree);
+	}
+    }
+  else if (array_type_def_sptr type = is_array_type(result))
+    {
+      type_base_sptr s =
+	clone_typedef_array_qualified_type(type->get_element_type());
+      if (s)
+	{
+	  subtree = s;
+	  type->set_element_type(subtree);
+	}
+    }
+  add_decl_to_scope(is_decl(subtree), scope);
+
+  for (;;)
+    {
+      if (typedef_decl_sptr t = is_typedef(subtree))
+	{
+	  type_base_sptr s =
+	    clone_typedef_array_qualified_type(t->get_underlying_type());
+	  if (s)
+	    {
+	      scope_decl* scope =
+		is_decl(t->get_underlying_type())->get_scope();
+	      ABG_ASSERT(scope);
+	      add_decl_to_scope(is_decl(s), scope);
+	      t->set_underlying_type (s);
+	      subtree = s;
+	    }
+	  else
+	    break;
+	}
+      else if (qualified_type_def_sptr t = is_qualified_type(subtree))
+	{
+	  type_base_sptr s =
+	    clone_typedef_array_qualified_type(t->get_underlying_type());
+	  if (s)
+	    {
+	      scope_decl* scope =
+		is_decl(t->get_underlying_type())->get_scope();
+	      ABG_ASSERT(scope);
+	      add_decl_to_scope(is_decl(s), scope);
+	      t->set_underlying_type(s);
+	      subtree = s;
+	    }
+	  else
+	    break;
+	}
+      else if (array_type_def_sptr t = is_array_type(subtree))
+	{
+	  type_base_sptr e = t->get_element_type();
+	  if (is_typedef(e) || is_qualified_type(e))
+	    {
+	      type_base_sptr s =
+		clone_typedef_array_qualified_type(e);
+	      if (s)
+		{
+		  scope_decl* scope = is_decl(e)->get_scope();
+		  ABG_ASSERT(scope);
+		  add_decl_to_scope(is_decl(s), scope);
+		  t->set_element_type(s);
+		}
+	      else
+		break;
+	    }
+	  break;
+	}
+      else
+	break;
+    }
+  return result;
+}
+
 /// Update the qualified name of a given sub-tree.
 ///
 /// @param d the sub-tree for which to update the qualified name.
@@ -6042,6 +6333,7 @@ canonical_type_hash::operator()(const type_base *l) const
 struct scope_decl::priv
 {
   declarations members_;
+  declarations sorted_members_;
   scopes member_scopes_;
   canonical_type_sptr_set_type canonical_types_;
   type_base_sptrs_type sorted_canonical_types_;
@@ -6132,6 +6424,29 @@ scope_decl::get_member_decls() const
 scope_decl::declarations&
 scope_decl::get_member_decls()
 {return priv_->members_;}
+
+/// Getter for the sorted member declarations carried by the current
+/// @ref scope_decl.
+///
+/// @return the sorted member declarations carried by the current @ref
+/// scope_decl.  The declarations are sorted topologically.
+const scope_decl::declarations&
+scope_decl::get_sorted_member_decls() const
+{
+  decl_topo_comp comp;
+  if (priv_->sorted_members_.empty())
+    {
+      for (declarations::const_iterator i = get_member_decls().begin();
+	   i != get_member_decls().end();
+	   ++i)
+	priv_->sorted_members_.push_back(*i);
+
+      std::stable_sort(priv_->sorted_members_.begin(),
+		       priv_->sorted_members_.end(),
+		       comp);
+    }
+  return priv_->sorted_members_;
+}
 
 /// Getter for the number of anonymous classes contained in this
 /// scope.
@@ -8737,13 +9052,41 @@ is_array_of_qualified_element(const array_type_def_sptr& array)
 /// @return true the array @p type iff it's an array to a qualified
 /// element type.
 array_type_def_sptr
-is_array_of_qualified_element(type_base_sptr& type)
+is_array_of_qualified_element(const type_base_sptr& type)
 {
   if (array_type_def_sptr array = is_array_type(type))
     if (is_array_of_qualified_element(array))
       return array;
 
   return array_type_def_sptr();
+}
+
+/// Test if a type is a typedef of an array.
+///
+/// Note that the function looks through qualified and typedefs types
+/// of the underlying type of the current typedef.  In other words, if
+/// we are looking at a typedef of a CV-qualified array, or at a
+/// typedef of a CV-qualified typedef of an array, this function will
+/// still return TRUE.
+///
+/// @param t the type to consider.
+///
+/// @return true if t is a typedef which underlying type is an array.
+/// That array might be either cv-qualified array or a typedef'ed
+/// array, or a combination of both.
+array_type_def_sptr
+is_typedef_of_array(const type_base_sptr& t)
+{
+  array_type_def_sptr result;
+
+  if (typedef_decl_sptr typdef = is_typedef(t))
+    {
+      type_base_sptr u =
+	peel_qualified_or_typedef_type(typdef->get_underlying_type());
+      result = is_array_type(u);
+    }
+
+  return result;
 }
 
 /// Test if a type is an array_type_def::subrange_type.
@@ -13751,9 +14094,16 @@ qualified_type_def::get_cv_quals_string_prefix() const
 {return get_string_representation_of_cv_quals(priv_->cv_quals_);}
 
 /// Getter of the underlying type
-shared_ptr<type_base>
+type_base_sptr
 qualified_type_def::get_underlying_type() const
 {return priv_->underlying_type_.lock();}
+
+/// Setter of the underlying type.
+///
+/// @param t the new underlying type.
+void
+qualified_type_def::set_underlying_type(const type_base_sptr& t)
+{priv_->underlying_type_ = t;}
 
 /// Non-member equality operator for @ref qualified_type_def
 ///
@@ -14505,12 +14855,14 @@ struct array_type_def::subrange_type::priv
 
   priv(bound_value lb, bound_value ub,
        translation_unit::language l = translation_unit::LANG_C11)
-    : lower_bound_(lb), upper_bound_(ub), language_(l)
+    : lower_bound_(lb), upper_bound_(ub),
+      language_(l), infinite_(false)
   {}
 
   priv(bound_value lb, bound_value ub, const type_base_sptr &u,
        translation_unit::language l = translation_unit::LANG_C11)
-    : lower_bound_(lb), upper_bound_(ub), underlying_type_(u), language_(l)
+    : lower_bound_(lb), upper_bound_(ub), underlying_type_(u),
+      language_(l), infinite_(false)
   {}
 };
 
@@ -14532,7 +14884,7 @@ array_type_def::subrange_type::subrange_type(const environment* env,
 					     const string&	name,
 					     bound_value	lower_bound,
 					     bound_value	upper_bound,
-					     type_base_sptr&	underlying_type,
+					     const type_base_sptr& utype,
 					     const location&	loc,
 					     translation_unit::language l)
   : type_or_decl_base(env, ABSTRACT_TYPE_BASE | ABSTRACT_DECL_BASE),
@@ -14541,7 +14893,7 @@ array_type_def::subrange_type::subrange_type(const environment* env,
 	      - lower_bound.get_unsigned_value(),
 	      0),
     decl_base(env, name, loc, ""),
-    priv_(new priv(lower_bound, upper_bound, underlying_type, l))
+    priv_(new priv(lower_bound, upper_bound, utype, l))
 {
   runtime_type_instance(this);
 }
@@ -15993,6 +16345,13 @@ typedef_decl::get_pretty_representation(bool internal,
 type_base_sptr
 typedef_decl::get_underlying_type() const
 {return priv_->underlying_type_.lock();}
+
+/// Setter ofthe underlying type of the typedef.
+///
+/// @param t the new underlying type of the typedef.
+void
+typedef_decl::set_underlying_type(const type_base_sptr& t)
+{priv_->underlying_type_ = t;}
 
 /// This implements the ir_traversable_base::traverse pure virtual
 /// function.

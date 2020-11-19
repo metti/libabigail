@@ -390,24 +390,11 @@ die_signed_constant_attribute(const Dwarf_Die*die,
 static bool
 die_constant_attribute(const Dwarf_Die *die,
 		       unsigned attr_name,
+		       bool is_signed,
 		       array_type_def::subrange_type::bound_value &value);
 
 static bool
-die_attribute_has_form(const Dwarf_Die* die,
-		       unsigned	attr_name,
-		       unsigned int	form);
-
-static bool
 form_is_DW_FORM_strx(unsigned form);
-
-static bool
-die_attribute_is_signed(const Dwarf_Die* die, unsigned attr_name);
-
-static bool
-die_attribute_is_unsigned(const Dwarf_Die* die, unsigned attr_name);
-
-static bool
-die_attribute_has_no_signedness(const Dwarf_Die* die, unsigned attr_name);
 
 static bool
 die_address_attribute(Dwarf_Die* die, unsigned attr_name, Dwarf_Addr& result);
@@ -6213,7 +6200,7 @@ die_unsigned_constant_attribute(const Dwarf_Die*	die,
 
 /// Read a signed constant value from a given attribute.
 ///
-/// The signed constant expected must be of form DW_FORM_sdata.
+/// The signed constant expected must be of constant form.
 ///
 /// @param die the DIE to get the attribute from.
 ///
@@ -6251,6 +6238,9 @@ die_signed_constant_attribute(const Dwarf_Die *die,
 ///
 /// @param attr_name the attribute name to consider.
 ///
+/// @param is_signed true if the attribute value has to read as
+/// signed.
+///
 /// @param value the resulting value read from attribute @p attr_name
 /// on DIE @p die.
 ///
@@ -6259,10 +6249,10 @@ die_signed_constant_attribute(const Dwarf_Die *die,
 static bool
 die_constant_attribute(const Dwarf_Die *die,
 		       unsigned attr_name,
+		       bool is_signed,
 		       array_type_def::subrange_type::bound_value &value)
 {
-  if (die_attribute_is_unsigned(die, attr_name)
-      || die_attribute_has_no_signedness(die, attr_name))
+  if (!is_signed)
     {
       uint64_t l = 0;
       if (!die_unsigned_constant_attribute(die, attr_name, l))
@@ -6277,29 +6267,6 @@ die_constant_attribute(const Dwarf_Die *die,
       value.set_signed(l);
     }
   return true;
-}
-
-/// Test if a given attribute on a DIE has a particular form.
-///
-/// @param die the DIE to consider.
-///
-/// @param attr_name the attribute name to consider on DIE @p die.
-///
-/// @param attr_form the attribute form that we expect attribute @p
-/// attr_name has on DIE @p die.
-///
-/// @return true iff the attribute named @p attr_name on DIE @p die
-/// has the form @p attr_form.
-static bool
-die_attribute_has_form(const Dwarf_Die	*die,
-		       unsigned	attr_name,
-		       unsigned int	attr_form)
-{
-  Dwarf_Attribute attr;
-  if (!dwarf_attr_integrate(const_cast<Dwarf_Die*>(die), attr_name, &attr))
-    return false;
-
-  return dwarf_hasform(&attr, attr_form);
 }
 
 /// Test if a given DWARF form is DW_FORM_strx{1,4}.
@@ -6328,55 +6295,6 @@ form_is_DW_FORM_strx(unsigned form)
 #endif
     }
   return false;
-}
-
-/// Test if a given DIE attribute is signed.
-///
-/// @param die the DIE to consider.
-///
-/// @param attr_name the attribute name to consider.
-///
-/// @return true iff the attribute named @p attr_name on DIE @p die is
-/// signed.
-static bool
-die_attribute_is_signed(const Dwarf_Die* die, unsigned attr_name)
-{
-  if (die_attribute_has_form(die, attr_name, DW_FORM_sdata))
-    return true;
-  return false;
-}
-
-/// Test if a given DIE attribute is unsigned.
-///
-/// @param die the DIE to consider.
-///
-/// @param attr_name the attribute name to consider.
-///
-/// @return true iff the attribute named @p attr_name on DIE @p die is
-/// unsigned.
-static bool
-die_attribute_is_unsigned(const Dwarf_Die* die, unsigned attr_name)
-{
-  if (die_attribute_has_form(die, attr_name, DW_FORM_udata))
-    return true;
-  return false;
-}
-
-/// Test if a given DIE attribute is neither explicitely signed nor
-/// unsigned.  Usually this is the case for attribute of the form
-/// DW_FORM_data*.
-///
-/// @param die the DIE to consider.
-///
-/// @param attr_name the name of the attribute to consider.
-///
-/// @return true iff the attribute named @p attr_name of DIE @p die is
-/// neither specifically signed nor unsigned.
-static bool
-die_attribute_has_no_signedness(const Dwarf_Die *die, unsigned attr_name)
-{
-  return (!die_attribute_is_unsigned(die, attr_name)
-	  && !die_attribute_is_signed(die, attr_name));
 }
 
 /// Get the value of a DIE attribute; that value is meant to be a
@@ -6489,17 +6407,17 @@ die_die_attribute(const Dwarf_Die* die,
   return dwarf_formref_die(&attr, &result);
 }
 
-/// Read and return a DW_FORM_addr attribute from a given DIE.
+/// Read and return an addresss class attribute from a given DIE.
 ///
 /// @param die the DIE to consider.
 ///
-/// @param attr_name the name of the DW_FORM_addr attribute to read
+/// @param attr_name the name of the address class attribute to read
 /// the value from.
 ///
 /// @param the resulting address.
 ///
 /// @return true iff the attribute could be read, was of the expected
-/// DW_FORM_addr and could thus be translated into the @p result.
+/// address class and could thus be translated into the @p result.
 static bool
 die_address_attribute(Dwarf_Die* die, unsigned attr_name, Dwarf_Addr& result)
 {
@@ -7587,8 +7505,8 @@ die_location_expr(const Dwarf_Die* die,
   size_t len = 0;
   bool result = (dwarf_getlocation(&attr, expr, &len) == 0);
 
-  // Ignore invalid location expressions where reading them succeeded but their
-  // length is 0.
+  // Ignore location expressions where reading them succeeded but
+  // their length is 0.
   result &= len > 0;
 
   if (result)
@@ -11805,8 +11723,7 @@ add_or_update_class_type(read_context&	 ctxt,
 				  decl_base::VISIBILITY_DEFAULT,
 				  is_anonymous));
 
-      if (is_declaration_only)
-	result->set_is_declaration_only(true);
+      result->set_is_declaration_only(is_declaration_only);
 
       res = add_decl_to_scope(result, scope);
       result = dynamic_pointer_cast<class_decl>(res);
@@ -11815,6 +11732,24 @@ add_or_update_class_type(read_context&	 ctxt,
 
   if (size)
     result->set_size_in_bits(size);
+
+  if (klass)
+    // We are amending a class that was built before.  So let's check
+    // if we need to amend its "declaration-only-ness" status.
+    if (!!result->get_size_in_bits() == result->get_is_declaration_only())
+      // The size of the class doesn't match its
+      // 'declaration-only-ness".  We might have a non-zero sized
+      // class which is declaration-only, or a zero sized class that
+      // is not declaration-only.  Let's set the declaration-only-ness
+      // according to what we are instructed to.
+      //
+      // Note however that there are binaries out there emitted by
+      // compilers (Clang, in C++) emit declarations-only classes that
+      // have non-zero size.  So we must honor these too. That is why
+      // we are not forcing the declaration-only-ness to false when a
+      // class has non-zero size.  An example of such binary is
+      // tests/data/test-diff-filter/test41-PR21486-abg-writer.llvm.o.
+      result->set_is_declaration_only(is_declaration_only);
 
   result->set_is_artificial(is_artificial);
 
@@ -12403,53 +12338,59 @@ maybe_strip_qualification(const qualified_type_def_sptr t,
       // this function.
       result = is_decl(u);
     }
-  else if (is_array_of_qualified_element(u))
+  else if (is_array_type(u) || is_typedef_of_array(u))
     {
-      // In C and C++, a cv qualifiers of a qualified array apply to
-      // the array element type.  So the qualifiers of the array can
-      // be dropped and applied to the element type.
-      //
-      // Here, the element type is qualified already.  So apply the
-      // qualifiers of the array itself to the already qualified
-      // element type and drop the array qualifiers.
-      array_type_def_sptr array = is_array_type(u);
-      qualified_type_def_sptr element_type =
-	is_qualified_type(array->get_element_type());
-      qualified_type_def::CV quals = element_type->get_cv_quals();
-      quals |= t->get_cv_quals();
-      element_type->set_cv_quals(quals);
-      result = is_decl(u);
-      if (u->get_canonical_type()
-	  || element_type->get_canonical_type())
-	// We shouldn't be editing types that were already
-	// canonicalized.  For those, canonicalization should be
-	// delayed until after all editing is done.
+      array_type_def_sptr array;
+      scope_decl * scope = 0;
+      if ((array = is_array_type(u)))
+	{
+	  scope = array->get_scope();
+	  ABG_ASSERT(scope);
+	  array = is_array_type(clone_array_tree(array));
+	  add_decl_to_scope(array, scope);
+	  t->set_underlying_type(array);
+	  u = t->get_underlying_type();
+	}
+      else if (is_typedef_of_array(u))
+	{
+	  scope = is_decl(u)->get_scope();
+	  ABG_ASSERT(scope);
+	  typedef_decl_sptr typdef =
+	    is_typedef(clone_array_tree(is_typedef(u)));
+	  ABG_ASSERT(typdef);
+	  add_decl_to_scope(typdef, scope);
+	  t->set_underlying_type(typdef);
+	  u = t->get_underlying_type();
+	  array = is_typedef_of_array(u);
+	}
+      else
 	ABG_ASSERT_NOT_REACHED;
-    }
-  else if (is_array_type(u) && !is_array_of_qualified_element(is_array_type(u)))
-    {
-      // In C and C++, a cv qualifiers of a qualified array apply to
-      // the array element type.  So the qualifiers of the array can
-      // be dropped and applied to the element type.
-      //
-      // Here, the element type is not qualified.  So apply the
-      // qualifiers of the array itself to the element type and drop
-      // the array qualifiers.
-      array_type_def_sptr array = is_array_type(u);
+
+      ABG_ASSERT(array);
+      // We should not be editing types that are already canonicalized.
+      ABG_ASSERT(!array->get_canonical_type());
       type_base_sptr element_type = array->get_element_type();
-      qualified_type_def_sptr qual_type
-	(new qualified_type_def(element_type,
-				t->get_cv_quals(),
-				t->get_location()));
-      add_decl_to_scope(qual_type, is_decl(element_type)->get_scope());
-      array->set_element_type(qual_type);
-      ctxt.schedule_type_for_late_canonicalization(is_type(qual_type));
-      result = is_decl(u);
-      if (u->get_canonical_type())
-	// We shouldn't be editing types that were already
-	// canonicalized.  For those, canonicalization should be
-	// delayed until after all editing is done.
-	ABG_ASSERT_NOT_REACHED;
+
+      if (qualified_type_def_sptr qualified = is_qualified_type(element_type))
+	{
+	  // We should not be editing types that are already canonicalized.
+	  ABG_ASSERT(!qualified->get_canonical_type());
+	  qualified_type_def::CV quals = qualified->get_cv_quals();
+	  quals |= t->get_cv_quals();
+	  qualified->set_cv_quals(quals);
+	  result = is_decl(u);
+	}
+      else
+	{
+	  qualified_type_def_sptr qual_type
+	    (new qualified_type_def(element_type,
+				    t->get_cv_quals(),
+				    t->get_location()));
+	  add_decl_to_scope(qual_type, is_decl(element_type)->get_scope());
+	  array->set_element_type(qual_type);
+	  ctxt.schedule_type_for_late_canonicalization(is_type(qual_type));
+	  result = is_decl(u);
+	}
     }
 
   return result;
@@ -12853,6 +12794,27 @@ build_subrange_type(read_context&	ctxt,
 
   string name = die_name(die);
 
+  // load the underlying type.
+  Dwarf_Die underlying_type_die;
+  type_base_sptr underlying_type;
+  /* Unless there is an underlying type which says differently.  */
+  bool is_signed = false;
+  if (die_die_attribute(die, DW_AT_type, underlying_type_die))
+    underlying_type =
+      is_type(build_ir_node_from_die(ctxt,
+				     &underlying_type_die,
+				     /*called_from_public_decl=*/true,
+				     where_offset));
+
+  if (underlying_type)
+    {
+      uint64_t ate;
+      if (die_unsigned_constant_attribute (&underlying_type_die,
+					   DW_AT_encoding,
+					   ate))
+	  is_signed = (ate == DW_ATE_signed || ate == DW_ATE_signed_char);
+    }
+
   translation_unit::language language = ctxt.cur_transl_unit()->get_language();
   array_type_def::subrange_type::bound_value lower_bound =
     get_default_array_lower_bound(language);
@@ -12869,10 +12831,10 @@ build_subrange_type(read_context&	ctxt,
   //     values of the subrange.
   //
   // So let's look for DW_AT_lower_bound first.
-  die_constant_attribute(die, DW_AT_lower_bound, lower_bound);
+  die_constant_attribute(die, DW_AT_lower_bound, is_signed, lower_bound);
 
   // Then, DW_AT_upper_bound.
-  if (!die_constant_attribute(die, DW_AT_upper_bound, upper_bound))
+  if (!die_constant_attribute(die, DW_AT_upper_bound, is_signed, upper_bound))
     {
       // The DWARF 4 spec says, in [5.11 Subrange Type
       // Entries]:
@@ -12915,16 +12877,6 @@ build_subrange_type(read_context&	ctxt,
 				       upper_bound,
 				       location()));
   result->is_infinite(is_infinite);
-
-  // load the underlying type.
-  Dwarf_Die underlying_type_die;
-  type_base_sptr underlying_type;
-  if (die_die_attribute(die, DW_AT_type, underlying_type_die))
-    underlying_type =
-      is_type(build_ir_node_from_die(ctxt,
-				     &underlying_type_die,
-				     /*called_from_public_decl=*/true,
-				     where_offset));
 
   if (underlying_type)
     result->set_underlying_type(underlying_type);

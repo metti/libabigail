@@ -25,8 +25,3 @@ KMI-Whitelists-allow-alternative-section-suffix-symbol_list.patch
 dwarf-reader-sort-the-types-for-canonicalization.patch
 abg-writer.cc-fix-write_elf_symbol_reference-loop.patch
 comp-filter-Consider-CRC-changes-harmful.patch
-Stabilise-sort-of-canonical-types.patch
-Improve-and-stabilise-sort-of-member-functions.patch
-Improve-enum-synthetic-type-names.patch
-dwarf-reader-Ignore-zero-length-location-expressions-from-DW_AT_location.patch
-dwarf-reader-fix-lookup-for-repeated-translation-unit-paths.patch
