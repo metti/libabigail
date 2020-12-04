@@ -26,3 +26,4 @@ dwarf-reader-sort-the-types-for-canonicalization.patch
 abg-writer.cc-fix-write_elf_symbol_reference-loop.patch
 comp-filter-Consider-CRC-changes-harmful.patch
 abg-ir.cc-improve-update_main_alias.patch
+ir-Add-better-comments-to-types_have_similar_structure.patch
