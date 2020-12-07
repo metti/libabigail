@@ -1,0 +1,218 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Dodji Seketeli <dodji@seketeli.org>
+Date: Mon, 7 Dec 2020 15:03:47 +0100
+Subject: ir: Arrays are indirect types for type similarity purposes
+
+As described in the comments of types_have_similar_structure:
+
+    "Two indirect types have similar structure if their underlying
+    types are of the same kind and have the same name. [...] The size
+    of their underlying type does not matter"
+
+Yet, the size of array elements (a.k.a the underlying type of an array type)
+is wrongly considered to matter when assessing the "type similarity"
+relationship for arrays.
+
+This patch fixes that.
+
+	* src/abg-ir.cc (types_have_similar_structure): When
+	examining array types, always treat element type changes as
+	indirect changes.
+	* tests/data/Makefile.am: Add new test case files.
+	* tests/data/test-abidiff-exit/test-non-leaf-array-report.txt:
+	New test case showing correct --leaf-changes-only reporting.
+	* tests/data/test-abidiff-exit/test-non-leaf-array-v0.c:
+	Likewise.
+	* tests/data/test-abidiff-exit/test-non-leaf-array-v0.o:
+	Likewise.
+	* tests/data/test-abidiff-exit/test-non-leaf-array-v1.c:
+	Likewise.
+	* tests/data/test-abidiff-exit/test-non-leaf-array-v1.o:
+	Likewise.
+	* tests/test-abidiff-exit.cc: Run new test case.
+
+Signed-off-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Dodji Seketeli <dodji@redhat.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ src/abg-ir.cc                                    |   2 +-
+ tests/data/Makefile.am                           |   5 +++++
+ .../test-non-leaf-array-report.txt               |  11 +++++++++++
+ .../test-abidiff-exit/test-non-leaf-array-v0.c   |  12 ++++++++++++
+ .../test-abidiff-exit/test-non-leaf-array-v0.o   | Bin 0 -> 3096 bytes
+ .../test-abidiff-exit/test-non-leaf-array-v1.c   |  12 ++++++++++++
+ .../test-abidiff-exit/test-non-leaf-array-v1.o   | Bin 0 -> 3072 bytes
+ tests/test-abidiff-exit.cc                       |  11 +++++++++++
+ 8 files changed, 52 insertions(+), 1 deletion(-)
+ create mode 100644 tests/data/test-abidiff-exit/test-non-leaf-array-report.txt
+ create mode 100644 tests/data/test-abidiff-exit/test-non-leaf-array-v0.c
+ create mode 100644 tests/data/test-abidiff-exit/test-non-leaf-array-v0.o
+ create mode 100644 tests/data/test-abidiff-exit/test-non-leaf-array-v1.c
+ create mode 100644 tests/data/test-abidiff-exit/test-non-leaf-array-v1.o
+
+diff --git a/src/abg-ir.cc b/src/abg-ir.cc
+index 34c2a0a6c43c..28cbf7aced41 100644
+--- a/src/abg-ir.cc
++++ b/src/abg-ir.cc
+@@ -23767,7 +23767,7 @@ types_have_similar_structure(const type_base* first,
+ 	  || ty1->get_dimension_count() != ty2->get_dimension_count()
+ 	  || !types_have_similar_structure(ty1->get_element_type(),
+ 					   ty2->get_element_type(),
+-					   indirect_type))
++					   /*indirect_type=*/true))
+ 	return false;
+ 
+       return true;
+diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
+index b8bdb3512c29..86f697550106 100644
+--- a/tests/data/Makefile.am
++++ b/tests/data/Makefile.am
+@@ -188,6 +188,11 @@ test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.c \
+ test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.o \
+ test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.c \
+ test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.o \
++test-abidiff-exit/test-non-leaf-array-v0.c \
++test-abidiff-exit/test-non-leaf-array-v0.o \
++test-abidiff-exit/test-non-leaf-array-v1.c \
++test-abidiff-exit/test-non-leaf-array-v1.o \
++test-abidiff-exit/test-non-leaf-array-report.txt \
+ test-abidiff-exit/test-missing-alias-report.txt \
+ test-abidiff-exit/test-missing-alias.abi \
+ test-abidiff-exit/test-missing-alias.suppr \
+diff --git a/tests/data/test-abidiff-exit/test-non-leaf-array-report.txt b/tests/data/test-abidiff-exit/test-non-leaf-array-report.txt
+new file mode 100644
+index 000000000000..f13cd0d4a8b5
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-non-leaf-array-report.txt
+@@ -0,0 +1,11 @@
++Leaf changes summary: 1 artifact changed
++Changed leaf types summary: 1 leaf type changed
++Removed/Changed/Added functions summary: 0 Removed, 0 Changed, 0 Added function
++Removed/Changed/Added variables summary: 0 Removed, 0 Changed, 0 Added variable
++
++'struct buzz at test-non-leaf-array-v0.c:1:1' changed:
++  type size changed from 32 to 64 (in bits)
++  there are data member changes:
++    type 'int' of 'buzz::a' changed:
++      type name changed from 'int' to 'long int'
++      type size changed from 32 to 64 (in bits)
+diff --git a/tests/data/test-abidiff-exit/test-non-leaf-array-v0.c b/tests/data/test-abidiff-exit/test-non-leaf-array-v0.c
+new file mode 100644
+index 000000000000..9594c396a1f4
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-non-leaf-array-v0.c
+@@ -0,0 +1,12 @@
++struct buzz {
++  int a;
++};
++
++struct flexible {
++  long count;
++  struct buzz lightyear[0];
++};
++
++struct flexible var;
++void fun(struct flexible flex) { (void) flex; }
++
+diff --git a/tests/data/test-abidiff-exit/test-non-leaf-array-v0.o b/tests/data/test-abidiff-exit/test-non-leaf-array-v0.o
+new file mode 100644
+index 0000000000000000000000000000000000000000..f45eecb207f8ed7a78ae672d348ec9995b25b378
+GIT binary patch
+literal 3096
+zcmbtW-D@0G6hC)oKV~z{n$0RUiO5tcwctz=scozzU5%y<)lv(EqDYwCo&CVw*)lsD
+zH&Llb5ekA81Qql_eep%G|AC-?fP()*!B^izAM~6%=WcFpC-~rjz4x5o`Ml?T%-(wW
+zm93l*ph&<597qZUxKTRb>yoWQ4d&tcr91a8-FffNyKnv^(O+=POU{;Ij!9k{9F5Nr
+zpBKX3!r2Ny<VwULmM`?81f<>;1$&HGffS-Bc@|0!y^EL)MO!LM9!eh(LIWTyi!Sd5
+zF^HM!s|b}Xslj2UJ&r&)MJ21c#Fvs2&LY|8KIvl8s(7+ebF9izr7Gr2bB`ik6IR7>
+z&O6UL&pD!o)z5-ur{Z>P4MXHlg5zvBmW`F8uA=LTtg8T&gxIc80Q&@N*Uq71`HU9n
+z!b0vi*6NE33o87n1uCL`{IeGq0GxsrnoQwos#-1zGi#*Qr$LgXRa&r&qY!^rW^t6K
+z0XI)T5{?ot8b)3}4BB20$HAVryW%&cW5I=TnusFIh{Ey*ISbv}{czH2^g|#9E?&9r
+zZmynlS6BRJ{1w+5B;zPt?}Skp_nIgMakINVSv%{UJ>z;E*J}r(y{OrZhtY66^2X8I
+zy{P3S0md6ae;9S#aWv|6qOj%C0g;GgdYx{v7ve@Y#{2t67rvYfZbEZ7MqjwNxq04w
+z>ZP#J3nH%1TYdI4vvQ395A!VcuYs7%iKSyD`z|);F~sRdBwPDJW$we==4^2b4N^FB
+zq)U;9KmN&5V)wFO+@5Kl59uw`WRb-;(9~HlJ?)277HF4S(^yc}qyyGUS9}04XTj_P
+z7y%aGLC+uy9(WyK5$&qlx>PS8M|@uE&-6GSc}D5h(;ZJqt$YSW#gj%=Ksc>dRazw_
+zlEQDNB0R#g!oOk}@1i8yL4CJQGfwtuEd==*PI+&!e8s?7gf|TQ8<x8UPA?_VB%P-9
+z_gVhfz+Y$iYo4ioeHZU(xW2BR8CQK!Cq?y^aQP^+-P{pzHjcnu#wn+s7yQxQ0N(?g
+zlQ^Bbic7*t0)8t<0`ME75%_V~5Byfx7<YDhQG19w$p?)_9PS=c2XPQ}@QKk~`n@Pr
+zE|>!R=5R0w@#XNNVG{cIvU#H<XuicxVRxq;2ZN9c|DV$m`qN&heyVVFW~S$#WwO=j
+z1PX+iFT`ctNaIcaQ>df!YWiPgAN?#7WXh|EnK8*u`Ts_OMy4%&#^`@UU9%zfcLI^R
+z>_F#=AeEm!fkf;0Gh-5dlELpu(8#o<I!%nse`Rn*^Ci}_r9NlXf0Z{>`BVM$`kM8(
+zGGZcxf01YecrBf#qnUpPHCg%J=lrTql%MXdng1qY6jRlStfXt4|2qZntn#b*9mKQz
+z|6+glKm2dAzhMT8=7D4bl~>t+!Ty|1!Qit0+7w9{wSEPEicD7jKF{bMeKVB5>MPY_
+v=BC&;IKMi-^qryi*7T=6$y(}<R20$^=`<b9^;6s|{~x&iZ>OFqWBUIKkucXI
+
+literal 0
+HcmV?d00001
+
+diff --git a/tests/data/test-abidiff-exit/test-non-leaf-array-v1.c b/tests/data/test-abidiff-exit/test-non-leaf-array-v1.c
+new file mode 100644
+index 000000000000..516c8b1fc9f9
+--- /dev/null
++++ b/tests/data/test-abidiff-exit/test-non-leaf-array-v1.c
+@@ -0,0 +1,12 @@
++struct buzz {
++  long a;
++};
++
++struct flexible {
++  long count;
++  struct buzz lightyear[0];
++};
++
++struct flexible var;
++void fun(struct flexible flex) { (void) flex; }
++
+diff --git a/tests/data/test-abidiff-exit/test-non-leaf-array-v1.o b/tests/data/test-abidiff-exit/test-non-leaf-array-v1.o
+new file mode 100644
+index 0000000000000000000000000000000000000000..298dda06b0fbf53e001eede352f049a0196e5264
+GIT binary patch
+literal 3072
+zcmbtW-D@0G6hC(-yF1A=+iX^`X;h}7)Pgg~N^N5$>1s4>uoe~iqDYwCz59W?vt?#B
+zCJ|9Y#lA=d!7BPvUyA>O_~4Tdg8zizoA@U9py$k-JGr@?;DZPD-gAEE^Pc-L`~FMU
+zwn{>PA^{t4C@B=6Rn_>EZ9xMT;l|Zlzg@lc-e0%h`YA<!#&IU)>@>`Yl-CAF<4eTb
+zLfBh4TLFkt%3%b%Oe)rw?I{W=A}X0hCR9(7!iI{6)5rL$(m?KMwf1fhftahmg3zp$
+zYKZGiLl90y$*Lgn%^X3(IZgJZ&j-lY#S^uLW7U>xb+K4ocnI-^uxgHT$$8Fs))5UX
+zdmb!16So^{7;NToaGVWv!je%}({&Xgwj1PCJp<c~i)d}1*W52Jl}=%SzPP-kVxC>1
+z%&k*jzOV!^SJvW@DLh4`;*YwZlUkIH5l>6AU<F4Z{;tjAnC?Apm4HOXi5E^nZzO}B
+z7erC8@9j4I4*5aZh1o0-3f7z`uY6dt(7iX3d&Blf0x@vq`VDupdC_gI`cM0-t~XAm
+zp<M6FP)5TJib2#FtnaN|@GhKpy}s-9f_Ojd45CRmna18Ud}kPTy(GYRF^nc*-<^i>
+zupi2<I}DQyA?DahN5lRg*_XKO?dib*tR&-`(3wop1+HvvUUHv&QMQLc$n|;6XU;JT
+z52UNaHXOVTVsAk#pQzfmu`LfHPCufwsn6FIJ}GU^SGLd~g9}GG{4?<9KSfIHTM>*K
+zlXv)t-a<_gS$xw>odx;fKBBTfyTqEtf>}*EWUXw)hX8XH%-@F*U;&=_0<z$~R{&0<
+zU0qw3>gA(|FKYeC5Av~lPM4gnbVh3Bbe9!R8dU+|v|3eZos>ulrw4`T!EDO$Z&}7$
+zm=f)vzFX%Qr#NaY1o;|HdGD~iZQvu8uNydv@TP&^WqDxWpRxR@fxp4>*F01G`YwL2
+z;rhCMU|jWw)<C3sOL+PirzpSz&t`u%j=^2VDW{$n{CIziF9FU;l+6RhC2}tTzZ)b0
+z`0Y3bKa!)s@5=VHzcUPb6V#=A&~8U^_lP=(g0PQ|i|#TShElm;3h+CV@mS)U;fIq%
+z`uL`KaT0XiW+yq==|#a<a^e4TT1J2BmFlMo*J36=|16WOPG?Xc%zPnU){QjY^goL_
+zI<KbxtL&qnWr9q(iI^Fa?3Dj6Bxq#X(g%$GFSIlpVt>v4M8JR@=v)z`^3%tUXdQoM
+zOu`>w@Gc1&nYL7?iIMq_46bUv#G1C$=c4-8cte#x)laXlS%0@6CPMHBCwh$pjm-Qz
+zs4L1p;QXpjl%MXdng1qY6jRlSY)UP@jQ144v&ygLcM&i0|DFBa|M35a{S7m)%>&5>
+zDzCEtiv2mAf^+}19LX59eg%JlOi}+nDCi%3GnBvTE7fD>rr0g6U!7n2&d_^n`qQ2i
+dE%hE1h4ff9<)gWNid*D=hwJ|?_skg6|6ia;)N%j-
+
+literal 0
+HcmV?d00001
+
+diff --git a/tests/test-abidiff-exit.cc b/tests/test-abidiff-exit.cc
+index 955b0c036664..88de4131c958 100644
+--- a/tests/test-abidiff-exit.cc
++++ b/tests/test-abidiff-exit.cc
+@@ -363,6 +363,17 @@ InOutSpec in_out_specs[] =
+     "data/test-abidiff-exit/test-headers-dirs/test-headers-dir-report-2.txt",
+     "output/test-abidiff-exit/test-headers-dirs/test-headers-dir-report-2.txt"
+   },
++  {
++    "data/test-abidiff-exit/test-non-leaf-array-v0.o",
++    "data/test-abidiff-exit/test-non-leaf-array-v1.o",
++    "",
++    "",
++    "",
++    "--leaf-changes-only",
++    abigail::tools_utils::ABIDIFF_ABI_CHANGE,
++    "data/test-abidiff-exit/test-non-leaf-array-report.txt",
++    "output/test-abidiff-exit/test-non-leaf-array-report.txt"
++  },
+   {
+     "data/test-abidiff-exit/test-missing-alias.abi",
+     "data/test-abidiff-exit/test-missing-alias.abi",

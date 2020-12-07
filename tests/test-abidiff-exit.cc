@@ -364,6 +364,17 @@ InOutSpec in_out_specs[] =
     "output/test-abidiff-exit/test-headers-dirs/test-headers-dir-report-2.txt"
   },
   {
+    "data/test-abidiff-exit/test-non-leaf-array-v0.o",
+    "data/test-abidiff-exit/test-non-leaf-array-v1.o",
+    "",
+    "",
+    "",
+    "--leaf-changes-only",
+    abigail::tools_utils::ABIDIFF_ABI_CHANGE,
+    "data/test-abidiff-exit/test-non-leaf-array-report.txt",
+    "output/test-abidiff-exit/test-non-leaf-array-report.txt"
+  },
+  {
     "data/test-abidiff-exit/test-missing-alias.abi",
     "data/test-abidiff-exit/test-missing-alias.abi",
     "data/test-abidiff-exit/test-missing-alias.suppr",

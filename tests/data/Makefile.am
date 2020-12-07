@@ -188,6 +188,11 @@ test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.c \
 test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.o \
 test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.c \
 test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.o \
+test-abidiff-exit/test-non-leaf-array-v0.c \
+test-abidiff-exit/test-non-leaf-array-v0.o \
+test-abidiff-exit/test-non-leaf-array-v1.c \
+test-abidiff-exit/test-non-leaf-array-v1.o \
+test-abidiff-exit/test-non-leaf-array-report.txt \
 test-abidiff-exit/test-missing-alias-report.txt \
 test-abidiff-exit/test-missing-alias.abi \
 test-abidiff-exit/test-missing-alias.suppr \
