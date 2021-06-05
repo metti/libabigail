@@ -178,9 +178,27 @@ test-abidiff-exit/test-net-change-report0.txt \
 test-abidiff-exit/test-net-change-report1.txt \
 test-abidiff-exit/test-net-change-report2.txt \
 test-abidiff-exit/test-net-change-report3.txt \
+test-abidiff-exit/test-headers-dirs/headers-a/header-a-v0.h \
+test-abidiff-exit/test-headers-dirs/headers-a/header-a-v1.h \
+test-abidiff-exit/test-headers-dirs/headers-b/header-b-v0.h \
+test-abidiff-exit/test-headers-dirs/headers-b/header-b-v1.h \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-report-1.txt  \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-report-2.txt \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.c \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.o \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.c \
+test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.o \
+test-abidiff-exit/test-non-leaf-array-v0.c \
+test-abidiff-exit/test-non-leaf-array-v0.o \
+test-abidiff-exit/test-non-leaf-array-v1.c \
+test-abidiff-exit/test-non-leaf-array-v1.o \
+test-abidiff-exit/test-non-leaf-array-report.txt \
 test-abidiff-exit/test-missing-alias-report.txt \
 test-abidiff-exit/test-missing-alias.abi \
 test-abidiff-exit/test-missing-alias.suppr \
+test-abidiff-exit/test-crc-report.txt \
+test-abidiff-exit/test-crc-v0.abi \
+test-abidiff-exit/test-crc-v1.abi \
 \
 test-diff-dwarf/test0-v0.cc		\
 test-diff-dwarf/test0-v0.o			\
@@ -519,6 +537,14 @@ test-read-dwarf/PR26261/PR26261-exe \
 test-read-dwarf/PR26261/PR26261-main.c \
 test-read-dwarf/PR26261/PR26261-obja.h \
 test-read-dwarf/PR26261/PR26261-objb.h \
+test-read-dwarf/test-PR26568-1.c     \
+test-read-dwarf/test-PR26568-2.c     \
+test-read-dwarf/test-PR26568-2.o     \
+test-read-dwarf/test-PR26568-1.o     \
+test-read-dwarf/test-PR26568-1.o.abi \
+test-read-dwarf/test-PR26568-2.o.abi \
+test-read-dwarf/test-libandroid.so \
+test-read-dwarf/test-libandroid.so.abi \
 \
 test-annotate/test0.abi			\
 test-annotate/test1.abi			\
@@ -528,20 +554,20 @@ test-annotate/test4.so.abi		\
 test-annotate/test5.o.abi		\
 test-annotate/test6.so.abi		\
 test-annotate/test7.so.abi		\
-test-annotate/test8-qualified-this-pointer.so.abi		\
+test-annotate/test8-qualified-this-pointer.so.abi \
 test-annotate/test13-pr18894.so.abi \
 test-annotate/test14-pr18893.so.abi \
 test-annotate/test15-pr18892.so.abi \
 test-annotate/test17-pr19027.so.abi \
-test-annotate/test18-pr19037-libvtkRenderingLIC-6.1.so.abi \
+test-annotate/test18-pr19037-libvtkRenderingLIC-6.1.so.abi   \
 test-annotate/test19-pr19023-libtcmalloc_and_profiler.so.abi \
-test-annotate/test20-pr19025-libvtkParallelCore-6.1.so.abi \
+test-annotate/test20-pr19025-libvtkParallelCore-6.1.so.abi   \
 test-annotate/test21-pr19092.so.abi \
 test-annotate/libtest23.so.abi \
-test-annotate/libtest24-drop-fns-2.so.abi \
-test-annotate/libtest24-drop-fns.so.abi \
-test-annotate/test-anonymous-members-0.cc \
-test-annotate/test-anonymous-members-0.o \
+test-annotate/libtest24-drop-fns-2.so.abi    \
+test-annotate/libtest24-drop-fns.so.abi      \
+test-annotate/test-anonymous-members-0.cc    \
+test-annotate/test-anonymous-members-0.o     \
 test-annotate/test-anonymous-members-0.o.abi \
 \
 test-types-stability/pr19434-elf0 \
@@ -882,6 +908,21 @@ test-diff-filter/test-PR25661-7-report-1.txt \
 test-diff-filter/test-PR25661-7-report-2.txt \
 test-diff-filter/test-PR25661-7-report-3.txt \
 test-diff-filter/test-PR25661-7-report-4.txt \
+test-diff-filter/test-PR26309-v0.c           \
+test-diff-filter/test-PR26309-v1.c           \
+test-diff-filter/test-PR26309-v0.o           \
+test-diff-filter/test-PR26309-v1.o           \
+test-diff-filter/test-PR26309-report-0.txt   \
+test-diff-filter/test-PR26739-v0.c           \
+test-diff-filter/test-PR26739-v1.c           \
+test-diff-filter/test-PR26739-v0.o           \
+test-diff-filter/test-PR26739-v1.o           \
+test-diff-filter/test-PR26739-report-0.txt   \
+test-diff-filter/test-PR26739-2-v1.c         \
+test-diff-filter/test-PR26739-2-v0.c         \
+test-diff-filter/test-PR26739-2-v0.o         \
+test-diff-filter/test-PR26739-2-v1.o         \
+test-diff-filter/test-PR26739-2-report-0.txt \
 \
 test-diff-suppr/test0-type-suppr-v0.cc	\
 test-diff-suppr/test0-type-suppr-v1.cc	\
@@ -1805,6 +1846,10 @@ test-kmi-whitelist/whitelist-with-single-entry \
 test-kmi-whitelist/whitelist-with-another-single-entry \
 test-kmi-whitelist/whitelist-with-duplicate-entry \
 test-kmi-whitelist/whitelist-with-two-sections \
+test-kmi-whitelist/symbol-list-with-single-entry \
+test-kmi-whitelist/symbol-list-with-another-single-entry \
+test-kmi-whitelist/symbol-list-with-duplicate-entry \
+test-kmi-whitelist/symbol-list-with-two-sections \
 \
 test-symtab/basic/Makefile \
 test-symtab/basic/aliases.c \

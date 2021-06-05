@@ -34,7 +34,7 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  2 files changed, 86 insertions(+), 53 deletions(-)
 
 diff --git a/include/abg-ir.h b/include/abg-ir.h
-index f17a3bf9f200..54b4bb7b3dbe 100644
+index c7c4c8e44aac..d1bed2923f2d 100644
 --- a/include/abg-ir.h
 +++ b/include/abg-ir.h
 @@ -851,8 +851,9 @@ private:
@@ -93,10 +93,10 @@ index f17a3bf9f200..54b4bb7b3dbe 100644
    get_main_symbol() const;
  
 diff --git a/src/abg-ir.cc b/src/abg-ir.cc
-index 358a7a26a9d3..690892002923 100644
+index 8c04797f574c..147877f88218 100644
 --- a/src/abg-ir.cc
 +++ b/src/abg-ir.cc
-@@ -1319,6 +1319,7 @@ struct elf_symbol::priv
+@@ -1323,6 +1323,7 @@ struct elf_symbol::priv
    //     STT_COMMON definition of that name that has the largest size.
    bool			is_common_;
    bool			is_linux_string_cst_;
@@ -104,7 +104,7 @@ index 358a7a26a9d3..690892002923 100644
    elf_symbol_wptr	main_symbol_;
    elf_symbol_wptr	next_alias_;
    elf_symbol_wptr	next_common_instance_;
-@@ -1333,20 +1334,22 @@ struct elf_symbol::priv
+@@ -1337,20 +1338,22 @@ struct elf_symbol::priv
        visibility_(elf_symbol::DEFAULT_VISIBILITY),
        is_defined_(false),
        is_common_(false),
@@ -139,7 +139,7 @@ index 358a7a26a9d3..690892002923 100644
      : env_(e),
        index_(i),
        size_(s),
-@@ -1357,7 +1360,8 @@ struct elf_symbol::priv
+@@ -1361,7 +1364,8 @@ struct elf_symbol::priv
        visibility_(vi),
        is_defined_(d),
        is_common_(c),
@@ -149,7 +149,7 @@ index 358a7a26a9d3..690892002923 100644
    {
      if (!is_common_)
        is_common_ = type_ == COMMON_TYPE;
-@@ -1403,19 +1407,30 @@ elf_symbol::elf_symbol()
+@@ -1407,19 +1411,30 @@ elf_symbol::elf_symbol()
  ///
  /// @param is_linux_string_cst true if the symbol is a Linux Kernel
  /// string constant defined in the __ksymtab_strings section.
@@ -193,7 +193,7 @@ index 358a7a26a9d3..690892002923 100644
  {}
  
  /// Factory of instances of @ref elf_symbol.
-@@ -1462,20 +1477,22 @@ elf_symbol::create()
+@@ -1466,20 +1481,22 @@ elf_symbol::create()
  /// @return a (smart) pointer to a newly created instance of @ref
  /// elf_symbol.
  elf_symbol_sptr
@@ -230,7 +230,7 @@ index 358a7a26a9d3..690892002923 100644
    sym->priv_->main_symbol_ = sym;
    return sym;
  }
-@@ -1695,6 +1712,14 @@ bool
+@@ -1699,6 +1716,14 @@ bool
  elf_symbol::is_variable() const
  {return get_type() == OBJECT_TYPE || get_type() == TLS_TYPE;}
  

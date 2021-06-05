@@ -188,7 +188,7 @@ index f2e895bf1e7d..fcb6d7a66b8e 100644
    get_unreferenced_variable_symbols() const;
  
 diff --git a/src/abg-corpus.cc b/src/abg-corpus.cc
-index 0f5d51820891..1f72904d137f 100644
+index 84d6683dbf9d..67f878dd6266 100644
 --- a/src/abg-corpus.cc
 +++ b/src/abg-corpus.cc
 @@ -347,6 +347,22 @@ corpus::priv::get_sorted_fun_symbols() const
@@ -424,10 +424,10 @@ index 0f5d51820891..1f72904d137f 100644
  /// Look in the function symbols map for a symbol with a given name.
  ///
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 6e4250d9ed40..f0421d31e41b 100644
+index 34b1d2f1fbaf..ac12d6de0eff 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
-@@ -14470,54 +14470,6 @@ read_debug_info_into_corpus(read_context& ctxt)
+@@ -14480,54 +14480,6 @@ read_debug_info_into_corpus(read_context& ctxt)
  
    // Set symbols information to the corpus.
    ctxt.current_corpus()->set_symtab(ctxt.symtab());
@@ -483,7 +483,7 @@ index 6e4250d9ed40..f0421d31e41b 100644
    // Get out now if no debug info is found.
    if (!ctxt.dwarf())
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index 9833ea163d74..d7771e02a66b 100644
+index a2eeedeb3389..525732e044b6 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
 @@ -1913,17 +1913,6 @@ read_corpus_from_input(read_context& ctxt)
@@ -505,7 +505,7 @@ index 9833ea163d74..d7771e02a66b 100644
  
    ctxt.get_environment()->canonicalization_is_done(false);
 diff --git a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
-index 4bfcd041c9c4..de9ad546e6d0 100644
+index 62b6efb555e0..5b8e0437fb66 100644
 --- a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 +++ b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 @@ -37,8 +37,6 @@

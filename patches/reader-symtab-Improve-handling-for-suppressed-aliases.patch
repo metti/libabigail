@@ -30,14 +30,14 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  .../test-missing-alias-report.txt                |  0
  .../test-abidiff-exit/test-missing-alias.abi     | 12 ++++++++++++
  .../test-abidiff-exit/test-missing-alias.suppr   |  4 ++++
- tests/test-abidiff-exit.cc                       |  9 +++++++++
- 7 files changed, 47 insertions(+), 4 deletions(-)
+ tests/test-abidiff-exit.cc                       | 11 +++++++++++
+ 7 files changed, 49 insertions(+), 4 deletions(-)
  create mode 100644 tests/data/test-abidiff-exit/test-missing-alias-report.txt
  create mode 100644 tests/data/test-abidiff-exit/test-missing-alias.abi
  create mode 100644 tests/data/test-abidiff-exit/test-missing-alias.suppr
 
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index 31aa567af038..4d3db686b944 100644
+index 8ee45a540d44..2e13f7eef111 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
 @@ -2789,7 +2789,8 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
@@ -103,13 +103,13 @@ index c50c0f643386..424817106e70 100644
        }
  
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index f523fe41f768..d420418bb017 100644
+index b37c96af35c2..92eed744c561 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
-@@ -178,6 +178,9 @@ test-abidiff-exit/test-net-change-report0.txt \
- test-abidiff-exit/test-net-change-report1.txt \
- test-abidiff-exit/test-net-change-report2.txt \
- test-abidiff-exit/test-net-change-report3.txt \
+@@ -188,6 +188,9 @@ test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.c \
+ test-abidiff-exit/test-headers-dirs/test-headers-dir-v0.o \
+ test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.c \
+ test-abidiff-exit/test-headers-dirs/test-headers-dir-v1.o \
 +test-abidiff-exit/test-missing-alias-report.txt \
 +test-abidiff-exit/test-missing-alias.abi \
 +test-abidiff-exit/test-missing-alias.suppr \
@@ -148,22 +148,24 @@ index 000000000000..bcebae43a350
 +  drop = true
 +
 diff --git a/tests/test-abidiff-exit.cc b/tests/test-abidiff-exit.cc
-index 5921282e6cf2..2e6c4d3b9a6e 100644
+index 6d37533a51e3..dd903d70d132 100644
 --- a/tests/test-abidiff-exit.cc
 +++ b/tests/test-abidiff-exit.cc
-@@ -286,6 +286,15 @@ InOutSpec in_out_specs[] =
-     "data/test-abidiff-exit/test-net-change-report3.txt",
-     "output/test-abidiff-exit/test-net-change-report3.txt"
+@@ -363,6 +363,17 @@ InOutSpec in_out_specs[] =
+     "data/test-abidiff-exit/test-headers-dirs/test-headers-dir-report-2.txt",
+     "output/test-abidiff-exit/test-headers-dirs/test-headers-dir-report-2.txt"
    },
 +  {
 +    "data/test-abidiff-exit/test-missing-alias.abi",
 +    "data/test-abidiff-exit/test-missing-alias.abi",
 +    "data/test-abidiff-exit/test-missing-alias.suppr",
 +    "",
++    "",
++    "",
 +    abigail::tools_utils::ABIDIFF_OK,
 +    "data/test-abidiff-exit/test-missing-alias-report.txt",
 +    "output/test-abidiff-exit/test-missing-alias-report.txt"
 +  },
-   {0, 0, 0 ,0,  abigail::tools_utils::ABIDIFF_OK, 0, 0}
+   {0, 0, 0 ,0, 0, 0, abigail::tools_utils::ABIDIFF_OK, 0, 0}
  };
  

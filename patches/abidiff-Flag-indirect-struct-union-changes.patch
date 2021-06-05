@@ -15,9 +15,9 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  src/abg-leaf-reporter.cc                      | 55 ++++++++++++++++++-
  tests/data/Makefile.am                        |  1 +
  .../test-leaf-peeling-report-indirect.txt     | 41 ++++++++++++++
- tests/test-abidiff-exit.cc                    |  9 +++
+ tests/test-abidiff-exit.cc                    | 11 ++++
  tools/abidiff.cc                              |  9 ++-
- 8 files changed, 136 insertions(+), 3 deletions(-)
+ 8 files changed, 138 insertions(+), 3 deletions(-)
  create mode 100644 tests/data/test-abidiff-exit/test-leaf-peeling-report-indirect.txt
 
 diff --git a/include/abg-comparison.h b/include/abg-comparison.h
@@ -38,10 +38,10 @@ index c4eb59250bae..33c993da9923 100644
    show_symbols_unreferenced_by_debug_info() const;
  
 diff --git a/src/abg-comparison-priv.h b/src/abg-comparison-priv.h
-index b82b5d070c83..817df7061e3f 100644
+index 1e5953132c27..c235ee42fb40 100644
 --- a/src/abg-comparison-priv.h
 +++ b/src/abg-comparison-priv.h
-@@ -215,6 +215,7 @@ struct diff_context::priv
+@@ -212,6 +212,7 @@ struct diff_context::priv
    bool					show_linkage_names_;
    bool					show_locs_;
    bool					show_redundant_changes_;
@@ -49,7 +49,7 @@ index b82b5d070c83..817df7061e3f 100644
    bool					show_syms_unreferenced_by_di_;
    bool					show_added_syms_unreferenced_by_di_;
    bool					show_unreachable_types_;
-@@ -244,6 +245,7 @@ struct diff_context::priv
+@@ -241,6 +242,7 @@ struct diff_context::priv
        show_linkage_names_(false),
        show_locs_(true),
        show_redundant_changes_(true),
@@ -58,10 +58,10 @@ index b82b5d070c83..817df7061e3f 100644
        show_added_syms_unreferenced_by_di_(true),
        show_unreachable_types_(false),
 diff --git a/src/abg-comparison.cc b/src/abg-comparison.cc
-index 7f91753a421d..f04c54bcca28 100644
+index bae9c266f8ee..9acc915a9d1b 100644
 --- a/src/abg-comparison.cc
 +++ b/src/abg-comparison.cc
-@@ -1747,6 +1747,22 @@ void
+@@ -1680,6 +1680,22 @@ void
  diff_context::show_redundant_changes(bool f)
  {priv_->show_redundant_changes_ = f;}
  
@@ -85,7 +85,7 @@ index 7f91753a421d..f04c54bcca28 100644
  /// any debug info are to be compared and reported about.
  ///
 diff --git a/src/abg-leaf-reporter.cc b/src/abg-leaf-reporter.cc
-index 0875c968de7e..b6e21206406d 100644
+index c2a766e64020..67ec50010177 100644
 --- a/src/abg-leaf-reporter.cc
 +++ b/src/abg-leaf-reporter.cc
 @@ -81,6 +81,50 @@ leaf_reporter::diff_has_net_changes(const corpus_diff *d) const
@@ -159,7 +159,7 @@ index 0875c968de7e..b6e21206406d 100644
  	}
      }
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index 5e2e8b184f12..1f2a2605bf9d 100644
+index 40a575faa60b..2898a2d02298 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
 @@ -135,6 +135,7 @@ test-abidiff-exit/test-leaf-peeling-v0.o \
@@ -218,16 +218,18 @@ index 000000000000..6a3e479978a5
 +    type 'int*' of 'ops5::x' changed:
 +      pointer type changed from: 'int*' to: 'int***'
 diff --git a/tests/test-abidiff-exit.cc b/tests/test-abidiff-exit.cc
-index 936d1d630a8d..5921282e6cf2 100644
+index 6ebe2a09d660..6d37533a51e3 100644
 --- a/tests/test-abidiff-exit.cc
 +++ b/tests/test-abidiff-exit.cc
-@@ -166,6 +166,15 @@ InOutSpec in_out_specs[] =
+@@ -193,6 +193,17 @@ InOutSpec in_out_specs[] =
      "data/test-abidiff-exit/test-leaf-peeling-report.txt",
      "output/test-abidiff-exit/test-leaf-peeling-report.txt"
    },
 +  {
 +    "data/test-abidiff-exit/test-leaf-peeling-v0.o",
 +    "data/test-abidiff-exit/test-leaf-peeling-v1.o",
++    "",
++    "",
 +    "",
 +    "--leaf-changes-only --flag-indirect",
 +    abigail::tools_utils::ABIDIFF_ABI_CHANGE,
@@ -238,7 +240,7 @@ index 936d1d630a8d..5921282e6cf2 100644
      "data/test-abidiff-exit/test-leaf-cxx-members-v0.o",
      "data/test-abidiff-exit/test-leaf-cxx-members-v1.o",
 diff --git a/tools/abidiff.cc b/tools/abidiff.cc
-index 162d5ebc388a..f9cd71135859 100644
+index 6ac81eeb716f..170dc967064e 100644
 --- a/tools/abidiff.cc
 +++ b/tools/abidiff.cc
 @@ -109,6 +109,7 @@ struct options
@@ -266,7 +268,7 @@ index 162d5ebc388a..f9cd71135859 100644
      << " --impacted-interfaces  display interfaces impacted by leaf changes\n"
      << " --dump-diff-tree  emit a debug dump of the internal diff tree to "
      "the error output stream\n"
-@@ -570,6 +574,8 @@ parse_command_line(int argc, char* argv[], options& opts)
+@@ -574,6 +578,8 @@ parse_command_line(int argc, char* argv[], options& opts)
  	opts.show_redundant_changes = true;
        else if (!strcmp(argv[i], "--no-redundant"))
  	opts.show_redundant_changes = false;
@@ -275,7 +277,7 @@ index 162d5ebc388a..f9cd71135859 100644
        else if (!strcmp(argv[i], "--impacted-interfaces"))
  	opts.show_impacted_interfaces = true;
        else if (!strcmp(argv[i], "--dump-diff-tree"))
-@@ -690,7 +696,8 @@ set_diff_context_from_opts(diff_context_sptr ctxt,
+@@ -694,7 +700,8 @@ set_diff_context_from_opts(diff_context_sptr ctxt,
    // redundancy analysis pass altogether.  That could help save a
    // couple of CPU cycle here and there!
    ctxt->show_redundant_changes(opts.show_redundant_changes

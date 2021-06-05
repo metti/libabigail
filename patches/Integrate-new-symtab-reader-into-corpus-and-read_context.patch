@@ -100,7 +100,7 @@ index ee8c823964e7..5c1e915ad2f3 100644
    string_elf_symbols_map_sptr			undefined_fun_symbol_map;
    elf_symbols					sorted_fun_symbols;
 diff --git a/src/abg-corpus.cc b/src/abg-corpus.cc
-index 9e90b99473d3..94702047dd82 100644
+index 0e8e6d71b15e..3d74b8163f22 100644
 --- a/src/abg-corpus.cc
 +++ b/src/abg-corpus.cc
 @@ -38,6 +38,7 @@ ABG_BEGIN_EXPORT_DECLARATIONS
@@ -127,7 +127,7 @@ index 9e90b99473d3..94702047dd82 100644
  ///
  /// @param map a shared pointer to the new function symbols map.
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 7c56bd8c4276..788b167db388 100644
+index 7257052e6e45..d6e130ad4a74 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
 @@ -50,6 +50,7 @@
@@ -188,7 +188,7 @@ index 7c56bd8c4276..788b167db388 100644
    /// Getter for a pointer to the map that associates the address of
    /// an entry point of a function with the symbol of that function.
    ///
-@@ -15819,6 +15842,7 @@ read_debug_info_into_corpus(read_context& ctxt)
+@@ -15829,6 +15852,7 @@ read_debug_info_into_corpus(read_context& ctxt)
      group->add_corpus(ctxt.current_corpus());
  
    // Set symbols information to the corpus.
@@ -196,7 +196,7 @@ index 7c56bd8c4276..788b167db388 100644
    if (!get_ignore_symbol_table(ctxt))
      {
        if (ctxt.load_in_linux_kernel_mode()
-@@ -17125,6 +17149,9 @@ read_corpus_from_elf(read_context& ctxt, status& status)
+@@ -17135,6 +17159,9 @@ read_corpus_from_elf(read_context& ctxt, status& status)
  	status |= STATUS_NO_SYMBOLS_FOUND;
      }
  
@@ -207,7 +207,7 @@ index 7c56bd8c4276..788b167db388 100644
        status & STATUS_NO_SYMBOLS_FOUND
        // ... or if debug info was found but not the required alternate
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index e72a5de9ac0e..418c037263aa 100644
+index 315747389bc7..94ebf3b91db6 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
 @@ -47,6 +47,7 @@ ABG_BEGIN_EXPORT_DECLARATIONS

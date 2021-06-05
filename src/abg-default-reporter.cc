@@ -231,7 +231,11 @@ default_reporter::report(const enum_diff& d, ostream& out,
   d.reported_once(true);
 }
 
-/// For a @ref typedef_diff node, report the changes that are local.
+/// For a @ref typedef_diff node, report the local changes to the
+/// typedef rather the changes to its underlying type.
+///
+/// Note that changes to the underlying type are also considered
+/// local.
 ///
 /// @param d the @ref typedef_diff node to consider.
 ///
@@ -239,9 +243,9 @@ default_reporter::report(const enum_diff& d, ostream& out,
 ///
 /// @param indent the white space string to use for indentation.
 void
-default_reporter::report_local_typedef_changes(const typedef_diff &d,
-					       ostream& out,
-					       const string& indent) const
+default_reporter::report_non_type_typedef_changes(const typedef_diff &d,
+						  ostream& out,
+						  const string& indent) const
 {
   if (!d.to_be_reported())
     return;
@@ -283,7 +287,7 @@ default_reporter::report(const typedef_diff& d,
 
   typedef_decl_sptr f = d.first_typedef_decl(), s = d.second_typedef_decl();
 
-  report_local_typedef_changes(d, out, indent);
+  report_non_type_typedef_changes(d, out, indent);
 
   diff_sptr dif = d.underlying_type_diff();
   if (dif && dif->has_changes())
@@ -532,8 +536,10 @@ default_reporter::report(const fn_parm_diff& d, ostream& out,
       diff_category saved_category = type_diff->get_category();
       // Parameter type changes are never redundants.
       type_diff->set_category(saved_category & ~REDUNDANT_CATEGORY);
-      out << indent
-	  << "parameter " << f->get_index();
+      out << indent;
+      if (f->get_is_artificial())
+	out << "implicit ";
+      out << "parameter " << f->get_index();
       report_loc_info(f, *d.context(), out);
       out << " of type '"
 	  << f->get_type_pretty_representation();
@@ -928,17 +934,17 @@ default_reporter::report(const class_or_union_diff& d,
       if (numdels)
 	report_mem_header(out, numdels, num_filtered, del_kind,
 			  "member function", indent);
-      for (string_member_function_sptr_map::const_iterator i =
-	     d.get_priv()->deleted_member_functions_.begin();
-	   i != d.get_priv()->deleted_member_functions_.end();
+      for (class_or_union::member_functions::const_iterator i =
+	     d.get_priv()->sorted_deleted_member_functions_.begin();
+	   i != d.get_priv()->sorted_deleted_member_functions_.end();
 	   ++i)
 	{
 	  if (!(ctxt->get_allowed_category()
 		& NON_VIRT_MEM_FUN_CHANGE_CATEGORY)
-	      && !get_member_function_is_virtual(i->second))
+	      && !get_member_function_is_virtual(*i))
 	    continue;
 
-	  method_decl_sptr mem_fun = i->second;
+	  method_decl_sptr mem_fun = *i;
 	  out << indent << "  ";
 	  represent(*ctxt, mem_fun, out);
 	}
@@ -949,17 +955,17 @@ default_reporter::report(const class_or_union_diff& d,
       if (numins)
 	report_mem_header(out, numins, num_filtered, ins_kind,
 			  "member function", indent);
-      for (string_member_function_sptr_map::const_iterator i =
-	     d.get_priv()->inserted_member_functions_.begin();
-	   i != d.get_priv()->inserted_member_functions_.end();
+      for (class_or_union::member_functions::const_iterator i =
+	     d.get_priv()->sorted_inserted_member_functions_.begin();
+	   i != d.get_priv()->sorted_inserted_member_functions_.end();
 	   ++i)
 	{
 	  if (!(ctxt->get_allowed_category()
 		& NON_VIRT_MEM_FUN_CHANGE_CATEGORY)
-	      && !get_member_function_is_virtual(i->second))
+	      && !get_member_function_is_virtual(*i))
 	    continue;
 
-	  method_decl_sptr mem_fun = i->second;
+	  method_decl_sptr mem_fun = *i;
 	  out << indent << "  ";
 	  represent(*ctxt, mem_fun, out);
 	}

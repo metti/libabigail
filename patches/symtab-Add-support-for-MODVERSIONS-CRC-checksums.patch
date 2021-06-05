@@ -99,7 +99,7 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  create mode 100644 tests/data/test-symtab/kernel-modversions/one_of_each.ko
 
 diff --git a/include/abg-ir.h b/include/abg-ir.h
-index c3c35c37a2cc..41b6f8ba3adf 100644
+index 559bf78bf7b6..1483afb8acbd 100644
 --- a/include/abg-ir.h
 +++ b/include/abg-ir.h
 @@ -854,6 +854,7 @@ private:
@@ -132,7 +132,7 @@ index c3c35c37a2cc..41b6f8ba3adf 100644
    is_suppressed() const;
  
 diff --git a/src/abg-ir.cc b/src/abg-ir.cc
-index bc6bc9546443..ca46ae2c0e8b 100644
+index d896d0bb7278..a9323aad0013 100644
 --- a/src/abg-ir.cc
 +++ b/src/abg-ir.cc
 @@ -24,13 +24,14 @@
@@ -154,7 +154,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
  
  #include "abg-cxx-compat.h"
  #include "abg-internal.h"
-@@ -1320,6 +1321,7 @@ struct elf_symbol::priv
+@@ -1324,6 +1325,7 @@ struct elf_symbol::priv
    bool			is_common_;
    bool			is_linux_string_cst_;
    bool			is_in_ksymtab_;
@@ -162,7 +162,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
    bool			is_suppressed_;
    elf_symbol_wptr	main_symbol_;
    elf_symbol_wptr	next_alias_;
-@@ -1337,6 +1339,7 @@ struct elf_symbol::priv
+@@ -1341,6 +1343,7 @@ struct elf_symbol::priv
        is_common_(false),
        is_linux_string_cst_(false),
        is_in_ksymtab_(false),
@@ -170,7 +170,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
        is_suppressed_(false)
    {}
  
-@@ -1352,6 +1355,7 @@ struct elf_symbol::priv
+@@ -1356,6 +1359,7 @@ struct elf_symbol::priv
         elf_symbol::visibility	  vi,
         bool			  is_linux_string_cst,
         bool			  is_in_ksymtab,
@@ -178,7 +178,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
         bool			  is_suppressed)
      : env_(e),
        index_(i),
-@@ -1365,6 +1369,7 @@ struct elf_symbol::priv
+@@ -1369,6 +1373,7 @@ struct elf_symbol::priv
        is_common_(c),
        is_linux_string_cst_(is_linux_string_cst),
        is_in_ksymtab_(is_in_ksymtab),
@@ -186,7 +186,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
        is_suppressed_(is_suppressed)
    {
      if (!is_common_)
-@@ -1423,6 +1428,7 @@ elf_symbol::elf_symbol(const environment* e,
+@@ -1427,6 +1432,7 @@ elf_symbol::elf_symbol(const environment* e,
  		       visibility	  vi,
  		       bool		  is_linux_string_cst,
  		       bool		  is_in_ksymtab,
@@ -194,7 +194,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
  		       bool		  is_suppressed)
    : priv_(new priv(e,
  		   i,
-@@ -1436,6 +1442,7 @@ elf_symbol::elf_symbol(const environment* e,
+@@ -1440,6 +1446,7 @@ elf_symbol::elf_symbol(const environment* e,
  		   vi,
  		   is_linux_string_cst,
  		   is_in_ksymtab,
@@ -202,7 +202,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
  		   is_suppressed))
  {}
  
-@@ -1495,11 +1502,12 @@ elf_symbol::create(const environment* e,
+@@ -1499,11 +1506,12 @@ elf_symbol::create(const environment* e,
  		   visibility	      vi,
  		   bool		      is_linux_string_cst,
  		   bool		      is_in_ksymtab,
@@ -216,7 +216,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
    sym->priv_->main_symbol_ = sym;
    return sym;
  }
-@@ -1520,7 +1528,9 @@ textually_equals(const elf_symbol&l,
+@@ -1524,7 +1532,9 @@ textually_equals(const elf_symbol&l,
  		 && l.is_public() == r.is_public()
  		 && l.is_defined() == r.is_defined()
  		 && l.is_common_symbol() == r.is_common_symbol()
@@ -227,7 +227,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
  
    if (equals && l.is_variable())
      // These are variable symbols.  Let's compare their symbol size.
-@@ -1727,6 +1737,14 @@ void
+@@ -1731,6 +1741,14 @@ void
  elf_symbol::set_is_in_ksymtab(bool is_in_ksymtab)
  {priv_->is_in_ksymtab_ = is_in_ksymtab;}
  
@@ -243,7 +243,7 @@ index bc6bc9546443..ca46ae2c0e8b 100644
  elf_symbol::is_suppressed() const
  {return priv_->is_suppressed_;}
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index d7771e02a66b..31aa567af038 100644
+index 525732e044b6..8ee45a540d44 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
 @@ -2774,6 +2774,10 @@ build_elf_symbol(read_context& ctxt, const xmlNodePtr node,
@@ -390,7 +390,7 @@ index bcbf9ce8ee06..1ffaca8cec6e 100644
  
    return true;
 diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
-index 809dd262a26e..f523fe41f768 100644
+index 679577508895..b37c96af35c2 100644
 --- a/tests/data/Makefile.am
 +++ b/tests/data/Makefile.am
 @@ -35,6 +35,7 @@ test-read-write/test28-without-std-fns-ref.xml \
@@ -431,7 +431,7 @@ index 809dd262a26e..f523fe41f768 100644
  \
  test-abidiff-exit/test1-voffset-change-report0.txt \
  test-abidiff-exit/test1-voffset-change-report1.txt \
-@@ -1884,4 +1887,7 @@ test-symtab/kernel-5.6/single_function_gpl.ko \
+@@ -1905,4 +1908,7 @@ test-symtab/kernel-5.6/single_function_gpl.ko \
  test-symtab/kernel-5.6/single_variable.c \
  test-symtab/kernel-5.6/single_variable.ko \
  test-symtab/kernel-5.6/single_variable_gpl.c \
@@ -5299,7 +5299,7 @@ index a9d032e74e35..000000000000
 -Variables changes summary: 0 Removed, 0 Changed, 0 Added variable
 -
 diff --git a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
-index de9ad546e6d0..7afee59b6f1f 100644
+index 5b8e0437fb66..fce35f72667b 100644
 --- a/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 +++ b/tests/data/test-read-dwarf/PR25007-sdhci.ko.abi
 @@ -1,41 +1,41 @@

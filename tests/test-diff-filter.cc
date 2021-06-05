@@ -766,6 +766,27 @@ InOutSpec in_out_specs[] =
    "data/test-diff-filter/test-PR25661-7-report-4.txt",
    "output/test-diff-filter/test-PR25661-7-report-4.txt",
   },
+  {
+   "data/test-diff-filter/test-PR26309-v0.o",
+   "data/test-diff-filter/test-PR26309-v1.o",
+   "--no-default-suppression --leaf-changes-only",
+   "data/test-diff-filter/test-PR26309-report-0.txt",
+   "output/test-diff-filter/test-PR26309-report-0.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR26739-v0.o",
+   "data/test-diff-filter/test-PR26739-v1.o",
+   "--no-default-suppression",
+   "data/test-diff-filter/test-PR26739-report-0.txt",
+   "output/test-diff-filter/test-PR26739-report-0.txt",
+  },
+  {
+   "data/test-diff-filter/test-PR26739-2-v0.o",
+   "data/test-diff-filter/test-PR26739-2-v1.o",
+   "--no-default-suppression",
+   "data/test-diff-filter/test-PR26739-2-report-0.txt",
+   "output/test-diff-filter/test-PR26739-2-report-0.txt",
+  },
   // This should be the last entry
   {NULL, NULL, NULL, NULL, NULL}
 };

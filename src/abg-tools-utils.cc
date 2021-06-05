@@ -1842,6 +1842,70 @@ handle_fts_entry(const FTSENT *entry,
     }
 }
 
+/// Populate a type_supression from header files found in a given
+/// directory tree.
+///
+/// The suppression suppresses types defined in source files that are
+/// *NOT* found in the directory tree.
+///
+/// This is a subroutine for gen_suppr_spect_from_headers.
+///
+/// @param headers_root_dir the directory tree to consider for header
+/// files.
+///
+/// @param result the type_supression to populate from the content of
+/// @p headers_root_dir.
+static void
+gen_suppr_spec_from_headers_root_dir(const string& headers_root_dir,
+				     type_suppression_sptr &result)
+{
+  if (!headers_root_dir.empty())
+    {
+      char* paths[] = {const_cast<char*>(headers_root_dir.c_str()), 0};
+
+      if (FTS *file_hierarchy = fts_open(paths, FTS_LOGICAL|FTS_NOCHDIR, NULL))
+	{
+	  FTSENT *entry;
+	  while ((entry = fts_read(file_hierarchy)))
+	    handle_fts_entry(entry, result);
+	  fts_close(file_hierarchy);
+	}
+    }
+}
+
+/// Generate a type suppression specification that suppresses ABI
+/// changes for types defined in source files that are neither in a
+/// given set of header root directories nor in a set of header
+/// files.
+///
+/// @param headers_root_dirs ABI changes in types defined in files
+/// *NOT* found in these directory trees are going be suppressed.
+///
+/// @param header_files a set of additional header files that define
+/// types that are to be kept (not supressed) by the returned type
+/// suppression.
+///
+/// @return the resulting type suppression generated, if any file was
+/// found in the directory tree @p headers_root_dir.
+type_suppression_sptr
+gen_suppr_spec_from_headers(const vector<string>& headers_root_dirs,
+			    const vector<string>& header_files)
+{
+  type_suppression_sptr result;
+
+  for (vector<string>::const_iterator root_dir = headers_root_dirs.begin();
+       root_dir != headers_root_dirs.end();
+       ++root_dir)
+    gen_suppr_spec_from_headers_root_dir(*root_dir, result);
+
+  for (vector<string>::const_iterator file = header_files.begin();
+       file != header_files.end();
+       ++file)
+    handle_file_entry(*file, result);
+
+  return result;
+}
+
 /// Generate a type suppression specification that suppresses ABI
 /// changes for types defined in source files that are neither in a
 /// given header root dir, not in a set of header files.
@@ -1860,32 +1924,12 @@ gen_suppr_spec_from_headers(const string& headers_root_dir,
 			    const vector<string>& header_files)
 {
   type_suppression_sptr result;
-
-  if (headers_root_dir.empty() && header_files.empty())
-    // We were given no headers root dir and no header files
-    // so the resulting suppression specification shall be empty.
-    return result;
+  vector<string> root_dirs;
 
   if (!headers_root_dir.empty())
-    {
-      char* paths[] = {const_cast<char*>(headers_root_dir.c_str()), 0};
+    root_dirs.push_back(headers_root_dir);
 
-      FTS *file_hierarchy = fts_open(paths, FTS_LOGICAL|FTS_NOCHDIR, NULL);
-      if (!file_hierarchy)
-	return result;
-
-      FTSENT *entry;
-      while ((entry = fts_read(file_hierarchy)))
-	handle_fts_entry(entry, result);
-      fts_close(file_hierarchy);
-    }
-
-  for (vector<string>::const_iterator file = header_files.begin();
-       file != header_files.end();
-       ++file)
-    handle_file_entry(*file, result);
-
-  return result;
+  return gen_suppr_spec_from_headers(root_dirs, header_files);
 }
 
 /// Generate a type suppression specification that suppresses ABI
@@ -1910,8 +1954,8 @@ gen_suppr_spec_from_headers(const string& headers_root_dir)
 ///
 /// A kernel ABI whitelist file is an INI file that usually has only
 /// one section.  The name of the section is a string that ends up
-/// with the sub-string "whitelist".  For instance
-/// RHEL7_x86_64_whitelist.
+/// with the sub-string "symbol_list" or "whitelist".  For instance
+/// RHEL7_x86_64_symbol_list.
 ///
 /// Then the content of the section is a set of function or variable
 /// names, one name per line.  Each function or variable name is the
@@ -1957,7 +2001,8 @@ gen_suppr_spec_from_kernel_abi_whitelists
 	   ++section_iter)
 	{
 	  std::string section_name = (*section_iter)->get_name();
-	  if (!string_ends_with(section_name, "whitelist"))
+	  if (!string_ends_with(section_name, "symbol_list")
+	      && !string_ends_with(section_name, "whitelist"))
 	    continue;
 	  for (ini::config::properties_type::const_iterator
 		   prop_iter = (*section_iter)->get_properties().begin(),
@@ -2414,17 +2459,15 @@ get_vmlinux_path_from_kernel_dist(const string&	from,
     if (!dir_exists(from))
     return false;
 
-  // For now, we assume either an Enterprise Linux or a Fedora kernel
-  // distribution directory.
-  //
-  // We also take into account split debug info package for these.  In
-  // this case, the content split debug info package is installed
-  // under the 'dist_root' directory as well, and its content is
-  // accessible from <dist_root>/usr/lib/debug directory.
+  // For now, we assume the possibility of having either an Enterprise
+  // Linux or a Fedora kernel distribution directory.  In those cases,
+  // the vmlinux binary is located under the /lib/modules
+  // sub-directory.  So we might as well save some time by picking it
+  // from there directly.
 
     string dist_root = from;
   if (dir_exists(dist_root + "/lib/modules"))
-    dist_root + "/lib/modules";
+    dist_root += "/lib/modules";
 
   bool found = false;
   if (find_vmlinux_path(dist_root, vmlinux_path))

@@ -1736,6 +1736,9 @@ public:
   declarations&
   get_member_decls();
 
+  const declarations&
+  get_sorted_member_decls() const;
+
   virtual size_t
   get_num_anonymous_member_classes() const;
 
@@ -2112,6 +2115,9 @@ public:
   type_base_sptr
   get_underlying_type() const;
 
+  void
+  set_underlying_type(const type_base_sptr&);
+
   virtual void
   get_qualified_name(interned_string& qualified_name,
 		     bool internal = false) const;
@@ -2356,7 +2362,7 @@ public:
 		  const string&	name,
 		  bound_value		lower_bound,
 		  bound_value		upper_bound,
-		  type_base_sptr&	underlying_type,
+		  const type_base_sptr& underlying_type,
 		  const location&	loc,
 		  translation_unit::language l = translation_unit::LANG_C11);
 
@@ -2674,6 +2680,9 @@ public:
 
   type_base_sptr
   get_underlying_type() const;
+
+  void
+  set_underlying_type(const type_base_sptr&);
 
   virtual bool
   traverse(ir_node_visitor&);
@@ -3176,6 +3185,9 @@ public:
 
   parameters::const_iterator
   get_first_non_implicit_parm() const;
+
+  parameters::const_iterator
+  get_first_parm() const;
 
   const interned_string&
   get_cached_name(bool internal = false) const;

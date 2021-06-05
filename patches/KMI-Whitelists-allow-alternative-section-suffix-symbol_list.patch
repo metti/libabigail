@@ -1,0 +1,256 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: Matthias Maennich <maennich@google.com>
+Date: Fri, 28 Aug 2020 20:57:06 +0100
+Subject: KMI Whitelists: allow alternative section suffix 'symbol_list'
+
+As of now, KMI whitelists are defined as ini-file style sections named
+with trailing "whitelist". A number of projects have recently introduced
+policies that discourage the use of terminology with negative
+connotations in an effort to make the language used in their code base
+more inclusive. One of such terms is 'whitelist'. In order to support
+projects choosing to avoid this term, add support for an alternative:
+"symbol_list". This allows e.g. a section name "[abi_symbol_list]".
+
+While commonly chosen alternatives are "allow_list", "include_list" or
+similar, I intentionally took out any positive/negative meaning as I
+think those are anyway misleading. (Is the whitelist referring to symbols
+that are allowed to change or is it referring to the list of symbols
+that are kept stable?) In an effort to make this more obvious, I went for
+"symbol list" to describe the symbols that are part of the ABI analysis
+either during extraction or during comparison.
+
+This is a backwards compatible change as we still support the prior
+suffix. I adjusted documentation and added tests accordingly.
+
+	* doc/manuals/kmidiff.rst: Adjust documentation.
+	* src/abg-tools-utils.cc (gen_suppr_spec_from_kernel_abi_whitelists):
+	  add support for additional whitelist section suffix.
+	* tests/data/Makefile.am: Add new test files.
+	* tests/data/test-kmi-whitelist/symbol-list-with-another-single-entry: New test case.
+	* tests/data/test-kmi-whitelist/symbol-list-with-duplicate-entry: Likewise.
+	* tests/data/test-kmi-whitelist/symbol-list-with-single-entry: Likewise.
+	* tests/data/test-kmi-whitelist/symbol-list-with-two-sections: Likewise.
+	* tests/test-kmi-whitelist.cc: Wire up new test cases.
+
+Reviewed-by: Giuliano Procida <gprocida@google.com>
+Signed-off-by: Matthias Maennich <maennich@google.com>
+---
+ doc/manuals/kmidiff.rst                       | 17 ++--
+ src/abg-tools-utils.cc                        |  7 +-
+ tests/data/Makefile.am                        |  4 +
+ .../symbol-list-with-another-single-entry     |  2 +
+ .../symbol-list-with-duplicate-entry          |  3 +
+ .../symbol-list-with-single-entry             |  2 +
+ .../symbol-list-with-two-sections             |  5 ++
+ tests/test-kmi-whitelist.cc                   | 78 +++++++++++++++++++
+ 8 files changed, 106 insertions(+), 12 deletions(-)
+ create mode 100644 tests/data/test-kmi-whitelist/symbol-list-with-another-single-entry
+ create mode 100644 tests/data/test-kmi-whitelist/symbol-list-with-duplicate-entry
+ create mode 100644 tests/data/test-kmi-whitelist/symbol-list-with-single-entry
+ create mode 100644 tests/data/test-kmi-whitelist/symbol-list-with-two-sections
+
+diff --git a/doc/manuals/kmidiff.rst b/doc/manuals/kmidiff.rst
+index 011dbafd41fa..557965f294d4 100644
+--- a/doc/manuals/kmidiff.rst
++++ b/doc/manuals/kmidiff.rst
+@@ -70,23 +70,22 @@ functions and variables) between the Kernel and its modules.  In
+ practice, though, users want to compare a subset of the those
+ interfaces.
+ 
+-Users can then define a "white list" of the interfaces to compare.
+-Such a white list is a just a file in the "INI" format that looks
+-like: ::
++Users can then define a "symbol list" of the interfaces to compare.
++Such a list is a just a file in the "INI" format that looks like: ::
+ 
+-    [kernel_version_x86_64_whitelist]
++    [kernel_version_x86_64_symbol_list]
+       function1_name
+       function2_name
+       global_variable1_name
+       ....
+ 
+ 
+-Note that the name of the section (the name that is between the two
+-brackets) of that INI file just has to end with the string
+-"whitelist".  So you can define the name you want, for instance
+-``[kernel_46_x86_64_whitelist]``.
++Note that the name of the section (the name that is between the two brackets)
++of that INI file just has to end with the string "symbol_list" or "whitelist".
++So you can define the name you want, for instance
++``[kernel_46_x86_64_symbol_list]``.
+ 
+-Then each line of that whitelist file is the name of an exported
++Then each line of that symbol list file is the name of an exported
+ function or variable.  Only those interfaces along with the types
+ reachable from their signatures are going to be compared by
+ ``kmidiff`` recursively.
+diff --git a/src/abg-tools-utils.cc b/src/abg-tools-utils.cc
+index 6f4ec6fa4d41..428dcc6b190c 100644
+--- a/src/abg-tools-utils.cc
++++ b/src/abg-tools-utils.cc
+@@ -1954,8 +1954,8 @@ gen_suppr_spec_from_headers(const string& headers_root_dir)
+ ///
+ /// A kernel ABI whitelist file is an INI file that usually has only
+ /// one section.  The name of the section is a string that ends up
+-/// with the sub-string "whitelist".  For instance
+-/// RHEL7_x86_64_whitelist.
++/// with the sub-string "symbol_list" or "whitelist".  For instance
++/// RHEL7_x86_64_symbol_list.
+ ///
+ /// Then the content of the section is a set of function or variable
+ /// names, one name per line.  Each function or variable name is the
+@@ -2001,7 +2001,8 @@ gen_suppr_spec_from_kernel_abi_whitelists
+ 	   ++section_iter)
+ 	{
+ 	  std::string section_name = (*section_iter)->get_name();
+-	  if (!string_ends_with(section_name, "whitelist"))
++	  if (!string_ends_with(section_name, "symbol_list")
++	      && !string_ends_with(section_name, "whitelist"))
+ 	    continue;
+ 	  for (ini::config::properties_type::const_iterator
+ 		   prop_iter = (*section_iter)->get_properties().begin(),
+diff --git a/tests/data/Makefile.am b/tests/data/Makefile.am
+index 92eed744c561..79e142174979 100644
+--- a/tests/data/Makefile.am
++++ b/tests/data/Makefile.am
+@@ -1826,6 +1826,10 @@ test-kmi-whitelist/whitelist-with-single-entry \
+ test-kmi-whitelist/whitelist-with-another-single-entry \
+ test-kmi-whitelist/whitelist-with-duplicate-entry \
+ test-kmi-whitelist/whitelist-with-two-sections \
++test-kmi-whitelist/symbol-list-with-single-entry \
++test-kmi-whitelist/symbol-list-with-another-single-entry \
++test-kmi-whitelist/symbol-list-with-duplicate-entry \
++test-kmi-whitelist/symbol-list-with-two-sections \
+ \
+ test-symtab/basic/Makefile \
+ test-symtab/basic/aliases.c \
+diff --git a/tests/data/test-kmi-whitelist/symbol-list-with-another-single-entry b/tests/data/test-kmi-whitelist/symbol-list-with-another-single-entry
+new file mode 100644
+index 000000000000..beebb25b1840
+--- /dev/null
++++ b/tests/data/test-kmi-whitelist/symbol-list-with-another-single-entry
+@@ -0,0 +1,2 @@
++[abi_symbol_list]
++  test_another_symbol
+diff --git a/tests/data/test-kmi-whitelist/symbol-list-with-duplicate-entry b/tests/data/test-kmi-whitelist/symbol-list-with-duplicate-entry
+new file mode 100644
+index 000000000000..1537efcaf5a3
+--- /dev/null
++++ b/tests/data/test-kmi-whitelist/symbol-list-with-duplicate-entry
+@@ -0,0 +1,3 @@
++[abi_symbol_list]
++  test_symbol
++  test_symbol
+diff --git a/tests/data/test-kmi-whitelist/symbol-list-with-single-entry b/tests/data/test-kmi-whitelist/symbol-list-with-single-entry
+new file mode 100644
+index 000000000000..a63b7096f2ca
+--- /dev/null
++++ b/tests/data/test-kmi-whitelist/symbol-list-with-single-entry
+@@ -0,0 +1,2 @@
++[abi_symbol_list]
++  test_symbol
+diff --git a/tests/data/test-kmi-whitelist/symbol-list-with-two-sections b/tests/data/test-kmi-whitelist/symbol-list-with-two-sections
+new file mode 100644
+index 000000000000..f8e77b732c28
+--- /dev/null
++++ b/tests/data/test-kmi-whitelist/symbol-list-with-two-sections
+@@ -0,0 +1,5 @@
++[abi_symbol_list]
++  test_symbol1
++
++[abi2_symbol_list]
++  test_symbol2
+diff --git a/tests/test-kmi-whitelist.cc b/tests/test-kmi-whitelist.cc
+index bcc5adee433c..d0e08f5a10c9 100644
+--- a/tests/test-kmi-whitelist.cc
++++ b/tests/test-kmi-whitelist.cc
+@@ -57,6 +57,22 @@ const static std::string whitelist_with_duplicate_entry
+     = std::string(abigail::tests::get_src_dir())
+       + "/tests/data/test-kmi-whitelist/whitelist-with-duplicate-entry";
+ 
++const static std::string symbol_list_with_single_entry
++    = std::string(abigail::tests::get_src_dir())
++      + "/tests/data/test-kmi-whitelist/symbol-list-with-single-entry";
++
++const static std::string symbol_list_with_another_single_entry
++    = std::string(abigail::tests::get_src_dir())
++      + "/tests/data/test-kmi-whitelist/symbol-list-with-another-single-entry";
++
++const static std::string symbol_list_with_two_sections
++    = std::string(abigail::tests::get_src_dir())
++      + "/tests/data/test-kmi-whitelist/symbol-list-with-two-sections";
++
++const static std::string symbol_list_with_duplicate_entry
++    = std::string(abigail::tests::get_src_dir())
++      + "/tests/data/test-kmi-whitelist/symbol-list-with-duplicate-entry";
++
+ void
+ test_suppressions_are_consistent(const suppressions_type& suppr,
+ 			    const std::string&	     expr)
+@@ -142,3 +158,65 @@ TEST_CASE("WhitelistWithTwoSections", "[whitelists]")
+   REQUIRE(!suppr.empty());
+   test_suppressions_are_consistent(suppr, "^(test_symbol1|test_symbol2)$");
+ }
++
++TEST_CASE("NoSymbolLists", "[symbol_lists]")
++{
++  const std::vector<std::string> abi_symbol_list_paths;
++  suppressions_type		 suppr =
++      gen_suppr_spec_from_kernel_abi_whitelists(abi_symbol_list_paths);
++  REQUIRE(suppr.empty());
++}
++
++TEST_CASE("SymbolListWithASingleEntry", "[symbol_lists]")
++{
++  std::vector<std::string> abi_symbol_list_paths;
++  abi_symbol_list_paths.push_back(symbol_list_with_single_entry);
++  suppressions_type suppr
++      = gen_suppr_spec_from_kernel_abi_whitelists(abi_symbol_list_paths);
++  REQUIRE(!suppr.empty());
++  test_suppressions_are_consistent(suppr, "^(test_symbol)$");
++}
++
++TEST_CASE("SymbolListWithADuplicateEntry", "[symbol_lists]")
++{
++  std::vector<std::string> abi_symbol_list_paths;
++  abi_symbol_list_paths.push_back(symbol_list_with_duplicate_entry);
++  suppressions_type suppr
++      = gen_suppr_spec_from_kernel_abi_whitelists(abi_symbol_list_paths);
++  REQUIRE(!suppr.empty());
++  test_suppressions_are_consistent(suppr, "^(test_symbol)$");
++}
++
++TEST_CASE("TwoSymbolLists", "[symbol_lists]")
++{
++  std::vector<std::string> abi_symbol_list_paths;
++  abi_symbol_list_paths.push_back(symbol_list_with_single_entry);
++  abi_symbol_list_paths.push_back(symbol_list_with_another_single_entry);
++  suppressions_type suppr =
++      gen_suppr_spec_from_kernel_abi_whitelists(abi_symbol_list_paths);
++  REQUIRE(!suppr.empty());
++  test_suppressions_are_consistent(suppr,
++				   "^(test_another_symbol|test_symbol)$");
++}
++
++TEST_CASE("TwoSymbolListsWithDuplicates", "[symbol_lists]")
++{
++  std::vector<std::string> abi_symbol_list_paths;
++  abi_symbol_list_paths.push_back(symbol_list_with_duplicate_entry);
++  abi_symbol_list_paths.push_back(symbol_list_with_another_single_entry);
++  suppressions_type suppr
++      = gen_suppr_spec_from_kernel_abi_whitelists(abi_symbol_list_paths);
++  REQUIRE(!suppr.empty());
++  test_suppressions_are_consistent(suppr,
++				   "^(test_another_symbol|test_symbol)$");
++}
++
++TEST_CASE("SymbolListWithTwoSections", "[symbol_lists]")
++{
++  std::vector<std::string> abi_symbol_list_paths;
++  abi_symbol_list_paths.push_back(symbol_list_with_two_sections);
++  suppressions_type suppr
++      = gen_suppr_spec_from_kernel_abi_whitelists(abi_symbol_list_paths);
++  REQUIRE(!suppr.empty());
++  test_suppressions_are_consistent(suppr, "^(test_symbol1|test_symbol2)$");
++}

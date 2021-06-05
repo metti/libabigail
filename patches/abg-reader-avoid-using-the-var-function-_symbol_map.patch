@@ -21,7 +21,7 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 10 insertions(+), 21 deletions(-)
 
 diff --git a/src/abg-reader.cc b/src/abg-reader.cc
-index 418c037263aa..9833ea163d74 100644
+index 94ebf3b91db6..a2eeedeb3389 100644
 --- a/src/abg-reader.cc
 +++ b/src/abg-reader.cc
 @@ -1089,8 +1089,7 @@ static elf_symbol_sptr

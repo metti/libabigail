@@ -267,6 +267,10 @@ operator+(const std::string& s1, const interned_string& s2)
 
 namespace ir
 {
+
+static size_t
+hash_as_canonical_type_or_constant(const type_base *t);
+
 /// @brief the location of a token represented in its simplest form.
 /// Instances of this type are to be stored in a sorted vector, so the
 /// type must have proper relational operators.
@@ -1881,12 +1885,13 @@ elf_symbol::add_alias(const elf_symbol_sptr& alias)
 elf_symbol_sptr
 elf_symbol::update_main_symbol(const std::string& name)
 {
-
-  if (!has_aliases() || (is_main_symbol() && get_name() == name))
+  ABG_ASSERT(is_main_symbol());
+  if (!has_aliases() || get_name() == name)
     return get_main_symbol();
 
   // find the new main symbol
   elf_symbol_sptr new_main;
+  // we've already checked this; check the rest of the aliases
   for (elf_symbol_sptr a = get_next_alias(); a.get() != this;
        a = a->get_next_alias())
     if (a->get_name() == name)
@@ -1899,8 +1904,8 @@ elf_symbol::update_main_symbol(const std::string& name)
     return get_main_symbol();
 
   // now update all main symbol references
-  for (elf_symbol_sptr a = get_next_alias();
-       a->get_main_symbol() != new_main;
+  priv_->main_symbol_ = new_main;
+  for (elf_symbol_sptr a = get_next_alias(); a.get() != this;
        a = a->get_next_alias())
     a->priv_->main_symbol_ = new_main;
 
@@ -2806,6 +2811,58 @@ is_ptr_ref_or_qual_type(const type_base *t)
   return false;
 }
 
+/// A functor to sort decls somewhat topologically.  That is, types
+/// are sorted in a way that makes the ones that are defined "first"
+/// to come first.
+///
+/// The topological criteria is a lexicographic sort of the definition
+/// location of the type.  For types that have no location (or the
+/// same location), it's their qualified name that is used for the
+/// lexicographic sort.
+struct decl_topo_comp
+{
+
+  /// The "Less Than" comparison operator of this functor.
+  ///
+  /// @param f the first decl to be considered for the comparison.
+  ///
+  /// @param s the second decl to be considered for the comparison.
+  ///
+  /// @return true iff @p f is less than @p s.
+  bool
+  operator()(const decl_base *f,
+	     const decl_base *s)
+  {
+    if (!!f != !!s)
+      return f && !s;
+
+    if (!f)
+      return false;
+
+    location fl = f->get_location();
+    location sl = s->get_location();
+    if (fl.get_value() != sl.get_value())
+      return fl.get_value() < sl.get_value();
+
+    // We reach this point if location data is useless.
+    return (get_pretty_representation(f, true)
+	    < get_pretty_representation(s, true));
+  }
+
+  /// The "Less Than" comparison operator of this functor.
+  ///
+  /// @param f the first decl to be considered for the comparison.
+  ///
+  /// @param s the second decl to be considered for the comparison.
+  ///
+  /// @return true iff @p f is less than @p s.
+  bool
+  operator()(const decl_base_sptr &f,
+	     const decl_base_sptr &s)
+  {return operator()(f.get(), s.get());}
+
+}; // end struct decl_topo_comp
+
 /// A functor to sort types somewhat topologically.  That is, types
 /// are sorted in a way that makes the ones that are defined "first"
 /// to come first.
@@ -2903,18 +2960,8 @@ struct type_topo_comp
       }
 
     // From this point, fd and sd should be non-nil
-
-    location fl = fd->get_location();
-    location sl = sd->get_location();
-    if (fl.get_value() == sl.get_value())
-      {
-	if (fl)
-	  return fl.expand() < sl.expand();
-	return (get_pretty_representation(f, true)
-		< get_pretty_representation(s, true));
-      }
-
-    return fl.get_value() < sl.get_value();
+    decl_topo_comp decl_comp;
+    return decl_comp(fd, sd);
   }
 }; //end struct type_topo_comp
 
@@ -5909,6 +5956,35 @@ peel_qualified_or_typedef_type(const type_base* type)
   return const_cast<type_base*>(type);
 }
 
+/// Return the leaf underlying type of a qualified or typedef type.
+///
+/// If the underlying type is itself a qualified or typedef type, then
+/// recursively return the first underlying type of that qualified or
+/// typedef type to return the first underlying type that is not a
+/// qualified or typedef type.
+///
+/// If the underlying type is NOT a qualified nor a typedef type, then
+/// just return that underlying type.
+///
+/// @param type the qualified or typedef type to consider.
+///
+/// @return the leaf underlying type.
+type_base_sptr
+peel_qualified_or_typedef_type(const type_base_sptr &t)
+{
+  type_base_sptr type = t;
+  while (is_typedef(type) || is_qualified_type(type))
+    {
+      if (typedef_decl_sptr t = is_typedef(type))
+	type = peel_typedef_type(t);
+
+      if (qualified_type_def_sptr t = is_qualified_type(type))
+	type = peel_qualified_type(t);
+    }
+
+  return type;
+}
+
 /// Return the leaf underlying or pointed-to type node of a @ref
 /// typedef_decl, @ref pointer_type_def or @ref reference_type_def
 /// node.
@@ -5998,6 +6074,226 @@ peel_pointer_or_reference_type(const type_base *type,
   return const_cast<type_base*>(type);
 }
 
+/// Clone an array type.
+///
+/// Note that the element type of the new array is shared witht the
+/// old one.
+///
+/// @param array the array type to clone.
+///
+/// @return a newly built array type.  Note that it needs to be added
+/// to a scope (e.g, using add_decl_to_scope) for its lifetime to be
+/// bound to the one of that scope.  Otherwise, its lifetime is bound
+/// to the lifetime of its containing shared pointer.
+array_type_def_sptr
+clone_array(const array_type_def_sptr& array)
+{
+  vector<array_type_def::subrange_sptr> subranges;
+
+  for (vector<array_type_def::subrange_sptr>::const_iterator i =
+	 array->get_subranges().begin();
+       i != array->get_subranges().end();
+       ++i)
+    {
+      array_type_def::subrange_sptr subrange
+	(new array_type_def::subrange_type(array->get_environment(),
+					   (*i)->get_name(),
+					   (*i)->get_lower_bound(),
+					   (*i)->get_upper_bound(),
+					   (*i)->get_underlying_type(),
+					   (*i)->get_location(),
+					   (*i)->get_language()));
+      subrange->is_infinite((*i)->is_infinite());
+      subranges.push_back(subrange);
+    }
+
+  array_type_def_sptr result
+    (new array_type_def(array->get_element_type(),
+			subranges, array->get_location()));
+
+  return result;
+}
+
+/// Clone a typedef type.
+///
+/// Note that the underlying type of the newly constructed typedef is
+/// shared with the old one.
+///
+/// @param t the typedef to clone.
+///
+/// @return the newly constructed typedef.  Note that it needs to be
+/// added to a scope (e.g, using add_decl_to_scope) for its lifetime
+/// to be bound to the one of that scope.  Otherwise, its lifetime is
+/// bound to the lifetime of its containing shared pointer.
+typedef_decl_sptr
+clone_typedef(const typedef_decl_sptr& t)
+{
+  if (!t)
+    return t;
+
+  typedef_decl_sptr result
+    (new typedef_decl(t->get_name(), t->get_underlying_type(),
+		      t->get_location(), t->get_linkage_name(),
+		      t->get_visibility()));
+  return result;
+}
+
+/// Clone a qualifiend type.
+///
+/// Note that underlying type of the newly constructed qualified type
+/// is shared with the old one.
+///
+/// @param t the qualified type to clone.
+///
+/// @return the newly constructed qualified type.  Note that it needs
+/// to be added to a scope (e.g, using add_decl_to_scope) for its
+/// lifetime to be bound to the one of that scope.  Otherwise, its
+/// lifetime is bound to the lifetime of its containing shared
+/// pointer.
+qualified_type_def_sptr
+clone_qualified_type(const qualified_type_def_sptr& t)
+{
+  if (!t)
+    return t;
+
+  qualified_type_def_sptr result
+    (new qualified_type_def(t->get_underlying_type(),
+			    t->get_cv_quals(), t->get_location()));
+
+  return result;
+}
+
+/// Clone a typedef, an array or a qualified tree.
+///
+/// @param type the typedef, array or qualified tree to clone.  any
+/// order.
+///
+/// @return the cloned type, or NULL if @type was neither a typedef,
+/// array nor a qualified type.
+static type_base_sptr
+clone_typedef_array_qualified_type(type_base_sptr type)
+{
+  if (!type)
+    return type;
+
+  scope_decl* scope = is_decl(type) ? is_decl(type)->get_scope() : 0;
+  type_base_sptr result;
+
+  if (typedef_decl_sptr t = is_typedef(type))
+    result = clone_typedef(is_typedef(t));
+  else if (qualified_type_def_sptr t = is_qualified_type(type))
+    result = clone_qualified_type(t);
+  else if (array_type_def_sptr t = is_array_type(type))
+    result = clone_array(t);
+  else
+    return type_base_sptr();
+
+  if (scope)
+    add_decl_to_scope(is_decl(result), scope);
+
+  return result;
+}
+
+/// Clone a type tree made of an array or a typedef of array.
+///
+/// Note that this can be a tree which root node is a typedef an which
+/// sub-tree can be any arbitrary combination of typedef, qualified
+/// type and arrays.
+///
+/// @param t the array or typedef of qualified array to consider.
+///
+/// @return a clone of @p t.
+type_base_sptr
+clone_array_tree(const type_base_sptr t)
+{
+  ABG_ASSERT(is_typedef_of_array(t) || is_array_type(t));
+
+  scope_decl* scope = is_decl(t)->get_scope();
+  type_base_sptr result = clone_typedef_array_qualified_type(t);
+  ABG_ASSERT(is_typedef_of_array(result) || is_array_type(result));
+
+  type_base_sptr subtree;
+  if (typedef_decl_sptr type = is_typedef(result))
+    {
+      type_base_sptr s =
+	clone_typedef_array_qualified_type(type->get_underlying_type());
+      if (s)
+	{
+	  subtree = s;
+	  type->set_underlying_type(subtree);
+	}
+    }
+  else if (array_type_def_sptr type = is_array_type(result))
+    {
+      type_base_sptr s =
+	clone_typedef_array_qualified_type(type->get_element_type());
+      if (s)
+	{
+	  subtree = s;
+	  type->set_element_type(subtree);
+	}
+    }
+  add_decl_to_scope(is_decl(subtree), scope);
+
+  for (;;)
+    {
+      if (typedef_decl_sptr t = is_typedef(subtree))
+	{
+	  type_base_sptr s =
+	    clone_typedef_array_qualified_type(t->get_underlying_type());
+	  if (s)
+	    {
+	      scope_decl* scope =
+		is_decl(t->get_underlying_type())->get_scope();
+	      ABG_ASSERT(scope);
+	      add_decl_to_scope(is_decl(s), scope);
+	      t->set_underlying_type (s);
+	      subtree = s;
+	    }
+	  else
+	    break;
+	}
+      else if (qualified_type_def_sptr t = is_qualified_type(subtree))
+	{
+	  type_base_sptr s =
+	    clone_typedef_array_qualified_type(t->get_underlying_type());
+	  if (s)
+	    {
+	      scope_decl* scope =
+		is_decl(t->get_underlying_type())->get_scope();
+	      ABG_ASSERT(scope);
+	      add_decl_to_scope(is_decl(s), scope);
+	      t->set_underlying_type(s);
+	      subtree = s;
+	    }
+	  else
+	    break;
+	}
+      else if (array_type_def_sptr t = is_array_type(subtree))
+	{
+	  type_base_sptr e = t->get_element_type();
+	  if (is_typedef(e) || is_qualified_type(e))
+	    {
+	      type_base_sptr s =
+		clone_typedef_array_qualified_type(e);
+	      if (s)
+		{
+		  scope_decl* scope = is_decl(e)->get_scope();
+		  ABG_ASSERT(scope);
+		  add_decl_to_scope(is_decl(s), scope);
+		  t->set_element_type(s);
+		}
+	      else
+		break;
+	    }
+	  break;
+	}
+      else
+	break;
+    }
+  return result;
+}
+
 /// Update the qualified name of a given sub-tree.
 ///
 /// @param d the sub-tree for which to update the qualified name.
@@ -6038,6 +6334,7 @@ canonical_type_hash::operator()(const type_base *l) const
 struct scope_decl::priv
 {
   declarations members_;
+  declarations sorted_members_;
   scopes member_scopes_;
   canonical_type_sptr_set_type canonical_types_;
   type_base_sptrs_type sorted_canonical_types_;
@@ -6104,9 +6401,9 @@ scope_decl::get_sorted_canonical_types() const
 	priv_->sorted_canonical_types_.push_back(*e);
 
       type_topo_comp comp;
-      std::sort(priv_->sorted_canonical_types_.begin(),
-		priv_->sorted_canonical_types_.end(),
-		comp);
+      std::stable_sort(priv_->sorted_canonical_types_.begin(),
+		       priv_->sorted_canonical_types_.end(),
+		       comp);
     }
   return priv_->sorted_canonical_types_;
 }
@@ -6128,6 +6425,29 @@ scope_decl::get_member_decls() const
 scope_decl::declarations&
 scope_decl::get_member_decls()
 {return priv_->members_;}
+
+/// Getter for the sorted member declarations carried by the current
+/// @ref scope_decl.
+///
+/// @return the sorted member declarations carried by the current @ref
+/// scope_decl.  The declarations are sorted topologically.
+const scope_decl::declarations&
+scope_decl::get_sorted_member_decls() const
+{
+  decl_topo_comp comp;
+  if (priv_->sorted_members_.empty())
+    {
+      for (declarations::const_iterator i = get_member_decls().begin();
+	   i != get_member_decls().end();
+	   ++i)
+	priv_->sorted_members_.push_back(*i);
+
+      std::stable_sort(priv_->sorted_members_.begin(),
+		       priv_->sorted_members_.end(),
+		       comp);
+    }
+  return priv_->sorted_members_;
+}
 
 /// Getter for the number of anonymous classes contained in this
 /// scope.
@@ -6918,6 +7238,39 @@ interned_string
 get_type_name(const type_base_sptr& t, bool qualified, bool internal)
 {return get_type_name(t.get(), qualified, internal);}
 
+/// Return the generic internal name of an anonymous type.
+///
+/// For internal purposes, we want to define a generic name for all
+/// anonymous types of a certain kind.  For instance, all anonymous
+/// structs will be have a generic name of "__anonymous_struct__", all
+/// anonymous unions will have a generic name of
+/// "__anonymous_union__", etc.
+///
+/// That generic name can be used as a hash to put all anonymous types
+/// of a certain kind in the same hash table bucket, for instance.
+static interned_string
+get_generic_anonymous_internal_type_name(const decl_base *d)
+{
+  ABG_ASSERT(d);
+
+  const environment *env = d->get_environment();
+
+  interned_string result;
+  if (is_class_type(d))
+    result =
+      env->intern(tools_utils::get_anonymous_struct_internal_name_prefix());
+  else if (is_union_type(d))
+    result =
+      env->intern(tools_utils::get_anonymous_union_internal_name_prefix());
+  else if (is_enum_type(d))
+    result =
+      env->intern(tools_utils::get_anonymous_enum_internal_name_prefix());
+  else
+    ABG_ASSERT_NOT_REACHED;
+
+  return result;
+}
+
 /// Get the name of a given type and return a copy of it.
 ///
 /// @param t the type to consider.
@@ -6942,6 +7295,13 @@ get_type_name(const type_base* t, bool qualified, bool internal)
       ABG_ASSERT(fn_type);
       return fn_type->get_cached_name(internal);
     }
+
+  // All anonymous types of a given kind get to have the same internal
+  // name for internal purpose.  This to allow them to be compared
+  // among themselves during type canonicalization.
+  if (internal && d->get_is_anonymous())
+    return get_generic_anonymous_internal_type_name(d);
+
   if (qualified)
     return d->get_qualified_name(internal);
   return d->get_name();
@@ -8693,13 +9053,41 @@ is_array_of_qualified_element(const array_type_def_sptr& array)
 /// @return true the array @p type iff it's an array to a qualified
 /// element type.
 array_type_def_sptr
-is_array_of_qualified_element(type_base_sptr& type)
+is_array_of_qualified_element(const type_base_sptr& type)
 {
   if (array_type_def_sptr array = is_array_type(type))
     if (is_array_of_qualified_element(array))
       return array;
 
   return array_type_def_sptr();
+}
+
+/// Test if a type is a typedef of an array.
+///
+/// Note that the function looks through qualified and typedefs types
+/// of the underlying type of the current typedef.  In other words, if
+/// we are looking at a typedef of a CV-qualified array, or at a
+/// typedef of a CV-qualified typedef of an array, this function will
+/// still return TRUE.
+///
+/// @param t the type to consider.
+///
+/// @return true if t is a typedef which underlying type is an array.
+/// That array might be either cv-qualified array or a typedef'ed
+/// array, or a combination of both.
+array_type_def_sptr
+is_typedef_of_array(const type_base_sptr& t)
+{
+  array_type_def_sptr result;
+
+  if (typedef_decl_sptr typdef = is_typedef(t))
+    {
+      type_base_sptr u =
+	peel_qualified_or_typedef_type(typdef->get_underlying_type());
+      result = is_array_type(u);
+    }
+
+  return result;
 }
 
 /// Test if a type is an array_type_def::subrange_type.
@@ -13707,9 +14095,16 @@ qualified_type_def::get_cv_quals_string_prefix() const
 {return get_string_representation_of_cv_quals(priv_->cv_quals_);}
 
 /// Getter of the underlying type
-shared_ptr<type_base>
+type_base_sptr
 qualified_type_def::get_underlying_type() const
 {return priv_->underlying_type_.lock();}
+
+/// Setter of the underlying type.
+///
+/// @param t the new underlying type.
+void
+qualified_type_def::set_underlying_type(const type_base_sptr& t)
+{priv_->underlying_type_ = t;}
 
 /// Non-member equality operator for @ref qualified_type_def
 ///
@@ -14461,12 +14856,14 @@ struct array_type_def::subrange_type::priv
 
   priv(bound_value lb, bound_value ub,
        translation_unit::language l = translation_unit::LANG_C11)
-    : lower_bound_(lb), upper_bound_(ub), language_(l)
+    : lower_bound_(lb), upper_bound_(ub),
+      language_(l), infinite_(false)
   {}
 
   priv(bound_value lb, bound_value ub, const type_base_sptr &u,
        translation_unit::language l = translation_unit::LANG_C11)
-    : lower_bound_(lb), upper_bound_(ub), underlying_type_(u), language_(l)
+    : lower_bound_(lb), upper_bound_(ub), underlying_type_(u),
+      language_(l), infinite_(false)
   {}
 };
 
@@ -14488,7 +14885,7 @@ array_type_def::subrange_type::subrange_type(const environment* env,
 					     const string&	name,
 					     bound_value	lower_bound,
 					     bound_value	upper_bound,
-					     type_base_sptr&	underlying_type,
+					     const type_base_sptr& utype,
 					     const location&	loc,
 					     translation_unit::language l)
   : type_or_decl_base(env, ABSTRACT_TYPE_BASE | ABSTRACT_DECL_BASE),
@@ -14497,7 +14894,7 @@ array_type_def::subrange_type::subrange_type(const environment* env,
 	      - lower_bound.get_unsigned_value(),
 	      0),
     decl_base(env, name, loc, ""),
-    priv_(new priv(lower_bound, upper_bound, underlying_type, l))
+    priv_(new priv(lower_bound, upper_bound, utype, l))
 {
   runtime_type_instance(this);
 }
@@ -15878,9 +16275,11 @@ equals(const typedef_decl& l, const typedef_decl& r, change_kind* k)
 
   if (*l.get_underlying_type() != *r.get_underlying_type())
     {
+      // Changes to the underlying type of a typedef are considered
+      // local, a bit like for pointers.
       result = false;
       if (k)
-	*k |= SUBTYPE_CHANGE_KIND;
+	*k |= LOCAL_TYPE_CHANGE_KIND;
       else
 	return false;
     }
@@ -15947,6 +16346,13 @@ typedef_decl::get_pretty_representation(bool internal,
 type_base_sptr
 typedef_decl::get_underlying_type() const
 {return priv_->underlying_type_.lock();}
+
+/// Setter ofthe underlying type of the typedef.
+///
+/// @param t the new underlying type of the typedef.
+void
+typedef_decl::set_underlying_type(const type_base_sptr& t)
+{priv_->underlying_type_ = t;}
 
 /// This implements the ir_traversable_base::traverse pure virtual
 /// function.
@@ -16874,24 +17280,11 @@ equals(const function_type& lhs,
 	  RETURN(result);
       }
 
-  class_decl* lcl = 0, * rcl = 0;
   vector<shared_ptr<function_decl::parameter> >::const_iterator i,j;
-  for (i = lhs.get_first_non_implicit_parm(),
-	 j = rhs.get_first_non_implicit_parm();
-       (i != lhs.get_parameters().end()
-	&& j != rhs.get_parameters().end());
+  for (i = lhs.get_first_parm(), j = rhs.get_first_parm();
+       i != lhs.get_parameters().end() && j != rhs.get_parameters().end();
        ++i, ++j)
     {
-      if (lhs_class)
-	lcl = dynamic_cast<class_decl*>((*i)->get_type().get());
-      if (rhs_class)
-	rcl = dynamic_cast<class_decl*>((*j)->get_type().get());
-      if (lcl && rcl
-	  && lcl == lhs_class
-	  && rcl == rhs_class)
-	// Do not compare the class types of two methods that we are
-	// probably comparing atm; otherwise we can recurse indefinitely.
-	continue;
       if (**i != **j)
 	{
 	  result = false;
@@ -16922,12 +17315,12 @@ equals(const function_type& lhs,
 #undef RETURN
 }
 
-/// Get the parameter of the function.
+/// Get the first parameter of the function.
 ///
 /// If the function is a non-static member function, the parameter
 /// returned is the first one following the implicit 'this' parameter.
 ///
-/// @return the first non implicit parm.
+/// @return the first non implicit parameter of the function.
 function_type::parameters::const_iterator
 function_type::get_first_non_implicit_parm() const
 {
@@ -16943,6 +17336,16 @@ function_type::get_first_non_implicit_parm() const
 
   return i;
 }
+
+/// Get the first parameter of the function.
+///
+/// Note that if the function is a non-static member function, the
+/// parameter returned is the implicit 'this' parameter.
+///
+/// @return the first parameter of the function.
+function_type::parameters::const_iterator
+function_type::get_first_parm() const
+{return get_parameters().begin();}
 
 /// Get the name of the current @ref function_type.
 ///
@@ -20060,20 +20463,7 @@ class_decl::get_pretty_representation(bool internal,
   // if an anonymous class is named by a typedef, then consider that
   // it has a name, which is the typedef name.
   if (get_is_anonymous())
-    {
-      if (internal)
-	{
-	  if (typedef_decl_sptr d = get_naming_typedef())
-	    {
-	      string qualified_name =
-		decl_base::priv_->qualified_parent_name_ + "::" + d->get_name();
-	      return cl + qualified_name;
-	    }
-	}
-      else
-	return get_class_or_union_flat_representation(this, "",
-						      /*one_line=*/true);
-    }
+    return get_class_or_union_flat_representation(this, "",/*one_line=*/true);
 
   string result = cl;
   if (qualified_name)
@@ -20557,53 +20947,45 @@ struct virtual_member_function_less_than
     ABG_ASSERT(get_member_function_is_virtual(f));
     ABG_ASSERT(get_member_function_is_virtual(s));
 
-    if (get_member_function_vtable_offset(f)
-	== get_member_function_vtable_offset(s))
+    ssize_t f_offset = get_member_function_vtable_offset(f);
+    ssize_t s_offset = get_member_function_vtable_offset(s);
+    if (f_offset != s_offset) return f_offset < s_offset;
+
+    string fn, sn;
+
+    // If the functions have symbols, then compare their symbol-id
+    // string.
+    elf_symbol_sptr f_sym = f.get_symbol();
+    elf_symbol_sptr s_sym = s.get_symbol();
+    if ((!f_sym) != (!s_sym)) return !f_sym;
+    if (f_sym && s_sym)
       {
-	string fn, sn;
-
-	// If the functions have symbols, then compare their symbol-id
-	// string.
-	if (f.get_symbol() && s.get_symbol())
-	  {
-	    fn = f.get_symbol()->get_id_string();
-	    sn = s.get_symbol()->get_id_string();
-	  }
-	else if (f.get_symbol())
-	  return false;
-	else if (s.get_symbol())
-	  return true;
-	else
-	  {
-	    // None of the functions have symbols, so compare their
-	    // pretty representation.
-	    if (fn.empty())
-	      {
-		fn = f.get_pretty_representation();
-		sn = s.get_pretty_representation();
-	      }
-	  }
-
-	/// If it's just the file paths that are different then sort
-	/// them too.
-	if (fn == sn)
-	  {
-	    string fn_filepath, sn_filepath;
-	    unsigned line = 0, column = 0;
-	    location fn_loc = f.get_location(), sn_loc = s.get_location();
-	    if (fn_loc)
-	      fn_loc.expand(fn_filepath, line, column);
-	    if (sn_loc)
-	      sn_loc.expand(sn_filepath, line, column);
-
-	    if (!fn_filepath.empty() && !sn_filepath.empty())
-	      return fn_filepath < sn_filepath;
-	  }
-	return fn < sn;
+	fn = f_sym->get_id_string();
+	sn = s_sym->get_id_string();
+	if (fn != sn) return fn < sn;
       }
 
-    return (get_member_function_vtable_offset(f)
-	    < get_member_function_vtable_offset(s));
+    // Try the linkage names (important for destructors).
+    fn = f.get_linkage_name();
+    sn = s.get_linkage_name();
+    if (fn != sn) return fn < sn;
+
+    // None of the functions have symbols or linkage names that
+    // distinguish them, so compare their pretty representation.
+    fn = f.get_pretty_representation();
+    sn = s.get_pretty_representation();
+    if (fn != sn) return fn < sn;
+
+    /// If it's just the file paths that are different then sort them
+    /// too.
+    string fn_filepath, sn_filepath;
+    unsigned line = 0, column = 0;
+    location fn_loc = f.get_location(), sn_loc = s.get_location();
+    if (fn_loc)
+      fn_loc.expand(fn_filepath, line, column);
+    if (sn_loc)
+      sn_loc.expand(sn_filepath, line, column);
+    return fn_filepath < sn_filepath;
   }
 
   /// The less than operator.  First, it sorts the methods by their
@@ -20630,7 +21012,7 @@ static void
 sort_virtual_member_functions(class_decl::member_functions& mem_fns)
 {
   virtual_member_function_less_than lt;
-  std::sort(mem_fns.begin(), mem_fns.end(), lt);
+  std::stable_sort(mem_fns.begin(), mem_fns.end(), lt);
 }
 
 /// Add a member function to the current instance of @ref class_or_union.
@@ -21845,7 +22227,7 @@ union_decl::get_pretty_representation(bool internal,
 				      bool qualified_name) const
 {
   string repr;
-  if (get_is_anonymous() && !internal)
+  if (get_is_anonymous())
     repr = get_class_or_union_flat_representation(this, "",
 						  /*one_line=*/true);
   else
@@ -23051,36 +23433,7 @@ hash_type_or_decl(const type_or_decl_base *tod)
   if (tod == 0)
     ;
   else if (const type_base* t = is_type(tod))
-    {
-      // If the type has a canonical type, then use the pointer value
-      // as a hash.  This is the fastest we can get.
-      if (type_base* ct = t->get_naked_canonical_type())
-	result = reinterpret_cast<size_t>(ct);
-      else if (const class_decl* cl = is_class_type(t))
-	{
-	  if (cl->get_is_declaration_only()
-	      && cl->get_naked_definition_of_declaration())
-	    // The is a declaration-only class, so it has no canonical
-	    // type; but then it's class definition has one.  Let's
-	    // use that one.
-	    return hash_type_or_decl(cl->get_naked_definition_of_declaration());
-	  else
-	    {
-	      // The class really has no canonical type, let's use the
-	      // slow path of hashing the class recursively.  Well
-	      // it's not that slow as the hash value is quickly going
-	      // to result to zero anyway.
-	      type_base::dynamic_hash hash;
-	      result = hash(t);
-	    }
-	}
-      else
-	{
-	  // Let's use the slow path of hashing the class recursively.
-	  type_base::dynamic_hash hash;
-	  result = hash(t);
-	}
-    }
+    result = hash_type(t);
   else if (const decl_base* d = is_decl(tod))
     {
       if (var_decl* v = is_var_decl(d))
@@ -23153,41 +23506,7 @@ hash_type_or_decl(const type_or_decl_base *tod)
 /// @return the resulting hash value.
 size_t
 hash_type(const type_base *t)
-{
-  size_t result = 0;
-
-  // If the type has a canonical type, then use the pointer value
-  // as a hash.  This is the fastest we can get.
-  if (type_base* ct = t->get_naked_canonical_type())
-    result = reinterpret_cast<size_t>(ct);
-  else if (const class_decl* cl = is_class_type(t))
-    {
-      if (cl->get_is_declaration_only()
-	  && cl->get_naked_definition_of_declaration())
-	// The is a declaration-only class, so it has no canonical
-	// type; but then it's class definition has one.  Let's
-	// use that one.
-	return hash_type
-	  (is_class_type(cl->get_naked_definition_of_declaration()));
-      else
-	{
-	  // The class really has no canonical type, let's use the
-	  // slow path of hashing the class recursively.  Well
-	  // it's not that slow as the hash value is quickly going
-	  // to result to zero anyway.
-	  type_base::dynamic_hash hash;
-	  result = hash(t);
-	}
-    }
-  else
-    {
-      // Let's use the slow path of hashing the class recursively.
-      type_base::dynamic_hash hash;
-      result = hash(t);
-    }
-
-  return result;
-}
+{return hash_as_canonical_type_or_constant(t);}
 
 /// Hash an ABI artifact that is either a type of a decl.
 ///
@@ -23197,6 +23516,47 @@ hash_type(const type_base *t)
 size_t
 hash_type_or_decl(const type_or_decl_base_sptr& tod)
 {return hash_type_or_decl(tod.get());}
+
+/// Hash a type by either returning the pointer value of its canonical
+/// type or by returning a constant if the type doesn't have a
+/// canonical type.
+///
+/// This is a subroutine of hash_type.
+///
+/// @param t the type to consider.
+///
+/// @return the hash value.
+static size_t
+hash_as_canonical_type_or_constant(const type_base *t)
+{
+  type_base *canonical_type = 0;
+
+  if (t)
+    canonical_type = t->get_naked_canonical_type();
+
+  if (!canonical_type)
+    {
+      // If the type doesn't have a canonical type, maybe it's because
+      // it's a declaration-only type?  If that's the case, let's try
+      // to get the canonical type of the definition of this
+      // declaration.
+      decl_base *decl = is_decl(t);
+      if (decl
+	  && decl->get_is_declaration_only()
+	  && decl->get_naked_definition_of_declaration())
+	{
+	  type_base *definition =
+	    is_type(decl->get_naked_definition_of_declaration());
+	  ABG_ASSERT(definition);
+	  canonical_type = definition->get_naked_canonical_type();
+	}
+    }
+
+  if (canonical_type)
+    return reinterpret_cast<size_t>(canonical_type);
+
+  return 0xDEADBABE;
+}
 
 /// Test if the pretty representation of a given @ref function_decl is
 /// lexicographically less then the pretty representation of another
@@ -23273,10 +23633,10 @@ types_have_similar_structure(const type_base_sptr& first,
 ///
 /// typedef are resolved to their definitions; their names are ignored.
 ///
-/// Two indirect types (pointers or references) have similar structure
-/// if their underlying types are of the same kind and have the same
-/// name.  In the indirect types case, the size of the underlying type
-/// does not matter.
+/// Two indirect types (pointers, references or arrays) have similar
+/// structure if their underlying types are of the same kind and have
+/// the same name.  In the indirect types case, the size of the
+/// underlying type does not matter.
 ///
 /// Two direct types (i.e, non indirect) have a similar structure if
 /// they have the same kind, name and size.  Two class types have
@@ -23287,7 +23647,9 @@ types_have_similar_structure(const type_base_sptr& first,
 ///
 /// @param second the second type to consider.
 ///
-/// @param indirect_type whether to do an indirect comparison
+/// @param indirect_type if true, then consider @p first and @p
+/// second as being underlying types of indirect types.  Meaning that
+/// their size does'nt matter.
 ///
 /// @return true iff @p first and @p second have similar structures.
 bool
@@ -23316,7 +23678,7 @@ types_have_similar_structure(const type_base* first,
       const pointer_type_def* ty2 = is_pointer_type(second);
       return types_have_similar_structure(ty1->get_pointed_to_type(),
 					  ty2->get_pointed_to_type(),
-					  true);
+					  /*indirect_type=*/true);
     }
 
   // Peel off matching references.
@@ -23327,7 +23689,7 @@ types_have_similar_structure(const type_base* first,
 	return false;
       return types_have_similar_structure(ty1->get_pointed_to_type(),
 					  ty2->get_pointed_to_type(),
-					  true);
+					  /*indirect_type=*/true);
     }
 
   if (const type_decl* ty1 = is_type_decl(first))
@@ -23405,7 +23767,7 @@ types_have_similar_structure(const type_base* first,
 	  || ty1->get_dimension_count() != ty2->get_dimension_count()
 	  || !types_have_similar_structure(ty1->get_element_type(),
 					   ty2->get_element_type(),
-					   indirect_type))
+					   /*indirect_type=*/true))
 	return false;
 
       return true;

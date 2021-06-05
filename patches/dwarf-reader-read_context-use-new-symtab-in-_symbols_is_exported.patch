@@ -18,7 +18,7 @@ Signed-off-by: Matthias Maennich <maennich@google.com>
  1 file changed, 8 insertions(+), 24 deletions(-)
 
 diff --git a/src/abg-dwarf-reader.cc b/src/abg-dwarf-reader.cc
-index 788b167db388..58eb9e92a6d2 100644
+index d6e130ad4a74..b3b7ad88688e 100644
 --- a/src/abg-dwarf-reader.cc
 +++ b/src/abg-dwarf-reader.cc
 @@ -5720,11 +5720,11 @@ public:

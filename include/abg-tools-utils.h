@@ -91,6 +91,10 @@ suppr::type_suppression_sptr
 gen_suppr_spec_from_headers(const string& hdrs_root_dir,
 			    const vector<string>& hdr_files);
 
+suppr::type_suppression_sptr
+gen_suppr_spec_from_headers(const vector<string>& headers_root_dirs,
+			    const vector<string>& header_files);
+
 suppr::suppressions_type
 gen_suppr_spec_from_kernel_abi_whitelists
    (const vector<string>& abi_whitelist_paths);
@@ -218,7 +222,7 @@ enum abidiff_status
   /// Its numerical value is 0.
   ABIDIFF_OK = 0,
 
-  /// This bit is set if there an application error.
+  /// This bit is set if there is an application error.
   ///
   /// Its numerical value is 1.
   ABIDIFF_ERROR = 1,
